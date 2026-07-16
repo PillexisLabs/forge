@@ -1,0 +1,988 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>marketing-analytics · intelligent ad product plan</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0a0a0a;
+      --surface: #111114;
+      --surface-2: #16161a;
+      --hairline: rgba(255, 255, 255, 0.08);
+      --hairline-strong: rgba(255, 255, 255, 0.14);
+      --text: #F5F5F7;
+      --muted: #8a8a92;
+      --dim: #5a5a62;
+      --red: #FF6363;
+      --red-glow: rgba(255, 99, 99, 0.22);
+      --peach: #FFA48A;
+      --green: #6EE7B7;
+      --amber: #FFC773;
+      --blue: #7AB8FF;
+      --radius: 10px;
+      --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      font-size: 15px;
+      line-height: 1.55;
+      -webkit-font-smoothing: antialiased;
+      background-image:
+        radial-gradient(1200px 600px at 80% -10%, rgba(255, 99, 99, 0.08), transparent 60%),
+        radial-gradient(1000px 500px at -10% 30%, rgba(255, 164, 138, 0.05), transparent 60%);
+    }
+
+    .wrap { max-width: 1080px; margin: 0 auto; padding: 64px 32px 120px; }
+
+    /* Hero */
+    .hero { padding: 24px 0 48px; border-bottom: 1px solid var(--hairline); margin-bottom: 48px; }
+    .kicker {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--red);
+      margin-bottom: 20px;
+    }
+    h1 {
+      font-size: 44px;
+      line-height: 1.1;
+      letter-spacing: -0.02em;
+      font-weight: 600;
+      margin: 0 0 20px;
+    }
+    h1 em {
+      font-style: normal;
+      color: var(--peach);
+      background: linear-gradient(90deg, var(--red), var(--peach));
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .lede { font-size: 18px; color: var(--muted); max-width: 720px; }
+    .lede strong { color: var(--text); font-weight: 500; }
+
+    /* North star card */
+    .north-star {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin: 32px 0;
+    }
+    @media (max-width: 780px) { .north-star { grid-template-columns: 1fr; } }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--hairline);
+      border-radius: var(--radius);
+      padding: 24px;
+    }
+    .card:hover { border-color: var(--hairline-strong); }
+
+    .card-label {
+      font-family: var(--mono);
+      font-size: 10.5px;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      color: var(--dim);
+      margin-bottom: 10px;
+    }
+    .card-h {
+      font-size: 20px;
+      font-weight: 600;
+      margin: 0 0 8px;
+      letter-spacing: -0.01em;
+    }
+    .card-h .metric {
+      font-family: var(--mono);
+      color: var(--red);
+      font-weight: 500;
+    }
+
+    /* Sections */
+    section { margin: 64px 0; }
+    h2 {
+      font-size: 28px;
+      font-weight: 600;
+      margin: 0 0 8px;
+      letter-spacing: -0.015em;
+    }
+    h2 .num {
+      display: inline-block;
+      font-family: var(--mono);
+      font-size: 15px;
+      color: var(--red);
+      margin-right: 12px;
+      vertical-align: middle;
+      font-weight: 500;
+    }
+    h3 {
+      font-size: 17px;
+      font-weight: 600;
+      margin: 0 0 6px;
+      letter-spacing: -0.005em;
+    }
+    .sub {
+      color: var(--muted);
+      margin: 0 0 24px;
+      max-width: 720px;
+    }
+
+    /* Aha moment scene */
+    .scene {
+      background: var(--surface);
+      border: 1px solid var(--hairline);
+      border-radius: var(--radius);
+      padding: 32px;
+      display: grid;
+      grid-template-columns: 1fr 1.4fr;
+      gap: 32px;
+      align-items: start;
+    }
+    @media (max-width: 780px) { .scene { grid-template-columns: 1fr; } }
+    .scene-time {
+      font-family: var(--mono);
+      color: var(--dim);
+      font-size: 12px;
+      margin-bottom: 8px;
+      letter-spacing: 0.06em;
+    }
+    .scene-h {
+      font-size: 22px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+    .scene-desc { color: var(--muted); font-size: 14px; }
+
+    /* iPhone-style mock brief */
+    .brief {
+      background: #0f0f12;
+      border: 1px solid var(--hairline);
+      border-radius: 12px;
+      padding: 20px;
+      font-family: var(--mono);
+      font-size: 12.5px;
+      line-height: 1.7;
+      color: #d0d0d5;
+      box-shadow: 0 20px 40px -20px rgba(0,0,0,0.6);
+    }
+    .brief .stamp { color: var(--dim); }
+    .brief .cta { color: var(--red); }
+    .brief .num { color: var(--peach); }
+    .brief .ok { color: var(--green); }
+    .brief hr {
+      border: 0;
+      border-top: 1px solid var(--hairline);
+      margin: 12px 0;
+    }
+
+    /* Timeline */
+    .timeline {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 8px;
+      margin: 32px 0;
+    }
+    @media (max-width: 780px) { .timeline { grid-template-columns: repeat(2, 1fr); } }
+    .tstep {
+      background: var(--surface);
+      border: 1px solid var(--hairline);
+      border-radius: var(--radius);
+      padding: 16px;
+    }
+    .tstep .day {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--red);
+      letter-spacing: 0.08em;
+    }
+    .tstep h4 {
+      font-size: 13px;
+      margin: 6px 0 4px;
+      font-weight: 600;
+    }
+    .tstep p { font-size: 12px; color: var(--muted); margin: 0; }
+
+    /* Phase grid */
+    .phases {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-top: 24px;
+    }
+    @media (max-width: 780px) { .phases { grid-template-columns: 1fr; } }
+
+    .phase {
+      background: var(--surface);
+      border: 1px solid var(--hairline);
+      border-radius: var(--radius);
+      padding: 22px;
+    }
+    .phase .tag {
+      display: inline-block;
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      padding: 3px 8px;
+      border-radius: 4px;
+      background: rgba(255, 99, 99, 0.1);
+      color: var(--red);
+      margin-bottom: 12px;
+    }
+    .phase .tag.done { background: rgba(110, 231, 183, 0.1); color: var(--green); }
+    .phase .tag.blocked { background: rgba(255, 199, 115, 0.1); color: var(--amber); }
+    .phase h3 { font-size: 16px; margin-bottom: 4px; }
+    .phase .est { font-family: var(--mono); font-size: 11px; color: var(--dim); margin-bottom: 12px; }
+    .phase ul { margin: 8px 0 0; padding-left: 18px; color: var(--muted); font-size: 13.5px; }
+    .phase ul li { margin-bottom: 4px; }
+    .phase .accept {
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px dashed var(--hairline);
+      font-size: 12px;
+      color: var(--peach);
+    }
+
+    /* Diagram containers */
+    .diagram {
+      background: var(--surface);
+      border: 1px solid var(--hairline);
+      border-radius: var(--radius);
+      padding: 32px;
+      margin-top: 16px;
+      overflow-x: auto;
+    }
+    .diagram svg { width: 100%; height: auto; display: block; }
+    .diagram-caption {
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid var(--hairline);
+    }
+
+    /* Agent tools grid */
+    .tools {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    @media (max-width: 780px) { .tools { grid-template-columns: 1fr; } }
+    .tool {
+      background: var(--surface-2);
+      border: 1px solid var(--hairline);
+      border-radius: 8px;
+      padding: 14px 16px;
+    }
+    .tool .name { font-family: var(--mono); font-size: 12.5px; color: var(--peach); }
+    .tool .desc { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+    .tool.write { border-left: 2px solid var(--red); }
+    .tool.read  { border-left: 2px solid var(--blue); }
+
+    /* Decision box */
+    .decision {
+      background: linear-gradient(180deg, rgba(255,99,99,0.06), rgba(255,99,99,0));
+      border: 1px solid rgba(255,99,99,0.25);
+      border-radius: var(--radius);
+      padding: 24px;
+      margin: 16px 0;
+    }
+    .decision .verdict {
+      font-family: var(--mono);
+      font-size: 10.5px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--red);
+      margin-bottom: 6px;
+    }
+    .decision .head { font-size: 18px; font-weight: 600; margin-bottom: 6px; }
+    .decision .body { color: var(--muted); font-size: 14px; }
+
+    /* two-col */
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-top: 16px;
+    }
+    @media (max-width: 780px) { .two-col { grid-template-columns: 1fr; } }
+
+    /* Footer */
+    footer {
+      margin-top: 80px;
+      padding-top: 24px;
+      border-top: 1px solid var(--hairline);
+      color: var(--dim);
+      font-family: var(--mono);
+      font-size: 11px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    /* inline chip */
+    .chip {
+      display: inline-block;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--hairline);
+      border-radius: 4px;
+      padding: 1px 6px;
+      font-family: var(--mono);
+      font-size: 11.5px;
+      color: var(--peach);
+    }
+
+    a { color: var(--peach); text-decoration: none; border-bottom: 1px dashed var(--hairline); }
+    a:hover { color: var(--red); }
+
+    /* svg styles */
+    .node-bg { fill: var(--surface-2); stroke: rgba(255,255,255,0.14); stroke-width: 1; }
+    .node-bg-accent { fill: rgba(255,99,99,0.08); stroke: rgba(255,99,99,0.4); stroke-width: 1; }
+    .node-bg-agent  { fill: rgba(122,184,255,0.08); stroke: rgba(122,184,255,0.4); stroke-width: 1; }
+    .node-bg-brain  { fill: rgba(255,164,138,0.08); stroke: rgba(255,164,138,0.4); stroke-width: 1; }
+    .node-t { fill: #F5F5F7; font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 500; }
+    .node-sub { fill: #8a8a92; font-family: 'JetBrains Mono', monospace; font-size: 10px; }
+    .edge { stroke: rgba(255,255,255,0.22); stroke-width: 1; fill: none; }
+    .edge-accent { stroke: var(--red); stroke-width: 1.4; fill: none; }
+    .edge-dashed { stroke: rgba(255,255,255,0.22); stroke-width: 1; stroke-dasharray: 3 3; fill: none; }
+    .edge-label { fill: #8a8a92; font-family: 'JetBrains Mono', monospace; font-size: 10px; }
+    .arrow { fill: rgba(255,255,255,0.4); }
+    .arrow-accent { fill: var(--red); }
+
+  </style>
+</head>
+<body>
+  <div class="wrap">
+
+    <!-- ============ HERO ============ -->
+    <header class="hero">
+      <div class="kicker">marketing-analytics · v2 product plan</div>
+      <h1>Stop looking at ads.<br /><em>Ship the one action that moves CPL today.</em></h1>
+      <p class="lede">
+        Today the dashboard mirrors data. In v2 it becomes an <strong>opinionated ad operator</strong> — surfaces the highest-ROI action every morning, an AI copilot answers "why", and it proves its own value by tracking CPL movement post-action. Not a script. A product.
+      </p>
+    </header>
+
+    <!-- ============ NORTH STAR + AHA ============ -->
+    <div class="north-star">
+      <div class="card">
+        <div class="card-label">North star metric</div>
+        <div class="card-h">₹ cost per booked call &nbsp;<span class="metric">↓</span></div>
+        <p style="color: var(--muted); margin: 8px 0 0; font-size: 14px;">
+          Cal.com <span class="chip">Schedule</span> event is the only conversion that matters. Today: <span class="chip">₹1,650</span>. Target: <span class="chip">₹800</span>. Every rule, every insight, every agent action is judged on whether it moves this one number.
+        </p>
+      </div>
+      <div class="card">
+        <div class="card-label">North star for the product</div>
+        <div class="card-h">Anurag opens the dashboard <em style="font-style:normal;color:var(--peach)">before</em> Ads Manager.</div>
+        <p style="color: var(--muted); margin: 8px 0 0; font-size: 14px;">
+          The dashboard wins when it becomes the default morning surface for ad decisions — because it says the specific action and Ads Manager doesn't.
+        </p>
+      </div>
+    </div>
+
+    <!-- ============ AHA MOMENT ============ -->
+    <section>
+      <h2><span class="num">01</span>The aha moment</h2>
+      <p class="sub">A concrete scene. When this happens, the product has proven itself.</p>
+
+      <div class="scene">
+        <div>
+          <div class="scene-time">Tuesday · 07:12 IST</div>
+          <div class="scene-h">First brief lands.<br />One click. One action.</div>
+          <p class="scene-desc">
+            Anurag hasn't opened Ads Manager. His phone shows a Forge-style morning card. He reads it in 20 seconds. He clicks <span class="chip">Do it</span>. The dashboard pauses Ad 04 and duplicates Ad 05 into an isolated set — via Meta API, with confirmation. Three days later the same brief opens with: <em style="font-style:normal;color:var(--green)">"That action dropped CPL from ₹1,650 → ₹850. +8 Schedules this week."</em>
+          </p>
+          <p class="scene-desc" style="margin-top:12px;color:var(--peach);font-size:13px;">
+            The aha moment is not the brief. It's the <strong>second</strong> brief — the one that shows the first one worked.
+          </p>
+        </div>
+
+        <div class="brief">
+          <div class="stamp">▸ ad-ops copilot · 07:05 · 3 days spend ₹4,950</div>
+          <hr />
+          <div><span class="cta">1. PAUSE</span> Ad 04 <span class="stamp">/ CTR 0.8%, quality "below avg"</span></div>
+          <div style="color:var(--muted);margin-left:16px;">→ saves <span class="num">₹1,020/wk</span>, no Schedules lost</div>
+          <br />
+          <div><span class="cta">2. FUND</span> Ad 05 · AI Prompts</div>
+          <div style="color:var(--muted);margin-left:16px;">→ 3/4 Schedules from &lt;10% of spend</div>
+          <div style="color:var(--muted);margin-left:16px;">→ isolate + set ₹400/day, expected <span class="num">−₹640</span> CPL</div>
+          <br />
+          <div><span class="cta">3. EXCLUDE</span> Audience Network</div>
+          <div style="color:var(--muted);margin-left:16px;">→ Jun 27 spike: 40% spend, 0 Schedules</div>
+          <hr />
+          <div class="stamp">last week's actions:</div>
+          <div><span class="ok">✓</span> paused Ad 02 → CPL 1,650 → <span class="num">1,180</span></div>
+          <div><span class="ok">✓</span> excluded age 55+ → CTR 2.1% → <span class="num">2.9%</span></div>
+          <hr />
+          <div class="stamp">reply "why 2" to inspect · "brief tomorrow off" to snooze</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ SYSTEM ARCHITECTURE ============ -->
+    <section>
+      <h2><span class="num">02</span>System architecture</h2>
+      <p class="sub">Sync path stays the same. New layer: the intelligence stack sitting between raw data and the human.</p>
+
+      <div class="diagram">
+        <svg viewBox="0 0 960 480" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="arrow" /></marker>
+            <marker id="ahR" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="arrow-accent" /></marker>
+          </defs>
+
+          <!-- Row 1: sources -->
+          <g>
+            <rect x="30"  y="30" width="140" height="52" rx="8" class="node-bg" />
+            <text x="100" y="55" text-anchor="middle" class="node-t">Meta Marketing API</text>
+            <text x="100" y="72" text-anchor="middle" class="node-sub">/insights + breakdowns</text>
+
+            <rect x="200" y="30" width="140" height="52" rx="8" class="node-bg" />
+            <text x="270" y="55" text-anchor="middle" class="node-t">GA4 Data API</text>
+            <text x="270" y="72" text-anchor="middle" class="node-sub">sessions, sources</text>
+
+            <rect x="370" y="30" width="140" height="52" rx="8" class="node-bg" />
+            <text x="440" y="55" text-anchor="middle" class="node-t">Cal.com webhook</text>
+            <text x="440" y="72" text-anchor="middle" class="node-sub">Schedule → CAPI</text>
+
+            <rect x="540" y="30" width="140" height="52" rx="8" class="node-bg" />
+            <text x="610" y="55" text-anchor="middle" class="node-t">Meta Datasets</text>
+            <text x="610" y="72" text-anchor="middle" class="node-sub">EMQ, quality rankings</text>
+
+            <rect x="710" y="30" width="220" height="52" rx="8" class="node-bg" />
+            <text x="820" y="55" text-anchor="middle" class="node-t">Gemini 2.x (via keys/.env)</text>
+            <text x="820" y="72" text-anchor="middle" class="node-sub">creative vision + copy analysis</text>
+          </g>
+
+          <!-- edges to Postgres -->
+          <path d="M 100 82 C 100 120, 400 130, 480 148" class="edge" marker-end="url(#ah)"/>
+          <path d="M 270 82 C 270 115, 420 130, 480 148" class="edge" marker-end="url(#ah)"/>
+          <path d="M 440 82 L 480 148" class="edge" marker-end="url(#ah)"/>
+          <path d="M 610 82 C 610 115, 500 130, 480 148" class="edge" marker-end="url(#ah)"/>
+
+          <!-- Row 2: sync + postgres -->
+          <g>
+            <rect x="330" y="150" width="300" height="60" rx="8" class="node-bg" />
+            <text x="480" y="176" text-anchor="middle" class="node-t">sync worker (Next.js + launchd)</text>
+            <text x="480" y="196" text-anchor="middle" class="node-sub">14-day lookback · no-clobber · debug_meta_actions</text>
+          </g>
+
+          <path d="M 480 210 L 480 240" class="edge" marker-end="url(#ah)"/>
+
+          <g>
+            <rect x="280" y="242" width="400" height="70" rx="8" class="node-bg-accent" />
+            <text x="480" y="270" text-anchor="middle" class="node-t">Postgres · pillexis-analytics-pg :5433</text>
+            <text x="480" y="290" text-anchor="middle" class="node-sub">daily_summary · meta_ads_daily · meta_placements_daily</text>
+            <text x="480" y="303" text-anchor="middle" class="node-sub">insights_history · meta_emq_daily · debug_meta_actions</text>
+          </g>
+
+          <!-- Row 3: intelligence layer -->
+          <path d="M 380 312 L 240 355" class="edge-accent" marker-end="url(#ahR)"/>
+          <path d="M 480 312 L 480 355" class="edge-accent" marker-end="url(#ahR)"/>
+          <path d="M 580 312 L 720 355" class="edge-accent" marker-end="url(#ahR)"/>
+
+          <g>
+            <rect x="100" y="358" width="280" height="60" rx="8" class="node-bg-accent" />
+            <text x="240" y="384" text-anchor="middle" class="node-t">Insight engine v2</text>
+            <text x="240" y="402" text-anchor="middle" class="node-sub">typed rules · severity · evidence</text>
+
+            <rect x="390" y="358" width="180" height="60" rx="8" class="node-bg-accent" />
+            <text x="480" y="384" text-anchor="middle" class="node-t">Creative diagnostic</text>
+            <text x="480" y="402" text-anchor="middle" class="node-sub">4-level funnel</text>
+
+            <rect x="580" y="358" width="280" height="60" rx="8" class="node-bg-agent" />
+            <text x="720" y="384" text-anchor="middle" class="node-t">Ad Ops Copilot (AI agent)</text>
+            <text x="720" y="402" text-anchor="middle" class="node-sub">brief · chat · guarded action</text>
+          </g>
+
+          <!-- Row 4: surfaces -->
+          <path d="M 240 418 L 240 445" class="edge" marker-end="url(#ah)"/>
+          <path d="M 480 418 L 480 445" class="edge" marker-end="url(#ah)"/>
+          <path d="M 720 418 L 720 445" class="edge" marker-end="url(#ah)"/>
+
+          <g>
+            <rect x="120" y="448" width="240" height="26" rx="6" class="node-bg" />
+            <text x="240" y="465" text-anchor="middle" class="node-t">/ dashboard (web)</text>
+
+            <rect x="380" y="448" width="200" height="26" rx="6" class="node-bg" />
+            <text x="480" y="465" text-anchor="middle" class="node-t">/ads route (web)</text>
+
+            <rect x="600" y="448" width="240" height="26" rx="6" class="node-bg" />
+            <text x="720" y="465" text-anchor="middle" class="node-t">morning brief → email / Forge</text>
+          </g>
+        </svg>
+        <div class="diagram-caption">
+          Everything above <span class="chip">Postgres</span> already exists. Everything below the accent line is new: typed rules, per-ad diagnostic, and the AI copilot that turns firing rules into a ranked brief. The copilot writes back to <span class="chip">insights_history</span> so we can measure it.
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ PHASES ============ -->
+    <section>
+      <h2><span class="num">03</span>Phases</h2>
+      <p class="sub">Ordered by ROI. Every phase ships something usable — the plan is a chain of releases, not a big-bang.</p>
+
+      <div class="phases">
+        <div class="phase">
+          <span class="tag">phase 0 · 30 min</span>
+          <h3>Confirm the alias</h3>
+          <div class="est">gate for phase 1</div>
+          <ul>
+            <li>Run /insights debug pull for Jun 25–Jul 1</li>
+            <li>Dump raw <code style="color:var(--peach);font-family:var(--mono);font-size:12px">actions[]</code>, find which action_type = 4</li>
+            <li>Record the correct alias(es)</li>
+          </ul>
+          <div class="accept">Accept: we know the exact string(s) meta returns Schedules under.</div>
+        </div>
+
+        <div class="phase">
+          <span class="tag">phase 1 · 3–4 h</span>
+          <h3>Signal integrity</h3>
+          <div class="est">unblocks everything downstream</div>
+          <ul>
+            <li>Multi-alias <code style="color:var(--peach);font-family:var(--mono);font-size:12px">SCHEDULE_ACTION_ALIASES</code>, take max not sum</li>
+            <li>Explicit 7d_click/1d_view attribution windows</li>
+            <li>New <span class="chip">debug_meta_actions</span> audit table</li>
+            <li>Sync lookback 3 → 14 days</li>
+            <li>Schema: <span class="chip">target_cpl_inr</span>, <span class="chip">daily_budget_inr</span></li>
+          </ul>
+          <div class="accept">Accept: DB and Meta UI agree within ±1 for 7-day window.</div>
+        </div>
+
+        <div class="phase">
+          <span class="tag">phase 2 · 4–6 h</span>
+          <h3>Insight engine v2</h3>
+          <div class="est">the language of the product</div>
+          <ul>
+            <li>Typed <span class="chip">Insight</span> schema (severity, reason, action, evidence)</li>
+            <li>Migrate 7 existing rules to the new shape</li>
+            <li>Add 7 Bucket A rules (attribution, junk traffic, under-funded winner, zero-delivery, outlier, CPL trend, CPC anomaly)</li>
+            <li>New <span class="chip">insights_history</span> table</li>
+          </ul>
+          <div class="accept">Accept: 14 rules firing on real data, every card has a specific action.</div>
+        </div>
+
+        <div class="phase">
+          <span class="tag">phase 3 · 1 day</span>
+          <h3>Bucket C data pulls</h3>
+          <div class="est">unlocks phase 4</div>
+          <ul>
+            <li>Meta quality/engagement/conversion rankings per ad</li>
+            <li>Placement breakdown → <span class="chip">meta_placements_daily</span></li>
+            <li>Age/gender breakdown (optional)</li>
+            <li>EMQ from Datasets → <span class="chip">meta_emq_daily</span></li>
+          </ul>
+          <div class="accept">Accept: 4 new tables populated, no-clobber preserved.</div>
+        </div>
+
+        <div class="phase">
+          <span class="tag">phase 4 · 1–2 days</span>
+          <h3>Creative intelligence</h3>
+          <div class="est">the differentiator vs Madgicx et al</div>
+          <ul>
+            <li>Per-ad 4-level diagnostic (Attention / Persuasion / Book / Sustainability)</li>
+            <li>Weakest-link + quantified scope-of-improvement</li>
+            <li>Gemini visual analysis (cached per creative_hash)</li>
+            <li>Dedicated <span class="chip">/ads</span> route</li>
+          </ul>
+          <div class="accept">Accept: each ad has a card that names the weakest level and the expected delta.</div>
+        </div>
+
+        <div class="phase">
+          <span class="tag">phase 5 · half day</span>
+          <h3>Outcome tracking</h3>
+          <div class="est">closes the loop — makes the product falsifiable</div>
+          <ul>
+            <li>Card actions: <span class="chip">Did this</span> / <span class="chip">Ignored</span> / <span class="chip">Snooze 7d</span></li>
+            <li>Weekly ΔCPL join: insights_history × daily_summary</li>
+            <li>"You acted on M/N; avg improvement ₹X" widget</li>
+            <li>Rule self-retires if its own impact ≤ 0 for 30d</li>
+          </ul>
+          <div class="accept">Accept: dashboard can quote its own ROAS in ₹.</div>
+        </div>
+
+        <div class="phase">
+          <span class="tag">phase 6 · 1–2 days</span>
+          <h3>Ad Ops Copilot (AI agent)</h3>
+          <div class="est">the aha-moment delivery vehicle</div>
+          <ul>
+            <li>Morning brief (Haiku 4.5) → email/Forge card at 07:05</li>
+            <li>Chat panel in dashboard (Opus for reasoning)</li>
+            <li>Guarded action tools: pause / exclude / duplicate</li>
+            <li>Every action logged with <span class="chip">source: agent</span></li>
+          </ul>
+          <div class="accept">Accept: Anurag opens the brief before Ads Manager for 5 days in a row.</div>
+        </div>
+
+        <div class="phase">
+          <span class="tag blocked">decisions open</span>
+          <h3>Two calls needed</h3>
+          <div class="est">blocks phase 4 + 6</div>
+          <ul>
+            <li>UI: inline on <span class="chip">/</span> vs dedicated <span class="chip">/ads</span> — recommend the latter</li>
+            <li>Gemini primary use case: creative visual analysis — recommend it as first ship</li>
+          </ul>
+          <div class="accept">Accept: two answers, then Phase 4 begins.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ INSIGHT SCHEMA DIAGRAM ============ -->
+    <section>
+      <h2><span class="num">04</span>The insight schema</h2>
+      <p class="sub">The one non-negotiable rule from memory: every insight must carry all six fields. If it can't, it's not an insight — it's a chart.</p>
+
+      <div class="diagram">
+        <svg viewBox="0 0 960 300" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <marker id="ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="arrow" /></marker>
+          </defs>
+
+          <!-- inputs -->
+          <g>
+            <rect x="20" y="30" width="160" height="40" rx="6" class="node-bg" />
+            <text x="100" y="55" text-anchor="middle" class="node-t">daily_summary</text>
+
+            <rect x="20" y="90" width="160" height="40" rx="6" class="node-bg" />
+            <text x="100" y="115" text-anchor="middle" class="node-t">meta_ads_daily</text>
+
+            <rect x="20" y="150" width="160" height="40" rx="6" class="node-bg" />
+            <text x="100" y="175" text-anchor="middle" class="node-t">meta_placements_daily</text>
+
+            <rect x="20" y="210" width="160" height="40" rx="6" class="node-bg" />
+            <text x="100" y="235" text-anchor="middle" class="node-t">meta_emq_daily</text>
+          </g>
+
+          <!-- rule -->
+          <path d="M 180 50  L 250 145" class="edge" marker-end="url(#ah2)" />
+          <path d="M 180 110 L 250 148" class="edge" marker-end="url(#ah2)" />
+          <path d="M 180 170 L 250 152" class="edge" marker-end="url(#ah2)" />
+          <path d="M 180 230 L 250 155" class="edge" marker-end="url(#ah2)" />
+
+          <rect x="255" y="115" width="200" height="80" rx="8" class="node-bg-accent" />
+          <text x="355" y="145" text-anchor="middle" class="node-t">Rule</text>
+          <text x="355" y="163" text-anchor="middle" class="node-sub">id · category · severity</text>
+          <text x="355" y="177" text-anchor="middle" class="node-sub">thresholds · rolling windows</text>
+
+          <path d="M 455 155 L 510 155" class="edge-accent" marker-end="url(#ah2)" />
+
+          <!-- typed insight -->
+          <rect x="510" y="60" width="430" height="200" rx="10" class="node-bg-brain" />
+          <text x="525" y="88" class="node-t" style="font-weight:600;font-size:13px">Insight</text>
+          <text x="525" y="112" class="node-sub" style="fill:var(--peach)">severity: 'critical' | 'high' | 'medium' | 'low'</text>
+          <text x="525" y="132" class="node-sub" style="fill:var(--peach)">category: attribution | budget | creative | audience | trend</text>
+          <text x="525" y="152" class="node-sub" style="fill:var(--peach)">title: 'Ad 04 CTR 0.8% vs account avg 2.4%'</text>
+          <text x="525" y="172" class="node-sub" style="fill:var(--peach)">reason: 'Persuasion dropped after Jun 27 spike'</text>
+          <text x="525" y="192" class="node-sub" style="fill:var(--peach)">action: 'Pause Ad 04, redistribute ₹200/day to Ad 05'</text>
+          <text x="525" y="212" class="node-sub" style="fill:var(--peach)">evidence: { ad_id, rows[7d], p50_ctr, ranking }</text>
+          <text x="525" y="232" class="node-sub" style="fill:var(--peach)">firedAt: 2026-07-03T07:00:00+05:30</text>
+
+          <!-- to history + ui -->
+          <path d="M 725 260 L 725 285" class="edge" marker-end="url(#ah2)" />
+          <text x="600" y="278" class="edge-label">→ insights_history</text>
+          <text x="770" y="278" class="edge-label">→ UI card · brief · chat</text>
+        </svg>
+        <div class="diagram-caption">
+          Rules fire on Postgres rows. Output is a typed <span class="chip">Insight</span>. The typed object is what flows to UI cards, the morning brief, the chat agent's context, and <span class="chip">insights_history</span> for outcome tracking. One shape, every surface.
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ CREATIVE FUNNEL ============ -->
+    <section>
+      <h2><span class="num">05</span>Creative diagnostic funnel</h2>
+      <p class="sub">Per-ad, four checkpoints. The lowest-scoring level is the weakest link. Gemini looks at that level's creative and says why.</p>
+
+      <div class="diagram">
+        <svg viewBox="0 0 960 320" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <marker id="ah3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="arrow" /></marker>
+          </defs>
+
+          <!-- levels -->
+          <g>
+            <rect x="30"  y="40" width="200" height="230" rx="10" class="node-bg" />
+            <text x="130" y="70"  text-anchor="middle" class="node-t" style="font-weight:600">1. Attention</text>
+            <text x="130" y="92"  text-anchor="middle" class="node-sub">impressions</text>
+            <text x="130" y="108" text-anchor="middle" class="node-sub">CPM</text>
+            <text x="130" y="124" text-anchor="middle" class="node-sub">quality_ranking</text>
+            <text x="130" y="152" text-anchor="middle" class="node-sub" style="fill:var(--peach)">"is delivery healthy?"</text>
+
+            <rect x="250" y="40" width="200" height="230" rx="10" class="node-bg" />
+            <text x="350" y="70"  text-anchor="middle" class="node-t" style="font-weight:600">2. Persuasion</text>
+            <text x="350" y="92"  text-anchor="middle" class="node-sub">CTR</text>
+            <text x="350" y="108" text-anchor="middle" class="node-sub">engagement_rate_rank</text>
+            <text x="350" y="124" text-anchor="middle" class="node-sub">time on site (GA)</text>
+            <text x="350" y="152" text-anchor="middle" class="node-sub" style="fill:var(--peach)">"do viewers click?"</text>
+
+            <rect x="470" y="40" width="200" height="230" rx="10" class="node-bg" />
+            <text x="570" y="70"  text-anchor="middle" class="node-t" style="font-weight:600">3. Book</text>
+            <text x="570" y="92"  text-anchor="middle" class="node-sub">schedules / click</text>
+            <text x="570" y="108" text-anchor="middle" class="node-sub">conversion_rate_rank</text>
+            <text x="570" y="124" text-anchor="middle" class="node-sub">CPL vs target</text>
+            <text x="570" y="152" text-anchor="middle" class="node-sub" style="fill:var(--peach)">"does traffic convert?"</text>
+
+            <rect x="690" y="40" width="240" height="230" rx="10" class="node-bg" />
+            <text x="810" y="70"  text-anchor="middle" class="node-t" style="font-weight:600">4. Sustainability</text>
+            <text x="810" y="92"  text-anchor="middle" class="node-sub">frequency</text>
+            <text x="810" y="108" text-anchor="middle" class="node-sub">7-day CTR trend</text>
+            <text x="810" y="124" text-anchor="middle" class="node-sub">audience saturation</text>
+            <text x="810" y="152" text-anchor="middle" class="node-sub" style="fill:var(--peach)">"is it fatiguing?"</text>
+          </g>
+
+          <!-- flow arrows -->
+          <path d="M 230 200 L 250 200" class="edge" marker-end="url(#ah3)" />
+          <path d="M 450 200 L 470 200" class="edge" marker-end="url(#ah3)" />
+          <path d="M 670 200 L 690 200" class="edge" marker-end="url(#ah3)" />
+
+          <!-- p50 bars mock -->
+          <g>
+            <line x1="60"  y1="240" x2="200" y2="240" class="edge-dashed" />
+            <line x1="280" y1="240" x2="420" y2="240" class="edge-dashed" />
+            <line x1="500" y1="240" x2="640" y2="240" class="edge-dashed" />
+            <line x1="720" y1="240" x2="900" y2="240" class="edge-dashed" />
+            <text x="60"  y="258" class="node-sub">P50 account: OK</text>
+            <text x="280" y="258" class="node-sub" style="fill:var(--red)">P28 · weakest</text>
+            <text x="500" y="258" class="node-sub">P52 account: OK</text>
+            <text x="720" y="258" class="node-sub">P60 account: OK</text>
+          </g>
+
+          <!-- gemini path -->
+          <path d="M 350 275 L 350 300" class="edge-accent" marker-end="url(#ah3)" />
+          <text x="360" y="295" class="edge-label" style="fill:var(--peach)">→ Gemini: analyse ad 04's headline + image, name the persuasion gap</text>
+        </svg>
+        <div class="diagram-caption">
+          Each level scored as a percentile vs account. Weakest level (here: <em style="color:var(--red)">Persuasion, P28</em>) is what Gemini gets. The card then quantifies: <em style="color:var(--peach)">"move Persuasion from P28 to P50 → +12 Schedules/wk at current spend."</em>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ AGENT ARCHITECTURE ============ -->
+    <section>
+      <h2><span class="num">06</span>The AI agent — Ad Ops Copilot</h2>
+      <p class="sub">One agent, three modes. Reads the same typed insights the UI reads. Writes only through guarded, confirmed tools.</p>
+
+      <div class="diagram">
+        <svg viewBox="0 0 960 400" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <marker id="ah4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="arrow" /></marker>
+            <marker id="ah4r" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="arrow-accent" /></marker>
+          </defs>
+
+          <!-- brain -->
+          <rect x="360" y="30" width="240" height="70" rx="10" class="node-bg-brain" />
+          <text x="480" y="58"  text-anchor="middle" class="node-t" style="font-weight:600">Ad Ops Copilot</text>
+          <text x="480" y="76"  text-anchor="middle" class="node-sub">Haiku 4.5 (brief) · Opus (chat)</text>
+          <text x="480" y="92"  text-anchor="middle" class="node-sub">memory rule aware · never says "spend more"</text>
+
+          <!-- read tools -->
+          <g>
+            <rect x="30" y="140" width="180" height="46" rx="8" class="node-bg" style="fill:rgba(122,184,255,0.08)" />
+            <text x="120" y="163" text-anchor="middle" class="node-t">read: sql_query</text>
+            <text x="120" y="178" text-anchor="middle" class="node-sub">read-only Postgres</text>
+
+            <rect x="30" y="196" width="180" height="46" rx="8" class="node-bg" style="fill:rgba(122,184,255,0.08)" />
+            <text x="120" y="219" text-anchor="middle" class="node-t">read: meta_live_insights</text>
+            <text x="120" y="234" text-anchor="middle" class="node-sub">fresh /insights pull</text>
+
+            <rect x="30" y="252" width="180" height="46" rx="8" class="node-bg" style="fill:rgba(122,184,255,0.08)" />
+            <text x="120" y="275" text-anchor="middle" class="node-t">read: gemini_analyze</text>
+            <text x="120" y="290" text-anchor="middle" class="node-sub">creative visual + copy</text>
+
+            <rect x="30" y="308" width="180" height="46" rx="8" class="node-bg" style="fill:rgba(122,184,255,0.08)" />
+            <text x="120" y="331" text-anchor="middle" class="node-t">read: recall_insight_history</text>
+            <text x="120" y="346" text-anchor="middle" class="node-sub">"did this action work?"</text>
+          </g>
+
+          <!-- write tools -->
+          <g>
+            <rect x="750" y="140" width="180" height="46" rx="8" class="node-bg" style="fill:rgba(255,99,99,0.08)" />
+            <text x="840" y="163" text-anchor="middle" class="node-t">write: pause_ad</text>
+            <text x="840" y="178" text-anchor="middle" class="node-sub">confirm modal · logs</text>
+
+            <rect x="750" y="196" width="180" height="46" rx="8" class="node-bg" style="fill:rgba(255,99,99,0.08)" />
+            <text x="840" y="219" text-anchor="middle" class="node-t">write: exclude_placement</text>
+            <text x="840" y="234" text-anchor="middle" class="node-sub">campaign scope</text>
+
+            <rect x="750" y="252" width="180" height="46" rx="8" class="node-bg" style="fill:rgba(255,99,99,0.08)" />
+            <text x="840" y="275" text-anchor="middle" class="node-t">write: duplicate_ad_set</text>
+            <text x="840" y="290" text-anchor="middle" class="node-sub">isolate winners</text>
+
+            <rect x="750" y="308" width="180" height="46" rx="8" class="node-bg" style="fill:rgba(255,99,99,0.08)" />
+            <text x="840" y="331" text-anchor="middle" class="node-t">write: note_outcome</text>
+            <text x="840" y="346" text-anchor="middle" class="node-sub">closes ROAS loop</text>
+          </g>
+
+          <!-- edges -->
+          <path d="M 210 163 L 360 90" class="edge" marker-end="url(#ah4)" />
+          <path d="M 210 219 L 360 90" class="edge" marker-end="url(#ah4)" />
+          <path d="M 210 275 L 360 90" class="edge" marker-end="url(#ah4)" />
+          <path d="M 210 331 L 360 90" class="edge" marker-end="url(#ah4)" />
+
+          <path d="M 600 90 L 750 163" class="edge-accent" marker-end="url(#ah4r)" />
+          <path d="M 600 90 L 750 219" class="edge-accent" marker-end="url(#ah4r)" />
+          <path d="M 600 90 L 750 275" class="edge-accent" marker-end="url(#ah4r)" />
+          <path d="M 600 90 L 750 331" class="edge-accent" marker-end="url(#ah4r)" />
+
+          <!-- three modes -->
+          <g>
+            <rect x="270" y="128" width="140" height="30" rx="6" class="node-bg" />
+            <text x="340" y="147" text-anchor="middle" class="node-t">mode: brief</text>
+
+            <rect x="410" y="128" width="140" height="30" rx="6" class="node-bg" />
+            <text x="480" y="147" text-anchor="middle" class="node-t">mode: chat</text>
+
+            <rect x="550" y="128" width="140" height="30" rx="6" class="node-bg" />
+            <text x="620" y="147" text-anchor="middle" class="node-t">mode: act</text>
+          </g>
+          <path d="M 340 100 L 340 128" class="edge-dashed" />
+          <path d="M 480 100 L 480 128" class="edge-dashed" />
+          <path d="M 620 100 L 620 128" class="edge-dashed" />
+
+          <!-- outputs at bottom -->
+          <g>
+            <rect x="270" y="360" width="140" height="30" rx="6" class="node-bg" />
+            <text x="340" y="379" text-anchor="middle" class="node-t">07:05 email/Forge</text>
+
+            <rect x="410" y="360" width="140" height="30" rx="6" class="node-bg" />
+            <text x="480" y="379" text-anchor="middle" class="node-t">chat panel /</text>
+
+            <rect x="550" y="360" width="140" height="30" rx="6" class="node-bg" />
+            <text x="620" y="379" text-anchor="middle" class="node-t">Meta Marketing API</text>
+          </g>
+          <path d="M 340 158 L 340 360" class="edge-dashed" />
+          <path d="M 480 158 L 480 360" class="edge-dashed" />
+          <path d="M 620 158 L 620 360" class="edge-dashed" />
+        </svg>
+        <div class="diagram-caption">
+          Reads are open. Writes are guarded — always confirmation-modal, always logged with <span class="chip">source: agent</span>. The agent is not autonomous. It's an operator that drafts and Anurag ships.
+        </div>
+      </div>
+
+      <h3 style="margin-top:32px;margin-bottom:12px;">Why this specific agent shape</h3>
+      <div class="tools">
+        <div class="tool read">
+          <div class="name">not a chatbot bolted on</div>
+          <div class="desc">The agent reads the same typed insights the UI reads. No parallel truth. If the rule says X, the agent explains X — never invents a new diagnosis.</div>
+        </div>
+        <div class="tool read">
+          <div class="name">not autonomous</div>
+          <div class="desc">Zero unconfirmed writes. Every action passes through a confirm modal. Meta ads_management scope stays local. This is a copilot, not autopilot.</div>
+        </div>
+        <div class="tool write">
+          <div class="name">closes the loop</div>
+          <div class="desc">Every agent-executed action writes to <span class="chip">insights_history</span> with <span class="chip">source: agent</span>. Phase 5's ΔCPL join then proves whether the agent's advice moved the number.</div>
+        </div>
+        <div class="tool write">
+          <div class="name">two models, cost-aware</div>
+          <div class="desc">Haiku 4.5 for the daily brief (fast, cheap, deterministic-ish). Opus for chat where reasoning matters. Gemini for vision because you already paid for the key.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ NATIVE VS WEB ============ -->
+    <section>
+      <h2><span class="num">07</span>Native app or web app?</h2>
+      <p class="sub">You already have both surfaces in the stack. The question is which one earns a new build.</p>
+
+      <div class="decision">
+        <div class="verdict">verdict</div>
+        <div class="head">Web (stay on Next.js). Deliver the morning brief through Forge or email. No new native surface.</div>
+        <div class="body">The dashboard, chat, action tools, and outcome tracking all fit inside the existing Next.js app running on <span class="chip">localhost:3000</span>. Building a parallel native app is duplicated work with zero user reachable outside Anurag. Forge already solves the "morning notification on macOS" problem — extend Forge to render one extra card ("Ad Ops brief") instead of shipping a second native shell.</div>
+      </div>
+
+      <div class="two-col">
+        <div class="card">
+          <div class="card-label">Web app · pros</div>
+          <ul style="color:var(--muted);padding-left:18px;margin:8px 0 0;font-size:13.5px;">
+            <li>Existing sync, DB, insights, launchd all reusable</li>
+            <li>Chat panel + <span class="chip">/ads</span> route drop straight into Next.js</li>
+            <li>Charts, tables, Gemini image previews render better than in native</li>
+            <li>Zero App Store, code signing, Sparkle-updater overhead</li>
+            <li>Multi-tenant future (see Meta Business Partner path) needs web anyway</li>
+          </ul>
+        </div>
+        <div class="card">
+          <div class="card-label">Native app · when to reconsider</div>
+          <ul style="color:var(--muted);padding-left:18px;margin:8px 0 0;font-size:13.5px;">
+            <li>If iOS morning brief becomes the primary surface (unlikely — Anurag's on Mac)</li>
+            <li>If you need OS-level notifications with actions (Forge already handles this)</li>
+            <li>If you sell to founders who won't install Node/Docker (multi-tenant → SaaS solves this instead)</li>
+            <li>If Meta App Review demands a specific desktop bundle (they don't — web ok)</li>
+          </ul>
+        </div>
+      </div>
+
+      <p style="color:var(--muted);margin-top:20px;font-size:13.5px;max-width:720px">
+        <strong style="color:var(--text)">Concrete recommendation:</strong> ship Phase 6 as three surfaces on the web app — the <span class="chip">/ads</span> route, the chat panel on <span class="chip">/</span>, and a signed morning brief endpoint that emails plain HTML at 07:05. If you later want a native card, add one screen to Forge that fetches the same endpoint. No parallel product.
+      </p>
+    </section>
+
+    <!-- ============ TIMELINE ============ -->
+    <section>
+      <h2><span class="num">08</span>Sequencing</h2>
+      <p class="sub">~7 working days for the full arc. Usable value ships end of Day 1 (Phase 1 alone makes the dashboard trustworthy).</p>
+
+      <div class="timeline">
+        <div class="tstep">
+          <div class="day">DAY 1 AM</div>
+          <h4>Phase 0</h4>
+          <p>alias confirmed</p>
+        </div>
+        <div class="tstep">
+          <div class="day">DAY 1 PM</div>
+          <h4>Phase 1</h4>
+          <p>DB agrees with Meta UI</p>
+        </div>
+        <div class="tstep">
+          <div class="day">DAY 2</div>
+          <h4>Phase 2</h4>
+          <p>14 typed rules live</p>
+        </div>
+        <div class="tstep">
+          <div class="day">DAY 3</div>
+          <h4>Phase 3</h4>
+          <p>rankings + placements + EMQ</p>
+        </div>
+        <div class="tstep">
+          <div class="day">DAYS 4–5</div>
+          <h4>Phase 4</h4>
+          <p>/ads + Gemini diagnosis</p>
+        </div>
+        <div class="tstep">
+          <div class="day">DAY 6 AM</div>
+          <h4>Phase 5</h4>
+          <p>outcome tracking</p>
+        </div>
+      </div>
+
+      <div class="timeline" style="margin-top:4px;grid-template-columns: 2fr 4fr;">
+        <div class="tstep">
+          <div class="day">DAYS 6 PM – 7</div>
+          <h4>Phase 6 · Ad Ops Copilot</h4>
+          <p>morning brief · chat · guarded actions</p>
+        </div>
+        <div class="tstep" style="background:rgba(255,164,138,0.06);border-color:rgba(255,164,138,0.2)">
+          <div class="day" style="color:var(--peach)">AHA</div>
+          <h4>Second brief morning</h4>
+          <p>the brief shows the first brief's action moved CPL. Product proves itself.</p>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      <div>marketing-analytics/plans/intelligent-analytics-plan.html</div>
+      <div>drafted 2026-07-03</div>
+    </footer>
+
+  </div>
+</body>
+</html>
