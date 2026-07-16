@@ -75,7 +75,9 @@ Railway's current docs support deploying a Next.js app from GitHub, wiring a Pos
   - `META_GRAPH_VERSION`
 - Set the healthcheck path to `/api/health`.
 
-Railway should auto-detect:
+The repo also includes a base `railway.toml` for the **web service**.
+
+Railway should auto-detect or inherit:
 
 - build command: `npm run build`
 - start command: `npm run start`
@@ -96,7 +98,7 @@ npm run db:migrate
 
 ### 3. Create the sync cron service
 
-Create a second Railway service from the same repo and set:
+Create a second Railway service from the same repo and set these in the Railway service settings:
 
 - start command: `npm run sync -- 8`
 - cron schedule: your preferred UTC schedule
@@ -143,7 +145,7 @@ There are **three ways to fetch**, all hitting the same code path:
 ## Operating it
 
 ```bash
-cd extracted-forge
+cd forge
 
 npm run sync            # manual sync, last 8 days
 npm run sync -- 30      # backfill 30 days
