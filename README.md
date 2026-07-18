@@ -82,6 +82,8 @@ Railway should auto-detect or inherit:
 - build command: `npm run build`
 - start command: `npm run start`
 
+The production start script runs Next's standalone server artifact (`node .next/standalone/server.js`), which matches this repo's `output: 'standalone'` build configuration.
+
 ### 2. Apply the schema
 
 Run the schema once before first use:
@@ -110,6 +112,8 @@ Recommended daily schedule for **07:00 IST**:
 ```
 
 The sync process is designed to exit after completion so Railway can run it as a proper cron job.
+
+CLI tasks (`npm run sync`, `npm run db:migrate`) now load `.env` only when the file exists. On Railway they use the service's injected environment variables directly, so the same commands work in both local and hosted environments.
 
 ### 4. Protect manual refresh
 
