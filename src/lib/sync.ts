@@ -1,4 +1,4 @@
-import { format, subDays } from 'date-fns';
+import { differenceInCalendarDays, format, isValid, parseISO, subDays } from 'date-fns';
 import { getSql } from './db';
 import { getGaSummary, getGaSources } from './ga';
 import { getMetaAccount, getMetaAds } from './meta';
@@ -179,16 +179,43 @@ async function recordSyncRun(o: {
  * window on every run. A shorter window froze transient-low readings in place.
  * Runs sequentially to stay polite to the APIs.
  */
-export async function runSync({ days = 8, trigger = 'unknown' }: { days?: number; trigger?: string } = {}) {
+export async function runSync({
+  days = 8,
+  from,
+  to,
+  trigger = 'unknown',
+}: {
+  days?: number;
+  from?: string;
+  to?: string;
+  trigger?: string;
+} = {}) {
   const startedAt = new Date();
   const results: Awaited<ReturnType<typeof syncDay>>[] = [];
   const allErrors: string[] = [];
   let status = 'ok';
 
-  log.info('sync started', { trigger, days });
+  const rangeFrom = from ? parseISO(from) : null;
+  const rangeTo = to ? parseISO(to) : null;
+  if ((rangeFrom && !isValid(rangeFrom)) || (rangeTo && !isValid(rangeTo))) {
+    throw new Error('Invalid sync date range');
+  }
+  if ((rangeFrom && !rangeTo) || (!rangeFrom && rangeTo)) {
+    throw new Error('Both from and to are required for a custom sync range');
+  }
+
+  const syncDays = rangeFrom && rangeTo
+    ? differenceInCalendarDays(rangeTo, rangeFrom) + 1
+    : Math.floor(days);
+  if (!Number.isFinite(syncDays) || syncDays < 1 || syncDays > 366) {
+    throw new Error('Sync range must be between 1 and 366 days');
+  }
+  const syncTo = rangeTo ?? new Date();
+
+  log.info('sync started', { trigger, days: syncDays, from, to });
   try {
-    for (let i = 0; i < days; i++) {
-      const date = format(subDays(new Date(), i), 'yyyy-MM-dd');
+    for (let i = 0; i < syncDays; i++) {
+      const date = format(subDays(syncTo, i), 'yyyy-MM-dd');
       const r = await syncDay(date);
       results.push(r);
       allErrors.push(...r.errors);
@@ -202,11 +229,11 @@ export async function runSync({ days = 8, trigger = 'unknown' }: { days?: number
     throw e;
   } finally {
     const durationMs = Date.now() - startedAt.getTime();
-    const meta = { trigger, days, durationMs, errorCount: allErrors.length };
+    const meta = { trigger, days: syncDays, durationMs, errorCount: allErrors.length };
     if (status === 'ok') log.info('sync finished: ok', meta);
     else log.error(`sync finished: ${status}`, undefined, meta);
     // Best-effort: never let logging failure mask the real result.
-    await recordSyncRun({ startedAt, trigger, days, status, results, errors: allErrors, durationMs }).catch((err) =>
+    await recordSyncRun({ startedAt, trigger, days: syncDays, status, results, errors: allErrors, durationMs }).catch((err) =>
       log.error('failed to record sync run', err),
     );
   }

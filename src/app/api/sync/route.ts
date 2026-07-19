@@ -30,8 +30,10 @@ async function handle(req: NextRequest) {
   }
 
   const days = Number(new URL(req.url).searchParams.get('days') ?? '8');
+  const from = new URL(req.url).searchParams.get('from') ?? undefined;
+  const to = new URL(req.url).searchParams.get('to') ?? undefined;
   try {
-    const result = await runSync({ days: Number.isFinite(days) ? days : 8, trigger });
+    const result = await runSync({ days: Number.isFinite(days) ? days : 8, from, to, trigger });
     return NextResponse.json({ ok: true, ...result });
   } catch (e: any) {
     return NextResponse.json({ error: e?.message ?? String(e) }, { status: 500 });

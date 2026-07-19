@@ -18,9 +18,6 @@ import {
   TableBody,
   TableCell,
   Badge,
-  DateRangePicker,
-  DateRangePickerItem,
-  type DateRangePickerValue,
 } from '@tremor/react';
 import type { DailySummaryRow, AdRow, SourceRow, SyncRunRow, PeriodTotals } from '@/lib/types';
 import { buildInsights, type Severity } from '@/lib/insights';
@@ -58,8 +55,6 @@ const inr = (v: number | null | undefined) =>
 const num = (v: number | null | undefined) =>
   v == null ? '—' : new Intl.NumberFormat('en-IN').format(Math.round(v));
 const pct = (v: number) => `${v.toFixed(1)}%`;
-const parseDate = (s: string) => new Date(`${s}T00:00:00`);
-
 const SEV_DOT: Record<Severity, string> = {
   critical: 'bg-rose-500',
   warning: 'bg-amber-500',
@@ -154,7 +149,7 @@ function Sidebar({ view, onSelect, lastStatus }: { view: ViewId; onSelect: (v: V
 }
 
 // ── Pieces ────────────────────────────────────────────────────
-function RefreshButton() {
+function RefreshButton({ from, to }: { from: string; to: string }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState('');
@@ -162,7 +157,8 @@ function RefreshButton() {
     setLoading(true);
     setMsg('');
     try {
-      const res = await fetch('/api/sync?days=3', { method: 'POST' });
+      const params = new URLSearchParams({ from, to });
+      const res = await fetch(`/api/sync?${params}`, { method: 'POST' });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? 'Sync failed');
       setMsg(json.status === 'ok' ? 'Synced' : `Synced (${json.status})`);
@@ -182,7 +178,78 @@ function RefreshButton() {
         disabled={loading}
         className="rounded-lg bg-[#FF6363] px-3.5 py-2 text-sm font-medium text-white transition hover:bg-[#FF4D4D] disabled:opacity-60"
       >
-        {loading ? 'Fetching…' : 'Refresh now'}
+        {loading ? 'Syncing…' : 'Sync range'}
+      </button>
+    </div>
+  );
+}
+
+function RangeControls({
+  from,
+  to,
+  onRange,
+}: {
+  from: string;
+  to: string;
+  onRange: (from: string, to: string) => void;
+}) {
+  const [draftFrom, setDraftFrom] = useState(from);
+  const [draftTo, setDraftTo] = useState(to);
+  const selectedDays = differenceInCalendarDays(parseISO(to), parseISO(from)) + 1;
+  const maxDate = format(new Date(), 'yyyy-MM-dd');
+  const valid = draftFrom <= draftTo && draftTo <= maxDate;
+
+  function selectPreset(days: number) {
+    const nextTo = format(new Date(), 'yyyy-MM-dd');
+    onRange(format(subDays(new Date(), days - 1), 'yyyy-MM-dd'), nextTo);
+  }
+
+  return (
+    <div className="flex w-full min-w-0 flex-wrap items-end gap-2 sm:w-auto">
+      <div className="flex rounded-lg border border-gray-200 bg-white p-1 dark:border-white/10 dark:bg-[#141417]">
+        {[7, 30, 90].map((days) => (
+          <button
+            key={days}
+            type="button"
+            onClick={() => selectPreset(days)}
+            className={`rounded-md px-3 py-1.5 text-xs font-medium transition ${
+              selectedDays === days
+                ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900'
+                : 'text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/10'
+            }`}
+          >
+            {days} days
+          </button>
+        ))}
+      </div>
+      <label className="grid gap-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+        From
+        <input
+          type="date"
+          value={draftFrom}
+          max={draftTo}
+          onChange={(event) => setDraftFrom(event.target.value)}
+          className="w-[9.5rem] rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-normal normal-case tracking-normal text-gray-700 dark:border-white/10 dark:bg-[#141417] dark:text-gray-200"
+        />
+      </label>
+      <label className="grid gap-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+        To
+        <input
+          type="date"
+          value={draftTo}
+          min={draftFrom}
+          max={maxDate}
+          onChange={(event) => setDraftTo(event.target.value)}
+          className="w-[9.5rem] rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-normal normal-case tracking-normal text-gray-700 dark:border-white/10 dark:bg-[#141417] dark:text-gray-200"
+        />
+      </label>
+      <button
+        type="button"
+        disabled={!valid || (draftFrom === from && draftTo === to)}
+        onClick={() => onRange(draftFrom, draftTo)}
+        className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-white/10 dark:bg-[#141417] dark:text-gray-200 dark:hover:bg-white/10"
+      >
+        Apply
       </button>
     </div>
   );
@@ -490,14 +557,11 @@ export default function DashboardView({
     'Spend (₹)': r.meta_spend,
   }));
 
-  function onRange(v: DateRangePickerValue) {
-    if (!v.from) return;
-    const f = format(v.from, 'yyyy-MM-dd');
-    const tt = format(v.to ?? v.from, 'yyyy-MM-dd');
-    router.push(`/?from=${f}&to=${tt}`);
+  function onRange(nextFrom: string, nextTo: string) {
+    router.push(`/?from=${nextFrom}&to=${nextTo}`);
   }
 
-  const rangeLabel = `${from} → ${to} · ${summary.length} day${summary.length === 1 ? '' : 's'}`;
+  const rangeLabel = `${from} → ${to} · ${prevDays} days selected · ${summary.length} with data`;
 
   const vsLabel = `vs prev ${prevDays}d`;
   const KpiCards = (
@@ -645,25 +709,9 @@ export default function DashboardView({
               <Text className="mt-0.5 !text-gray-500">{rangeLabel}</Text>
             </div>
             <div className="flex w-full min-w-0 flex-wrap items-center gap-3 sm:w-auto">
-              <DateRangePicker
-                value={{ from: parseDate(from), to: parseDate(to) }}
-                onValueChange={onRange}
-                maxDate={new Date()}
-                enableClear={false}
-                className="min-w-0 max-w-full sm:max-w-md"
-              >
-                <DateRangePickerItem key="7d" value="7d" from={subDays(new Date(), 6)} to={new Date()}>
-                  Last 7 days
-                </DateRangePickerItem>
-                <DateRangePickerItem key="30d" value="30d" from={subDays(new Date(), 29)} to={new Date()}>
-                  Last 30 days
-                </DateRangePickerItem>
-                <DateRangePickerItem key="90d" value="90d" from={subDays(new Date(), 89)} to={new Date()}>
-                  Last 90 days
-                </DateRangePickerItem>
-              </DateRangePicker>
+              <RangeControls key={`${from}:${to}`} from={from} to={to} onRange={onRange} />
               <ThemeToggle />
-              <RefreshButton />
+              <RefreshButton from={from} to={to} />
             </div>
           </Flex>
 
