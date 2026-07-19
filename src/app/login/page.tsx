@@ -40,6 +40,7 @@ export default function LoginPage() {
         <p className="mb-6 text-sm text-gray-500">Enter the dashboard password.</p>
         <input
           type="password"
+          autoComplete="current-password"
           autoFocus
           value={password}
           onChange={(e) => setPassword(e.target.value)}

@@ -7,6 +7,8 @@ export const metadata: Metadata = {
   description: 'Daily GA4 + Meta Ads performance, joined on cost per booked call.',
 };
 
+export const dynamic = 'force-dynamic';
+
 // Apply the saved theme before paint to avoid a flash. Defaults to dark.
 const themeScript = `
 try {
