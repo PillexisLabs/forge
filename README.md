@@ -15,12 +15,13 @@ Stack: **Next.js 14** (App Router) · **Postgres** · **Tremor** charts. Separat
 public marketing site so ad-spend data and API secrets stay private.
 
 > See [`PROGRESS.md`](PROGRESS.md) for the running changelog, known issues, and backlog.
+> See [`AGENTS.md`](AGENTS.md) for branch, deployment, organization, and verification rules.
 
 ---
 
 ## Deployment modes
 
-This app supports two sane operating modes:
+This app supports two operating modes:
 
 - **Railway** — recommended. Run the dashboard as a normal web service, attach a Railway Postgres service, and run sync as a separate Railway cron service.
 - **Local** — optional. Keep the original Mac-based setup with Docker Postgres and launchd wrappers.
@@ -32,11 +33,20 @@ For hosting, treat this as **two services from one repo**:
 
 That split matches Railway's current model for cron jobs: scheduled services should run a task and terminate when finished.
 
+### Current Railway environments
+
+| Environment | Git branch | Web URL | Purpose |
+|-------------|------------|---------|---------|
+| Staging | `staging` | https://forge-staging-7d05.up.railway.app | Ongoing development and device testing |
+| Production | `master` | https://forge-production-fc70.up.railway.app | Stable live dashboard |
+
+Both environments contain `forge`, `forge-sync`, and Postgres services. Their deployment triggers are isolated: staging follows `staging`, production follows `master`. Develop on `staging`, verify the Railway rollout and authenticated flows, then merge into `master` to promote.
+
 ---
 
 ## Features
 
-**Sidebar navigation** (`Analyze` / `System` sections):
+**Navigation:** desktop uses an `Analyze` / `System` sidebar, while mobile uses a fixed five-item bottom navigation.
 
 | View | What it answers |
 |------|-----------------|
@@ -50,6 +60,7 @@ That split matches Railway's current model for cron jobs: scheduled services sho
 - **Insights engine** (`src/lib/insights.ts`) — prioritized plain-English findings (critical → warning → good → info), each with a "→ Do" action. Detects spend-with-no-conversions, the worst funnel leak, best/worst ads, CTR health, click→session drop-off, and range trends.
 - **KPI cards** — Cost per booked call, Session→booking rate, Ad spend, Book-call intent — each with **period-over-period delta** badges (vs the previous equal-length range).
 - **Date range** — Last 7 / 30 / 90 days + custom; everything (KPIs, funnel, tables, insights) recomputes for the range. State lives in the URL (`?from=&to=`).
+- **Responsive dashboard** — mobile uses a 2 by 2 KPI grid, compact insights, and stacked Ads and Traffic metric cards instead of compressed tables. Custom date inputs stay collapsed until requested.
 - **Light / dark theme** toggle (persisted, no flash on load).
 
 ---
@@ -58,13 +69,13 @@ That split matches Railway's current model for cron jobs: scheduled services sho
 
 Railway's current docs support deploying a Next.js app from GitHub, wiring a Postgres service through `DATABASE_URL`, and configuring a separate cron service for scheduled tasks. This repo is set up for that flow.
 
-### 1. Create the web service
+### 1. Web service
 
 - Create a new Railway project from this GitHub repo.
 - Add a **PostgreSQL** service in the same project.
 - Add a reference variable for `DATABASE_URL` from the Postgres service to the web service.
 - Set these variables on the web service:
-  - `DATABASE_SSL=require`
+  - `DATABASE_SSL=disable` for Railway private-network Postgres
   - `DASHBOARD_PASSWORD`
   - `AUTH_SECRET`
   - `SYNC_SECRET`
@@ -75,16 +86,19 @@ Railway's current docs support deploying a Next.js app from GitHub, wiring a Pos
   - `META_GRAPH_VERSION`
 - Set the healthcheck path to `/api/health`.
 
-The repo also includes a base `railway.toml` for the **web service**.
+The repo includes a base `railway.toml` for the **web service**. Current Railway settings are:
 
 Railway should auto-detect or inherit:
 
 - build command: `npm run build`
 - start command: `npm run start`
+- pre-deploy command: `npm run db:migrate`
+- healthcheck: `/api/health`
+- `HOSTNAME=0.0.0.0`
 
 The production start script runs Next's standalone server artifact (`node .next/standalone/server.js`), which matches this repo's `output: 'standalone'` build configuration.
 
-### 2. Apply the schema
+### 2. Database schema
 
 Run the schema once before first use:
 
@@ -98,7 +112,7 @@ If you want this automated on deploy, set Railway's **Pre-deploy Command** for t
 npm run db:migrate
 ```
 
-### 3. Create the sync cron service
+### 3. Sync cron service
 
 Create a second Railway service from the same repo and set these in the Railway service settings:
 
@@ -115,9 +129,9 @@ The sync process is designed to exit after completion so Railway can run it as a
 
 CLI tasks (`npm run sync`, `npm run db:migrate`) now load `.env` only when the file exists. On Railway they use the service's injected environment variables directly, so the same commands work in both local and hosted environments.
 
-### 4. Protect manual refresh
+### 4. Manual refresh security
 
-The dashboard's **Refresh now** button calls `/api/sync`. That route accepts either:
+The dashboard's **Sync data** button calls `/api/sync`. That route accepts either:
 
 - a logged-in dashboard session, or
 - `SYNC_SECRET` via `x-sync-secret` / `Authorization: Bearer ...`
@@ -139,9 +153,11 @@ Both wrappers pin Node's path (launchd has a minimal env) and `source .env` so t
 token and DB creds are present. Fetching is **idempotent** — every run upserts by date and
 re-pulls the last 8 days so late ad attribution settles.
 
+The launchd definitions now point directly to this repository. The replaced implementation is archived at `../archive/marketing-analytics-local/` and must not be used for active work.
+
 There are **three ways to fetch**, all hitting the same code path:
 - **Daily** — the launchd sync job.
-- **Manual (UI)** — the **Refresh now** button → `POST /api/sync`.
+- **Manual (UI)** — the **Sync data** button → `POST /api/sync`.
 - **Manual (terminal)** — `npm run sync` (or `npm run sync -- 30` to backfill 30 days).
 
 ---
@@ -205,6 +221,7 @@ Full DDL in [`db/schema.sql`](db/schema.sql).
 | `AUTH_SECRET` | signs the login cookie (`openssl rand -hex 32`) |
 | `SYNC_SECRET` | protects `/api/sync` for cron/manual automation |
 | `GA4_PROPERTY_ID` | numeric property ID `543367139` (not the `G-…` measurement ID) |
+| `GOOGLE_APPLICATION_CREDENTIALS` | local path to `../keys/credentials/pillexislabs-ga4-service-account.json` |
 | `GOOGLE_APPLICATION_CREDENTIALS_JSON` | one-line GA service-account JSON |
 | `META_ACCESS_TOKEN` | long-lived System User token, scope `ads_read` |
 | `META_AD_ACCOUNT_ID` | `act_1705074640527431` |
@@ -230,3 +247,15 @@ If setting this up on a fresh machine:
 - **Cron syncs are skipped on Railway.** Railway cron services must exit cleanly after the task finishes. Use `npm run sync -- 8` as the cron start command, not `npm run start`.
 - **Refresh writes zeros.** Check the service env. `/api/sync` needs the same secrets as the main app, especially the Meta token and `DATABASE_URL`.
 - **Dashboard shows "not ready".** DB unreachable or schema not applied — check the Docker container and `db/schema.sql`.
+
+---
+
+## Repository layout
+
+- `src/`, Next.js UI, authentication, database access, insights, and source integrations.
+- `db/`, Postgres schema.
+- `scripts/`, CLI, migration, standalone-build, and launchd wrappers.
+- `plans/`, product-planning artifacts.
+- `output/` and `.playwright-cli/`, generated verification artifacts, ignored by Git.
+
+Do not create new root-level folders for screenshots, temporary exports, or one-off notes. Durable new folders must be added to `AGENTS.md`, `CLAUDE.md`, and this README in the same change.

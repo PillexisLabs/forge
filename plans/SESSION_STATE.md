@@ -78,8 +78,8 @@ Architecture differs by bucket: (1) is a *decision* engine, (2)/(3) is an *artif
 
 | Path | What |
 |---|---|
-| `marketing-analytics/plans/intelligent-analytics-plan.html` | Full visual plan with 5 SVG diagrams, north star, aha moment, phases, agent architecture, web-vs-native verdict, timeline |
-| `marketing-analytics/plans/SESSION_STATE.md` | This file |
+| `forge/plans/intelligent-analytics-plan.html` | Full visual plan with 5 SVG diagrams, north star, aha moment, phases, agent architecture, web-vs-native verdict, timeline |
+| `forge/plans/SESSION_STATE.md` | This file |
 | `keys/.env` | (created earlier this week) `GOOGLE_AI_API_KEY` for Gemini, mode 600, folder mode 700 |
 | `keys/.gitignore` | whitelists `.gitignore` + `README.md` only |
 | Tasks #1–#7 | Phases 0–5 + product decisions, all pending |

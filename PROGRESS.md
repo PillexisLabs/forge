@@ -1,13 +1,15 @@
 # Progress & Changelog
 
 Running log of what's built, what's known-broken, and what's next.
-_Last updated: 2026-06-27._
+_Last updated: 2026-07-19._
 
 ## Current state
 
-Live and fully automated on Anurag's Mac:
-- Local Postgres (Docker, port 5433) · always-on dashboard at `http://localhost:3000` · daily 07:00 sync — all via Docker `--restart` + two launchd agents.
-- GA4 + Meta Ads both flowing. Data persists in the `pillexis_pg_data` Docker volume.
+- Railway production is live at `https://forge-production-fc70.up.railway.app` from `master`.
+- Railway staging is live at `https://forge-staging-7d05.up.railway.app` from `staging` and is the default environment for ongoing work.
+- Each environment has isolated `forge`, `forge-sync`, and Postgres services. The web service runs schema migration before deploy and uses `/api/health`; the sync service runs daily at 07:00 IST.
+- The original local mode remains available at `http://localhost:3000`. Both launchd agents now run from this canonical repository, not the archived duplicate.
+- Production data was backfilled through 2026-07-19 and the dashboard reports the selected range independently from the number of days containing data.
 
 ## Built so far
 
@@ -29,6 +31,8 @@ Live and fully automated on Anurag's Mac:
 - Sidebar nav (`Analyze`: Overview/Funnel/Ads/Traffic · `System`: Sync), per IA decision from the PM copilot.
 - Date range (7/30/90 + custom), URL-encoded.
 - Light/dark theme toggle (persisted, no flash).
+- Mobile redesign: fixed bottom navigation, 2 by 2 KPI grid, compact sync state, collapsed custom dates, and stacked Ads and Traffic cards.
+- Desktop header redesign: compact status and date summary, clear presets, and custom fields shown only on demand.
 
 **Observability**
 - Structured JSON logging → `logs/*.log`.
@@ -41,15 +45,13 @@ Live and fully automated on Anurag's Mac:
 - Fixed Meta double-counting — read canonical pixel `action_type`s instead of substring-summing aliases.
 
 **First actioned insight (2026-07-03)**
-- The worst-ad rule flagged **Ad 01 · CRM Export · 1x1** ("₹3,473 spent, 0 bookings, 2.1% CTR. Consider shifting its budget to a better performer") and Anurag removed the ad from the campaign the same day. First time a dashboard insight directly drove a campaign change — the loop the product exists for. Removal recorded in `META_ADS_LAUNCH.md` and `facebook-ads/README.md`.
+- The worst-ad rule flagged **Ad 01 · CRM Export · 1x1** ("₹3,473 spent, 0 bookings, 2.1% CTR. Consider shifting its budget to a better performer") and Anurag removed the ad from the campaign the same day. First time a dashboard insight directly drove a campaign change — the loop the product exists for. Removal recorded in `../docs/marketing/META_ADS_LAUNCH.md` and `../facebook-ads/README.md`.
 
 ## Known issues / watch items
 
-1. **GA reports site traffic for only one day (2026-06-26).** Every prior day is 0 sessions, despite the ad campaign running since 2026-06-22. Likely the GA tag's effective install date, or ads pointing to **WhatsApp** (not the site) so the website gets little traffic. **Action: verify GA4 is firing on the live site.** This is the root cause of thin data and why period-over-period deltas don't display yet (no prior period to compare).
-2. **Cal.com Meta Pixel not configured.** Bookings completed on the cal.com hosted page won't fire `Schedule`, so ad-attributed bookings undercount. Add Pixel `1548597113625938` in Cal.com.
-3. **0 bookings so far** across spend — funnel leaks entirely at the booking step (22 book-call clicks → 0 bookings in the live window). Real, not a bug.
-4. **launchd Node path is pinned** to the current nvm version in the wrapper scripts — update if Node is upgraded.
-5. **No log rotation** — `logs/*.log` grow unbounded (trivial at current volume).
+1. **Railway still needs `GOOGLE_APPLICATION_CREDENTIALS_JSON` on both `forge` and `forge-sync`.** Deferred for later. Local sync uses `../keys/credentials/pillexislabs-ga4-service-account.json`; Railway needs one-line JSON instead.
+2. **launchd Node path is pinned** to the current nvm version in the wrapper scripts — update if Node is upgraded.
+3. **No log rotation** — `logs/*.log` grow unbounded (trivial at current volume).
 
 ## Backlog (PM-prioritized)
 
