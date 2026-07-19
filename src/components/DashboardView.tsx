@@ -110,15 +110,15 @@ const NAV_SECTIONS: { section: string; items: { id: ViewId; label: string }[] }[
 
 function Sidebar({ view, onSelect, lastStatus }: { view: ViewId; onSelect: (v: ViewId) => void; lastStatus?: string }) {
   return (
-    <aside className="w-full min-w-0 overflow-hidden border-gray-200 px-3 py-4 dark:border-white/10 md:min-h-screen md:w-56 md:shrink-0 md:border-r md:py-6">
-      <div className="mb-5 hidden items-center gap-2 px-2 md:flex">
+    <aside className="hidden min-h-screen w-56 shrink-0 border-r border-gray-200 px-3 py-6 dark:border-white/10 md:block">
+      <div className="mb-5 flex items-center gap-2 px-2">
         <span className="h-2.5 w-2.5 rounded-sm bg-[#FF6363] shadow-[0_0_12px_rgba(255,99,99,0.5)]" />
         <span className="text-sm font-semibold text-gray-900 dark:text-white">Pillexis Analytics</span>
       </div>
-      <nav className="flex w-full min-w-0 gap-1 overflow-x-auto md:block md:space-y-4 md:overflow-visible">
+      <nav className="space-y-4">
         {NAV_SECTIONS.map((sec) => (
-          <div key={sec.section} className="flex gap-1 md:block">
-            <p className="hidden px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-600 md:block">
+          <div key={sec.section}>
+            <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-600">
               {sec.section}
             </p>
             {sec.items.map((item) => {
@@ -127,7 +127,7 @@ function Sidebar({ view, onSelect, lastStatus }: { view: ViewId; onSelect: (v: V
                 <button
                   key={item.id}
                   onClick={() => onSelect(item.id)}
-                  className={`flex shrink-0 items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition md:w-full ${
+                  className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition ${
                     active
                       ? 'bg-gray-100 font-medium text-gray-900 dark:bg-white/10 dark:text-white'
                       : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-white'
@@ -145,6 +145,35 @@ function Sidebar({ view, onSelect, lastStatus }: { view: ViewId; onSelect: (v: V
         ))}
       </nav>
     </aside>
+  );
+}
+
+function MobileNav({ view, onSelect, lastStatus }: { view: ViewId; onSelect: (v: ViewId) => void; lastStatus?: string }) {
+  const items = NAV_SECTIONS.flatMap((section) => section.items);
+  return (
+    <nav className="fixed inset-x-0 bottom-0 z-50 grid grid-cols-5 border-t border-gray-200 bg-white/95 px-2 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] pt-2 backdrop-blur dark:border-white/10 dark:bg-[#0a0a0a]/95 md:hidden">
+      {items.map((item) => {
+        const active = view === item.id;
+        return (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() => onSelect(item.id)}
+            className={`relative flex min-w-0 flex-col items-center gap-1 rounded-lg px-1 py-1.5 text-[10px] font-medium transition ${
+              active
+                ? 'bg-gray-100 text-gray-900 dark:bg-white/10 dark:text-white'
+                : 'text-gray-400 dark:text-gray-500'
+            }`}
+          >
+            <NavIcon id={item.id} />
+            <span>{item.label}</span>
+            {item.id === 'sync' && lastStatus && lastStatus !== 'ok' && (
+              <span className={`absolute right-3 top-1.5 h-1.5 w-1.5 rounded-full ${lastStatus === 'partial' ? 'bg-amber-500' : 'bg-rose-500'}`} />
+            )}
+          </button>
+        );
+      })}
+    </nav>
   );
 }
 
@@ -171,14 +200,17 @@ function RefreshButton({ from, to }: { from: string; to: string }) {
     }
   }
   return (
-    <div className="flex items-center gap-3">
-      {msg && <span className="text-xs text-gray-500">{msg}</span>}
+    <div className="flex items-center gap-2">
+      {msg && <span className="hidden text-xs text-gray-500 sm:inline">{msg}</span>}
       <button
         onClick={refresh}
         disabled={loading}
-        className="rounded-lg bg-[#FF6363] px-3.5 py-2 text-sm font-medium text-white transition hover:bg-[#FF4D4D] disabled:opacity-60"
+        className="inline-flex items-center gap-2 rounded-lg bg-[#FF6363] px-3 py-2 text-sm font-medium text-white transition hover:bg-[#FF4D4D] disabled:opacity-60"
       >
-        {loading ? 'Syncing…' : 'Sync range'}
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M20 11a8 8 0 1 0 2 5M20 4v7h-7" />
+        </svg>
+        {loading ? 'Syncing' : 'Sync data'}
       </button>
     </div>
   );
@@ -195,6 +227,7 @@ function RangeControls({
 }) {
   const [draftFrom, setDraftFrom] = useState(from);
   const [draftTo, setDraftTo] = useState(to);
+  const [customOpen, setCustomOpen] = useState(false);
   const selectedDays = differenceInCalendarDays(parseISO(to), parseISO(from)) + 1;
   const maxDate = format(new Date(), 'yyyy-MM-dd');
   const valid = draftFrom <= draftTo && draftTo <= maxDate;
@@ -205,14 +238,14 @@ function RangeControls({
   }
 
   return (
-    <div className="flex w-full min-w-0 flex-wrap items-end gap-2 sm:w-auto">
-      <div className="flex rounded-lg border border-gray-200 bg-white p-1 dark:border-white/10 dark:bg-[#141417]">
+    <div className="w-full min-w-0 md:w-auto">
+      <div className="flex w-full rounded-lg border border-gray-200 bg-white p-1 dark:border-white/10 dark:bg-[#141417] md:w-auto">
         {[7, 30, 90].map((days) => (
           <button
             key={days}
             type="button"
             onClick={() => selectPreset(days)}
-            className={`rounded-md px-3 py-1.5 text-xs font-medium transition ${
+            className={`flex-1 rounded-md px-3 py-2 text-xs font-medium transition md:flex-none ${
               selectedDays === days
                 ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900'
                 : 'text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/10'
@@ -221,36 +254,55 @@ function RangeControls({
             {days} days
           </button>
         ))}
+        <button
+          type="button"
+          aria-expanded={customOpen}
+          onClick={() => setCustomOpen((open) => !open)}
+          className={`flex-1 rounded-md px-3 py-2 text-xs font-medium transition md:flex-none ${
+            customOpen || ![7, 30, 90].includes(selectedDays)
+              ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900'
+              : 'text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/10'
+          }`}
+        >
+          Custom
+        </button>
       </div>
-      <label className="grid gap-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
-        From
-        <input
-          type="date"
-          value={draftFrom}
-          max={draftTo}
-          onChange={(event) => setDraftFrom(event.target.value)}
-          className="w-[9.5rem] rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-normal normal-case tracking-normal text-gray-700 dark:border-white/10 dark:bg-[#141417] dark:text-gray-200"
-        />
-      </label>
-      <label className="grid gap-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
-        To
-        <input
-          type="date"
-          value={draftTo}
-          min={draftFrom}
-          max={maxDate}
-          onChange={(event) => setDraftTo(event.target.value)}
-          className="w-[9.5rem] rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-normal normal-case tracking-normal text-gray-700 dark:border-white/10 dark:bg-[#141417] dark:text-gray-200"
-        />
-      </label>
-      <button
-        type="button"
-        disabled={!valid || (draftFrom === from && draftTo === to)}
-        onClick={() => onRange(draftFrom, draftTo)}
-        className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-white/10 dark:bg-[#141417] dark:text-gray-200 dark:hover:bg-white/10"
-      >
-        Apply
-      </button>
+      {customOpen && (
+        <div className="mt-2 grid grid-cols-2 gap-2 rounded-lg border border-gray-200 bg-white p-3 dark:border-white/10 dark:bg-[#141417] md:flex md:items-end">
+          <label className="grid min-w-0 gap-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+            From
+            <input
+              type="date"
+              value={draftFrom}
+              max={draftTo}
+              onChange={(event) => setDraftFrom(event.target.value)}
+              className="min-w-0 rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-2 text-sm font-normal normal-case tracking-normal text-gray-700 dark:border-white/10 dark:bg-[#0a0a0a] dark:text-gray-200"
+            />
+          </label>
+          <label className="grid min-w-0 gap-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+            To
+            <input
+              type="date"
+              value={draftTo}
+              min={draftFrom}
+              max={maxDate}
+              onChange={(event) => setDraftTo(event.target.value)}
+              className="min-w-0 rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-2 text-sm font-normal normal-case tracking-normal text-gray-700 dark:border-white/10 dark:bg-[#0a0a0a] dark:text-gray-200"
+            />
+          </label>
+          <button
+            type="button"
+            disabled={!valid || (draftFrom === from && draftTo === to)}
+            onClick={() => {
+              onRange(draftFrom, draftTo);
+              setCustomOpen(false);
+            }}
+            className="col-span-2 rounded-lg bg-gray-900 px-3 py-2 text-sm font-medium text-white transition disabled:cursor-not-allowed disabled:opacity-40 dark:bg-white dark:text-gray-900 md:col-span-1"
+          >
+            Apply range
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -258,15 +310,11 @@ function RangeControls({
 function SyncStatus({ run }: { run: SyncRunRow | null }) {
   if (!run) return null;
   return (
-    <div className={`mb-6 rounded-lg border px-4 py-2.5 ${CARD}`}>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-        <Badge color={statusColor(run.status)}>{run.status}</Badge>
-        <span className="text-gray-600 dark:text-gray-400">
-          Last sync {timeAgo(run.finished_at)} · via {run.trigger}
-          {run.duration_ms != null ? ` · ${run.duration_ms}ms` : ''}
-        </span>
-        {run.error_count > 0 && <span className="font-medium text-rose-500">{run.error_count} issue{run.error_count === 1 ? '' : 's'}</span>}
-      </div>
+    <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+      <span className={`h-2 w-2 rounded-full ${run.status === 'ok' ? 'bg-emerald-500' : run.status === 'partial' ? 'bg-amber-500' : 'bg-rose-500'}`} />
+      <span>Updated {timeAgo(run.finished_at)}</span>
+      <span className="text-gray-300 dark:text-gray-700">·</span>
+      <span>{run.status === 'ok' ? 'All sources synced' : `${run.error_count} issue${run.error_count === 1 ? '' : 's'}`}</span>
     </div>
   );
 }
@@ -280,7 +328,7 @@ function InsightsPanel({ insights }: { insights: ReturnType<typeof buildInsights
       </Flex>
       <div className="mt-4 space-y-3.5">
         {insights.map((ins, i) => (
-          <div key={i} className="flex gap-3">
+          <div key={i} className={`${i >= 3 ? 'hidden md:flex' : 'flex'} gap-3`}>
             <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${SEV_DOT[ins.severity]}`} />
             <div className="min-w-0">
               <p className="text-sm font-semibold text-gray-900 dark:text-white">{ins.title}</p>
@@ -376,7 +424,29 @@ function AdsTable({ ads, rangeTo }: { ads: AdRow[]; rangeTo: string }) {
   const endedBefore = (last: string | null) =>
     last != null && differenceInCalendarDays(parseISO(rangeTo), parseISO(last)) >= 2 ? last : null;
   return (
-    <Table className="mt-4">
+    <>
+      <div className="mt-4 space-y-2 md:hidden">
+        {ads.map((ad, index) => {
+          const ended = endedBefore(ad.last_active);
+          return (
+            <div key={index} className={`rounded-lg bg-gray-50 p-3 dark:bg-white/5 ${ended ? 'opacity-55' : ''}`}>
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-gray-900 dark:text-white">{ad.ad_name ?? 'Unnamed ad'}</p>
+                  <p className="truncate text-xs text-gray-500">{ad.campaign_name ?? 'No campaign'}</p>
+                </div>
+                <p className="shrink-0 text-sm font-semibold text-gray-900 dark:text-white">{inr(ad.spend)}</p>
+              </div>
+              <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
+                <div><span className="block text-gray-400">CTR</span><span className="font-medium text-gray-700 dark:text-gray-200">{pct(ad.ctr)}</span></div>
+                <div><span className="block text-gray-400">Bookings</span><span className="font-medium text-gray-700 dark:text-gray-200">{ad.schedules}</span></div>
+                <div><span className="block text-gray-400">Cost / booking</span><span className="font-medium text-gray-700 dark:text-gray-200">{inr(ad.cost_per_schedule)}</span></div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <Table className="mt-4 hidden md:table">
       <TableHead>
         <TableRow>
           <TableHeaderCell className={labelCls}>Ad</TableHeaderCell>
@@ -411,14 +481,33 @@ function AdsTable({ ads, rangeTo }: { ads: AdRow[]; rangeTo: string }) {
           );
         })}
       </TableBody>
-    </Table>
+      </Table>
+    </>
   );
 }
 
 function SourcesTable({ sources }: { sources: SourceRow[] }) {
   if (sources.length === 0) return <Text className="!text-gray-500 mt-2">No source data in this range.</Text>;
   return (
-    <Table className="mt-4">
+    <>
+      <div className="mt-4 space-y-2 md:hidden">
+        {sources.map((source, index) => {
+          const rate = source.sessions > 0 ? (source.leads / source.sessions) * 100 : 0;
+          return (
+            <div key={index} className="rounded-lg bg-gray-50 p-3 dark:bg-white/5">
+              <p className="truncate text-sm font-semibold text-gray-900 dark:text-white">
+                {source.source} <span className="font-normal text-gray-400">/ {source.medium}</span>
+              </p>
+              <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
+                <div><span className="block text-gray-400">Sessions</span><span className="font-medium text-gray-700 dark:text-gray-200">{num(source.sessions)}</span></div>
+                <div><span className="block text-gray-400">Bookings</span><span className="font-medium text-gray-700 dark:text-gray-200">{num(source.leads)}</span></div>
+                <div><span className="block text-gray-400">Conversion</span><span className="font-medium text-gray-700 dark:text-gray-200">{rate > 0 ? pct(rate) : '—'}</span></div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <Table className="mt-4 hidden md:table">
       <TableHead>
         <TableRow>
           <TableHeaderCell className={labelCls}>Source / Medium</TableHeaderCell>
@@ -446,7 +535,8 @@ function SourcesTable({ sources }: { sources: SourceRow[] }) {
           );
         })}
       </TableBody>
-    </Table>
+      </Table>
+    </>
   );
 }
 
@@ -565,40 +655,40 @@ export default function DashboardView({
 
   const vsLabel = `vs prev ${prevDays}d`;
   const KpiCards = (
-    <Grid numItemsSm={2} numItemsLg={4} className="gap-4">
-      <Card className={CARD}>
+    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
+      <Card className={`${CARD} !p-4 sm:!p-6`}>
         <Flex alignItems="start">
           <Text className={labelCls}>Cost per booked call</Text>
           {hasPrev && <DeltaBadge curr={costPerBooking} prev={pCostPerBooking} mode="lower" />}
         </Flex>
-        <Metric className={titleCls}>{inr(costPerBooking)}</Metric>
+        <Metric className={`${titleCls} !text-2xl sm:!text-3xl`}>{inr(costPerBooking)}</Metric>
         <Text className="!text-gray-500">{bookings > 0 ? `${num(bookings)} bookings · ${vsLabel}` : 'no bookings yet'}</Text>
       </Card>
-      <Card className={CARD}>
+      <Card className={`${CARD} !p-4 sm:!p-6`}>
         <Flex alignItems="start">
           <Text className={labelCls}>Session → booking rate</Text>
           {hasPrev && <DeltaBadge curr={sessionToBooking} prev={pSessionToBooking} mode="higher" />}
         </Flex>
-        <Metric className={titleCls}>{pct(sessionToBooking)}</Metric>
+        <Metric className={`${titleCls} !text-2xl sm:!text-3xl`}>{pct(sessionToBooking)}</Metric>
         <Text className="!text-gray-500">{num(t.sessions)} sessions · {num(bookings)} booked</Text>
       </Card>
-      <Card className={CARD}>
+      <Card className={`${CARD} !p-4 sm:!p-6`}>
         <Flex alignItems="start">
           <Text className={labelCls}>Ad spend</Text>
           {hasPrev && <DeltaBadge curr={t.spend} prev={prev.spend} mode="neutral" />}
         </Flex>
-        <Metric className={titleCls}>{inr(t.spend)}</Metric>
+        <Metric className={`${titleCls} !text-2xl sm:!text-3xl`}>{inr(t.spend)}</Metric>
         <Text className="!text-gray-500">{ctr.toFixed(2)}% CTR · {num(t.clicks)} clicks</Text>
       </Card>
-      <Card className={CARD}>
+      <Card className={`${CARD} !p-4 sm:!p-6`}>
         <Flex alignItems="start">
           <Text className={labelCls}>Book-call intent</Text>
           {hasPrev && <DeltaBadge curr={bookRate} prev={pBookRate} mode="higher" />}
         </Flex>
-        <Metric className={titleCls}>{pct(bookRate)}</Metric>
+        <Metric className={`${titleCls} !text-2xl sm:!text-3xl`}>{pct(bookRate)}</Metric>
         <Text className="!text-gray-500">{num(t.bookCallClicks)} of {num(t.sessions)} sessions</Text>
       </Card>
-    </Grid>
+    </div>
   );
 
   const FunnelCard = (
@@ -655,8 +745,7 @@ export default function DashboardView({
     switch (view) {
       case 'overview':
         return (
-          <div className="space-y-6">
-            <SyncStatus run={lastSync} />
+          <div className="space-y-4 md:space-y-6">
             {KpiCards}
             <InsightsPanel insights={insights} />
             <Grid numItemsLg={3} className="gap-4">
@@ -701,23 +790,32 @@ export default function DashboardView({
     <div className="md:flex">
       <Sidebar view={view} onSelect={setView} lastStatus={lastSync?.status} />
       <div className="min-w-0 flex-1">
-        <div className="mx-auto max-w-6xl px-6 py-8">
+        <div className="mx-auto max-w-6xl px-4 py-4 pb-24 sm:px-6 md:py-8 md:pb-12">
           {/* Top bar */}
-          <Flex className="mb-6 flex-col gap-4 sm:flex-row" alignItems="start">
-            <div>
-              <h1 className="text-lg font-semibold text-gray-900 dark:text-white">{VIEW_TITLE[view]}</h1>
-              <Text className="mt-0.5 !text-gray-500">{rangeLabel}</Text>
+          <div className="mb-5 md:mb-6">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#FF6363] md:hidden">Pillexis Analytics</p>
+                <h1 className="text-xl font-semibold tracking-tight text-gray-900 dark:text-white md:text-lg">{VIEW_TITLE[view]}</h1>
+                <Text className="mt-0.5 !text-gray-500">
+                  {format(parseISO(from), 'MMM d')} – {format(parseISO(to), 'MMM d')} · {summary.length} synced days
+                </Text>
+                <SyncStatus run={lastSync} />
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                <ThemeToggle />
+                <RefreshButton from={from} to={to} />
+              </div>
             </div>
-            <div className="flex w-full min-w-0 flex-wrap items-center gap-3 sm:w-auto">
+            <div className="mt-4 flex w-full min-w-0 items-center gap-3 md:mt-5 md:w-auto">
               <RangeControls key={`${from}:${to}`} from={from} to={to} onRange={onRange} />
-              <ThemeToggle />
-              <RefreshButton from={from} to={to} />
             </div>
-          </Flex>
+          </div>
 
-          <div className="pb-12">{renderView()}</div>
+          <div>{renderView()}</div>
         </div>
       </div>
+      <MobileNav view={view} onSelect={setView} lastStatus={lastSync?.status} />
     </div>
   );
 }
