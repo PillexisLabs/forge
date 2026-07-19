@@ -52,8 +52,9 @@ _Last updated: 2026-07-19._
 
 ## Known issues / watch items
 
-1. **Railway still needs `GOOGLE_APPLICATION_CREDENTIALS_JSON` on both `forge` and `forge-sync`.** Deferred for later. Local sync uses `../keys/credentials/pillexislabs-ga4-service-account.json`; Railway needs one-line JSON instead.
-2. **No log rotation** — local diagnostic `logs/*.log` grow unbounded if local commands are used repeatedly.
+1. **Staging provider isolation is Priority 0.** Staging must move to fixture-only data and lose all production Meta and GA credentials. Requirements and acceptance criteria are in `plans/ROADMAP.md`.
+2. **Production Railway still needs `GOOGLE_APPLICATION_CREDENTIALS_JSON` on `forge` and `forge-sync`.** Deferred for later. Staging must not receive this credential.
+3. **No log rotation** — local diagnostic `logs/*.log` grow unbounded if local commands are used repeatedly.
 
 ## Backlog (PM-prioritized)
 

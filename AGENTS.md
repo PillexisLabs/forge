@@ -12,7 +12,7 @@ This `forge/` directory is an independent Git repository. The parent Pillexis wo
 
 This repository is the only active analytics implementation. The old local copy at `../archive/marketing-analytics-local/` is frozen and must not receive changes.
 
-Read `README.md` for operation and deployment, and `PROGRESS.md` for current status and backlog.
+Read `README.md` for operation and deployment, `PROGRESS.md` for current status, and `plans/ROADMAP.md` for ordered implementation priorities. Roadmap Priority 0 requires staging to use fixtures and forbids production Meta or GA credentials in staging.
 
 ## Branch and deployment workflow
 
@@ -45,7 +45,7 @@ Read `README.md` for operation and deployment, and `PROGRESS.md` for current sta
 - `public/`, PWA icons and service worker. Do not cache authenticated pages or API responses.
 - `db/`, Postgres schema.
 - `scripts/`, migration, sync, standalone-build, and retired local wrappers.
-- `plans/`, product planning artifacts.
+- `plans/`, product planning artifacts. `plans/ROADMAP.md` is the canonical ordered roadmap; older session and HTML plans are supporting context.
 - `output/`, generated verification artifacts only.
 - `.playwright-cli/`, generated browser state only.
 

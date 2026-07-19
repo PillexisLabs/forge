@@ -10,6 +10,6 @@ Follow `AGENTS.md` in this directory as the canonical project guidance. It defin
 
 For analytics questions, use the authenticated Railway `GET /api/v1/analytics` endpoint with the local client credential in `../keys/analytics-api-clients.json`. Do not query local Postgres, call Meta directly, or reload the archived launchd jobs.
 
-Read `README.md` before operational changes and `PROGRESS.md` before feature work. Do not modify `../archive/marketing-analytics-local/`; all analytics work belongs in this repository.
+Read `README.md` before operational changes, `PROGRESS.md` before feature work, and `plans/ROADMAP.md` before choosing implementation priorities. Roadmap Priority 0 requires fixture-only staging and forbids production Meta or GA credentials in staging. Do not modify `../archive/marketing-analytics-local/`; all analytics work belongs in this repository.
 
 `public/` contains PWA icons and the service worker. Keep authenticated dashboard pages and API responses network-only; never add offline caching for analytics data.

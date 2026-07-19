@@ -22,6 +22,7 @@ This `forge/` directory is an independent Git repository. Run its Git and GitHub
 
 > See [`PROGRESS.md`](PROGRESS.md) for the running changelog, known issues, and backlog.
 > See [`AGENTS.md`](AGENTS.md) for branch, deployment, organization, and verification rules.
+> See [`plans/ROADMAP.md`](plans/ROADMAP.md) for the canonical implementation order. Staging isolation is Priority 0.
 
 ---
 
@@ -257,7 +258,7 @@ If setting this up on a fresh machine:
 - `public/`, PWA icons and the network-only service worker.
 - `db/`, Postgres schema.
 - `scripts/`, CLI, migration, standalone-build, and retired local wrapper scripts.
-- `plans/`, product-planning artifacts.
+- `plans/`, product planning artifacts. `plans/ROADMAP.md` is canonical; the session state and visual analytics plan provide supporting context.
 - `output/` and `.playwright-cli/`, generated verification artifacts, ignored by Git.
 
 Do not create new root-level folders for screenshots, temporary exports, or one-off notes. Durable new folders must be added to `AGENTS.md`, `CLAUDE.md`, and this README in the same change.
