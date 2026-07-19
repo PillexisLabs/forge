@@ -8,7 +8,7 @@ _Last updated: 2026-07-19._
 - Railway production is live at `https://forge-production-fc70.up.railway.app` from `master`.
 - Railway staging is live at `https://forge-staging-7d05.up.railway.app` from `staging` and is the default environment for ongoing work.
 - Each environment has isolated `forge`, `forge-sync`, and Postgres services. The web service runs schema migration before deploy and uses `/api/health`; the sync service runs daily at 07:00 IST.
-- The original local mode remains available at `http://localhost:3000`. Both launchd agents now run from this canonical repository, not the archived duplicate.
+- The local analytics server and sync launchd jobs are retired. Their disabled definitions are archived under `../archive/launchd/`; Railway is the only scheduled runtime.
 - Production data was backfilled through 2026-07-19 and the dashboard reports the selected range independently from the number of days containing data.
 
 ## Built so far
@@ -18,9 +18,10 @@ _Last updated: 2026-07-19._
 - Idempotent sync — upsert by date, re-pulls last 3 days each run so late attribution settles.
 - Password-gated dashboard (HMAC-signed cookie, Edge middleware).
 
-**Local deployment & automation**
-- Postgres in Docker (5433; 5432 was taken by another project).
-- `com.pillexis.analytics.server` (always-on `next start`) + `com.pillexis.analytics.sync` (daily 07:00) launchd agents. Wrappers pin Node's path and `source .env`.
+**Machine access**
+- Versioned `GET /api/v1/analytics` endpoint backed by the dashboard's shared query layer.
+- Identified API clients with separate bearer secrets and `analytics:read` / `analytics:sync` scopes.
+- Fixed server-side Meta account targeting and `api_request_log` access auditing.
 
 **Analysis layer**
 - `src/lib/insights.ts` — rule-based "What's happening" findings with severity + a "→ Do" action (spend-with-no-conversions, biggest funnel leak, best/worst ad, CTR health, click→session drop, range trend).
@@ -50,8 +51,7 @@ _Last updated: 2026-07-19._
 ## Known issues / watch items
 
 1. **Railway still needs `GOOGLE_APPLICATION_CREDENTIALS_JSON` on both `forge` and `forge-sync`.** Deferred for later. Local sync uses `../keys/credentials/pillexislabs-ga4-service-account.json`; Railway needs one-line JSON instead.
-2. **launchd Node path is pinned** to the current nvm version in the wrapper scripts — update if Node is upgraded.
-3. **No log rotation** — `logs/*.log` grow unbounded (trivial at current volume).
+2. **No log rotation** — local diagnostic `logs/*.log` grow unbounded if local commands are used repeatedly.
 
 ## Backlog (PM-prioritized)
 

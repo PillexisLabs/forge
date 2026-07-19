@@ -18,17 +18,16 @@ public marketing site so ad-spend data and API secrets stay private.
 
 This `forge/` directory is an independent Git repository. Run its Git and GitHub commands from this directory, or use `git -C forge ...` from the Pillexis workspace root. The workspace root is not a Git repository. The sibling `website/` directory is a separate repository with different branches, remotes, and deployment rules. Never combine Forge and website changes in one commit or pull request.
 
+**Hard GitHub account rule:** This repository belongs to `anurag619`, and every GitHub operation must use that account. The `anuragrk10` account belongs to a different organization and must never be used for this repository. Before any `gh` mutation, verify or switch with `gh auth switch -h github.com -u anurag619`.
+
 > See [`PROGRESS.md`](PROGRESS.md) for the running changelog, known issues, and backlog.
 > See [`AGENTS.md`](AGENTS.md) for branch, deployment, organization, and verification rules.
 
 ---
 
-## Deployment modes
+## Deployment model
 
-This app supports two operating modes:
-
-- **Railway** — recommended. Run the dashboard as a normal web service, attach a Railway Postgres service, and run sync as a separate Railway cron service.
-- **Local** — optional. Keep the original Mac-based setup with Docker Postgres and launchd wrappers.
+Railway is the only scheduled runtime. Run the dashboard as a web service, attach Railway Postgres, and run sync as a separate Railway cron service. Local commands remain available for development and one-off diagnostics, but no local server or sync job runs automatically.
 
 For hosting, treat this as **two services from one repo**:
 
@@ -83,6 +82,7 @@ Railway's current docs support deploying a Next.js app from GitHub, wiring a Pos
   - `DASHBOARD_PASSWORD`
   - `AUTH_SECRET`
   - `SYNC_SECRET`
+  - `API_CLIENTS_JSON`
   - `GA4_PROPERTY_ID`
   - `GOOGLE_APPLICATION_CREDENTIALS_JSON`
   - `META_ACCESS_TOKEN`
@@ -140,29 +140,31 @@ The dashboard's **Sync data** button calls `/api/sync`. That route accepts eithe
 - a logged-in dashboard session, or
 - `SYNC_SECRET` via `x-sync-secret` / `Authorization: Bearer ...`
 
-That lets Railway-hosted cron, CI, or an external scheduler trigger syncs safely if needed.
+Machine clients should use an identified `API_CLIENTS_JSON` credential with the `analytics:sync` scope. `SYNC_SECRET` remains as a legacy fallback during migration.
 
----
+## Agent and machine API
 
-## Local automation
+`GET /api/v1/analytics` is the canonical path for agents and trusted integrations to read dashboard data. It uses the same query layer as the UI and always targets the server configured `META_AD_ACCOUNT_ID`. Callers cannot select a different Meta account.
 
-Two **launchd** agents in `~/Library/LaunchAgents/`:
+Required headers:
 
-| Agent | Does | Wrapper |
-|-------|------|---------|
-| `com.pillexis.analytics.server` | Keeps the dashboard alive at :3000 (RunAtLoad + KeepAlive) | `scripts/run-server.sh` |
-| `com.pillexis.analytics.sync` | Daily 07:00 sync | `scripts/run-sync.sh` |
+```text
+x-pillexis-client-id: codex
+Authorization: Bearer <client-secret>
+```
 
-Both wrappers pin Node's path (launchd has a minimal env) and `source .env` so the Meta
-token and DB creds are present. Fetching is **idempotent** — every run upserts by date and
-re-pulls the last 8 days so late ad attribution settles.
+Optional query parameters are `from` and `to` in `YYYY-MM-DD` format. The default is 30 days and the maximum is 366 days. Any other query parameter is rejected.
 
-The launchd definitions now point directly to this repository. The replaced implementation is archived at `../archive/marketing-analytics-local/` and must not be used for active work.
+Clients are configured in `API_CLIENTS_JSON` as an array with unique IDs, secrets, and scopes. Supported scopes are `analytics:read` and `analytics:sync`. Reads are recorded in `api_request_log` with client ID, route, status, and range; secrets are never logged. Give every external integration its own client so it can be audited and revoked independently.
 
-There are **three ways to fetch**, all hitting the same code path:
-- **Daily** — the launchd sync job.
-- **Manual (UI)** — the **Sync data** button → `POST /api/sync`.
-- **Manual (terminal)** — `npm run sync` (or `npm run sync -- 30` to backfill 30 days).
+The local Codex credential is stored outside Git at `../keys/analytics-api-clients.json`. Agents must use that credential and the Railway URL rather than reading the local database or calling Meta directly.
+
+There are three supported sync paths, all hitting the same code path:
+- **Daily**, Railway `forge-sync` cron service.
+- **Manual UI**, the **Sync data** button calls `POST /api/sync`.
+- **Manual terminal**, `npm run sync` or `npm run sync -- 30` for diagnostics and backfills.
+
+The retired local launchd definitions are archived at `../archive/launchd/`. Do not reload them.
 
 ---
 
@@ -174,21 +176,13 @@ cd forge
 npm run sync            # manual sync, last 8 days
 npm run sync -- 30      # backfill 30 days
 npm run db:migrate      # apply db/schema.sql to the current DATABASE_URL
-npm run build           # rebuild after code changes (then restart the server agent)
-
-# restart the always-on server after a rebuild
-launchctl kickstart -k gui/$(id -u)/com.pillexis.analytics.server
+npm run build           # verify a production build
 
 # watch logs (structured JSON, one line per event)
 tail -f logs/sync.log
 tail -f logs/server.log
 
-# inspect the DB
-docker exec -it pillexis-analytics-pg psql -U postgres -d pillexis_analytics
 ```
-
-- **Change the daily time** — edit `Hour`/`Minute` in `~/Library/LaunchAgents/com.pillexis.analytics.sync.plist`, then `launchctl kickstart -k …`.
-- **Change the password** — edit `DASHBOARD_PASSWORD` in `.env`, then restart the server agent.
 
 ---
 
@@ -210,6 +204,7 @@ Nothing fails silently:
 | `meta_ads_daily` | one row per ad per day | Ads view |
 | `ga_sources_daily` | one row per source/medium per day (incl. `book_call_clicks`, `leads`) | Traffic view + per-source conversions |
 | `sync_runs` | one row per sync run | Sync view + status strip |
+| `api_request_log` | one row per machine API request | client audit and access review |
 
 Full DDL in [`db/schema.sql`](db/schema.sql).
 
@@ -224,6 +219,7 @@ Full DDL in [`db/schema.sql`](db/schema.sql).
 | `DASHBOARD_PASSWORD` | dashboard login |
 | `AUTH_SECRET` | signs the login cookie (`openssl rand -hex 32`) |
 | `SYNC_SECRET` | protects `/api/sync` for cron/manual automation |
+| `API_CLIENTS_JSON` | identified machine clients with `analytics:read` and/or `analytics:sync` scopes |
 | `GA4_PROPERTY_ID` | numeric property ID `543367139` (not the `G-…` measurement ID) |
 | `GOOGLE_APPLICATION_CREDENTIALS` | local path to `../keys/credentials/pillexislabs-ga4-service-account.json` |
 | `GOOGLE_APPLICATION_CREDENTIALS_JSON` | one-line GA service-account JSON |
@@ -240,7 +236,7 @@ If setting this up on a fresh machine:
 2. Apply the schema with `npm run db:migrate`.
 3. **GA4** — service account with the Analytics Data API enabled, added as a **Viewer** on the GA4 property; paste the JSON into `GOOGLE_APPLICATION_CREDENTIALS_JSON`.
 4. **Meta** — a **System User** with the ad account assigned and a Business app installed, token scope `ads_read`, expiration **Never**.
-5. `cp .env.example .env`, fill it, `npm install`, `npm run sync`, then load the two launchd agents.
+5. `cp .env.example .env`, fill it, `npm install`, and use local commands only for development or diagnostics. Scheduled operation belongs on Railway.
 
 ---
 
@@ -258,7 +254,7 @@ If setting this up on a fresh machine:
 
 - `src/`, Next.js UI, authentication, database access, insights, and source integrations.
 - `db/`, Postgres schema.
-- `scripts/`, CLI, migration, standalone-build, and launchd wrappers.
+- `scripts/`, CLI, migration, standalone-build, and retired local wrapper scripts.
 - `plans/`, product-planning artifacts.
 - `output/` and `.playwright-cli/`, generated verification artifacts, ignored by Git.
 

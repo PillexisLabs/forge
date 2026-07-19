@@ -14,6 +14,7 @@ export const env = {
   dashboardPassword: () => req('DASHBOARD_PASSWORD'),
   authSecret: () => process.env.AUTH_SECRET ?? '',
   syncSecret: () => process.env.SYNC_SECRET ?? '',
+  apiClientsJson: () => process.env.API_CLIENTS_JSON ?? '[]',
 
   ga4PropertyId: () => req('GA4_PROPERTY_ID'),
   gaCredentialsJson: () => process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON,

@@ -2,8 +2,8 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { verifyToken, SESSION_COOKIE } from './lib/auth';
 
-// Everything is gated except the login page/route and the sync endpoint
-// (which authenticates itself via SYNC_SECRET for cron).
+// API routes authenticate themselves and must return JSON errors rather than
+// being redirected to the dashboard login page.
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
@@ -11,6 +11,7 @@ export async function middleware(req: NextRequest) {
     pathname.startsWith('/login') ||
     pathname.startsWith('/api/login') ||
     pathname.startsWith('/api/sync') ||
+    pathname.startsWith('/api/v1/') ||
     pathname.startsWith('/api/health')
   ) {
     return NextResponse.next();

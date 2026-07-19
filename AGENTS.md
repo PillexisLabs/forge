@@ -6,6 +6,8 @@ Guidance for coding agents working in the Forge marketing analytics repository.
 
 This `forge/` directory is an independent Git repository. The parent Pillexis workspace is not a Git repository, and `../website/` is a separate repository. Run Git and GitHub commands from `forge/`, or use `git -C forge ...` from the workspace root. Never stage, commit, push, or open a pull request that mixes Forge and website changes.
 
+**Hard GitHub account rule:** Every GitHub operation for Forge must use `anurag619`. The `anuragrk10` account belongs to a different organization and must never be used here. Before any `gh` mutation, verify the active account with `gh auth status`. If needed, run `gh auth switch -h github.com -u anurag619`. Never restore or switch to `anuragrk10` while working in this repository.
+
 ## Canonical ownership
 
 This repository is the only active analytics implementation. The old local copy at `../archive/marketing-analytics-local/` is frozen and must not receive changes.
@@ -29,15 +31,19 @@ Read `README.md` for operation and deployment, and `PROGRESS.md` for current sta
 - Both app services use `DATABASE_URL=${{Postgres.DATABASE_URL}}` and `DATABASE_SSL=disable`.
 - `GOOGLE_APPLICATION_CREDENTIALS_JSON` remains a deferred Railway credential. Local sync uses the file referenced by `.env`.
 
-## Local automation
+## Analytics API
 
-The launchd jobs `com.pillexis.analytics.server` and `com.pillexis.analytics.sync` point to this repository's `scripts/` and `logs/` folders. Keep those paths canonical if files move.
+- Agents and integrations must read analytics through Railway `GET /api/v1/analytics`, not local Postgres or direct Meta calls.
+- Authenticate with the client ID and bearer secret stored outside Git in `../keys/analytics-api-clients.json`.
+- API clients have explicit `analytics:read` and `analytics:sync` scopes. Never reuse one client across unrelated integrations.
+- The server configured `META_AD_ACCOUNT_ID` is authoritative. Never add an API parameter that lets callers select an arbitrary Meta account.
+- Local launchd analytics jobs are retired. Their disabled definitions are in `../archive/launchd/` and must not be reloaded.
 
 ## Repository organization
 
 - `src/`, application and sync implementation.
 - `db/`, Postgres schema.
-- `scripts/`, migration, sync, standalone-build, and launchd wrappers.
+- `scripts/`, migration, sync, standalone-build, and retired local wrappers.
 - `plans/`, product planning artifacts.
 - `output/`, generated verification artifacts only.
 - `.playwright-cli/`, generated browser state only.

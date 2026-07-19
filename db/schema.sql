@@ -75,3 +75,19 @@ create table if not exists sync_runs (
   duration_ms int
 );
 create index if not exists idx_sync_runs_started on sync_runs (started_at desc);
+
+-- Authenticated API request audit. Secrets and request bodies are never stored.
+create table if not exists api_request_log (
+  id           bigserial primary key,
+  request_id   uuid        not null,
+  requested_at timestamptz not null default now(),
+  client_id    text,
+  route        text        not null,
+  scope        text        not null,
+  status_code  integer     not null,
+  from_date    date,
+  to_date      date,
+  user_agent   text
+);
+create index if not exists idx_api_request_log_requested on api_request_log (requested_at desc);
+create index if not exists idx_api_request_log_client on api_request_log (client_id, requested_at desc);
