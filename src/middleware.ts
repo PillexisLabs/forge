@@ -12,7 +12,12 @@ export async function middleware(req: NextRequest) {
     pathname.startsWith('/api/login') ||
     pathname.startsWith('/api/sync') ||
     pathname.startsWith('/api/v1/') ||
-    pathname.startsWith('/api/health')
+    pathname.startsWith('/api/health') ||
+    pathname.startsWith('/icons/') ||
+    pathname === '/manifest.webmanifest' ||
+    pathname === '/icon.svg' ||
+    pathname === '/apple-icon.png' ||
+    pathname === '/sw.js'
   ) {
     return NextResponse.next();
   }

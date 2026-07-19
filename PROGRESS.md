@@ -35,6 +35,7 @@ _Last updated: 2026-07-19._
 - Light/dark theme toggle (persisted, no flash).
 - Mobile redesign: fixed bottom navigation, 2 by 2 KPI grid, compact sync state, collapsed custom dates, and stacked Ads and Traffic cards.
 - Desktop header redesign: compact status and date summary, clear presets, and custom fields shown only on demand.
+- Installable mobile PWA with Forge favicon, iOS home-screen icon, standalone metadata, and network-only service worker.
 
 **Observability**
 - Structured JSON logging → `logs/*.log`.

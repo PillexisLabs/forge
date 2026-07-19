@@ -64,6 +64,7 @@ Both environments contain `forge`, `forge-sync`, and Postgres services. Their de
 - **KPI cards** — Cost per booked call, Session→booking rate, Ad spend, Book-call intent — each with **period-over-period delta** badges (vs the previous equal-length range).
 - **Date range** — Last 7 / 30 / 90 days + custom; everything (KPIs, funnel, tables, insights) recomputes for the range. State lives in the URL (`?from=&to=`).
 - **Responsive dashboard** — mobile uses a 2 by 2 KPI grid, compact insights, and stacked Ads and Traffic metric cards instead of compressed tables. Custom date inputs stay collapsed until requested.
+- **Installable PWA** — manifest, favicon, iOS home-screen icon, standalone display, and a network-only service worker that never caches authenticated analytics data.
 - **Light / dark theme** toggle (persisted, no flash on load).
 
 ---
@@ -253,6 +254,7 @@ If setting this up on a fresh machine:
 ## Repository layout
 
 - `src/`, Next.js UI, authentication, database access, insights, and source integrations.
+- `public/`, PWA icons and the network-only service worker.
 - `db/`, Postgres schema.
 - `scripts/`, CLI, migration, standalone-build, and retired local wrapper scripts.
 - `plans/`, product-planning artifacts.

@@ -42,6 +42,7 @@ Read `README.md` for operation and deployment, and `PROGRESS.md` for current sta
 ## Repository organization
 
 - `src/`, application and sync implementation.
+- `public/`, PWA icons and service worker. Do not cache authenticated pages or API responses.
 - `db/`, Postgres schema.
 - `scripts/`, migration, sync, standalone-build, and retired local wrappers.
 - `plans/`, product planning artifacts.
