@@ -5,3 +5,8 @@
 html {
   color-scheme: dark;
 }
+
+body {
+  /* iOS standalone mode draws under the translucent status bar. */
+  padding-top: env(safe-area-inset-top);
+}
