@@ -644,13 +644,13 @@ export default function DashboardView({
               <h1 className="text-lg font-semibold text-gray-900 dark:text-white">{VIEW_TITLE[view]}</h1>
               <Text className="mt-0.5 !text-gray-500">{rangeLabel}</Text>
             </div>
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex w-full min-w-0 flex-wrap items-center gap-3 sm:w-auto">
               <DateRangePicker
                 value={{ from: parseDate(from), to: parseDate(to) }}
                 onValueChange={onRange}
                 maxDate={new Date()}
                 enableClear={false}
-                className="max-w-md"
+                className="min-w-0 max-w-full sm:max-w-md"
               >
                 <DateRangePickerItem key="7d" value="7d" from={subDays(new Date(), 6)} to={new Date()}>
                   Last 7 days
