@@ -9,13 +9,14 @@ _Last updated: 2026-07-19._
 - Railway staging is live at `https://forge-staging-7d05.up.railway.app` from `staging` and is the default environment for ongoing work.
 - Each environment has isolated `forge`, `forge-sync`, and Postgres services. The web service runs schema migration before deploy and uses `/api/health`; the sync service runs daily at 07:00 IST.
 - The local analytics server and sync launchd jobs are retired. Their disabled definitions are archived under `../archive/launchd/`; Railway is the only scheduled runtime.
+- Staging has eight days of Meta data for `act_1705074640527431`; authenticated API reads return that data. GA remains deferred until valid service-account JSON is configured.
 - Production data was backfilled through 2026-07-19 and the dashboard reports the selected range independently from the number of days containing data.
 
 ## Built so far
 
 **Core pipeline**
 - Next.js 14 app, Postgres store, `/api/sync` endpoint (GA4 Data API + Meta Marketing API).
-- Idempotent sync — upsert by date, re-pulls last 3 days each run so late attribution settles.
+- Idempotent sync — upsert by date, re-pulls the last 8 days so late attribution settles.
 - Password-gated dashboard (HMAC-signed cookie, Edge middleware).
 
 **Machine access**
