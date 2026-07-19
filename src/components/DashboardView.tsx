@@ -115,12 +115,12 @@ const NAV_SECTIONS: { section: string; items: { id: ViewId; label: string }[] }[
 
 function Sidebar({ view, onSelect, lastStatus }: { view: ViewId; onSelect: (v: ViewId) => void; lastStatus?: string }) {
   return (
-    <aside className="border-gray-200 px-3 py-4 dark:border-white/10 md:min-h-screen md:w-56 md:shrink-0 md:border-r md:py-6">
+    <aside className="w-full min-w-0 overflow-hidden border-gray-200 px-3 py-4 dark:border-white/10 md:min-h-screen md:w-56 md:shrink-0 md:border-r md:py-6">
       <div className="mb-5 hidden items-center gap-2 px-2 md:flex">
         <span className="h-2.5 w-2.5 rounded-sm bg-[#FF6363] shadow-[0_0_12px_rgba(255,99,99,0.5)]" />
         <span className="text-sm font-semibold text-gray-900 dark:text-white">Pillexis Analytics</span>
       </div>
-      <nav className="flex gap-1 overflow-x-auto md:block md:space-y-4 md:overflow-visible">
+      <nav className="flex w-full min-w-0 gap-1 overflow-x-auto md:block md:space-y-4 md:overflow-visible">
         {NAV_SECTIONS.map((sec) => (
           <div key={sec.section} className="flex gap-1 md:block">
             <p className="hidden px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-600 md:block">
