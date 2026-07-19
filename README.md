@@ -14,6 +14,10 @@ Meta impressions → clicks → GA sessions → book-call clicks → Schedule (b
 Stack: **Next.js 14** (App Router) · **Postgres** · **Tremor** charts. Separate from the
 public marketing site so ad-spend data and API secrets stay private.
 
+## Git repository boundary
+
+This `forge/` directory is an independent Git repository. Run its Git and GitHub commands from this directory, or use `git -C forge ...` from the Pillexis workspace root. The workspace root is not a Git repository. The sibling `website/` directory is a separate repository with different branches, remotes, and deployment rules. Never combine Forge and website changes in one commit or pull request.
+
 > See [`PROGRESS.md`](PROGRESS.md) for the running changelog, known issues, and backlog.
 > See [`AGENTS.md`](AGENTS.md) for branch, deployment, organization, and verification rules.
 

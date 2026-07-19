@@ -2,6 +2,10 @@
 
 Guidance for coding agents working in the Forge marketing analytics repository.
 
+## Git repository boundary
+
+This `forge/` directory is an independent Git repository. The parent Pillexis workspace is not a Git repository, and `../website/` is a separate repository. Run Git and GitHub commands from `forge/`, or use `git -C forge ...` from the workspace root. Never stage, commit, push, or open a pull request that mixes Forge and website changes.
+
 ## Canonical ownership
 
 This repository is the only active analytics implementation. The old local copy at `../archive/marketing-analytics-local/` is frozen and must not receive changes.
