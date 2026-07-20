@@ -122,9 +122,40 @@ export async function syncDay(date: string) {
 
   // Replace per-source rows only if the GA sources fetch succeeded.
   if (gaSources) {
+    const sourceTotals = new Map<string, typeof gaSources[number]>();
+    const campaignTotals = new Map<string, { sessions: number; users: number; engagedSessions: number; bookCallClicks: number; leads: number }>();
+    for (const source of gaSources) {
+      const sourceKey = `${source.source}|${source.medium}`;
+      const sourceTotal = sourceTotals.get(sourceKey) ?? {
+        ...source,
+        campaignKey: '(all)',
+        sessions: 0,
+        users: 0,
+        engagedSessions: 0,
+        bookCallClicks: 0,
+        leads: 0,
+      };
+      sourceTotal.sessions += source.sessions;
+      sourceTotal.users += source.users;
+      sourceTotal.engagedSessions += source.engagedSessions;
+      sourceTotal.bookCallClicks += source.bookCallClicks;
+      sourceTotal.leads += source.leads;
+      sourceTotals.set(sourceKey, sourceTotal);
+
+      const campaignTotal = campaignTotals.get(source.campaignKey) ?? {
+        sessions: 0, users: 0, engagedSessions: 0, bookCallClicks: 0, leads: 0,
+      };
+      campaignTotal.sessions += source.sessions;
+      campaignTotal.users += source.users;
+      campaignTotal.engagedSessions += source.engagedSessions;
+      campaignTotal.bookCallClicks += source.bookCallClicks;
+      campaignTotal.leads += source.leads;
+      campaignTotals.set(source.campaignKey, campaignTotal);
+    }
+
     await sql`delete from ga_sources_daily where date = ${date}`;
-    if (gaSources.length) {
-      const sourceRows = gaSources.map((s) => ({
+    if (sourceTotals.size) {
+      const sourceRows = Array.from(sourceTotals.values()).map((s) => ({
         date,
         source: s.source,
         medium: s.medium,
@@ -135,6 +166,38 @@ export async function syncDay(date: string) {
         updated_at: new Date(),
       }));
       await sql`insert into ga_sources_daily ${sql(sourceRows)}`;
+    }
+
+    await sql`delete from ga_campaigns_daily where date = ${date}`;
+    if (campaignTotals.size) {
+      const campaignRows = Array.from(campaignTotals.entries()).map(([campaignKey, total]) => ({
+        date,
+        campaign_key: campaignKey,
+        sessions: total.sessions,
+        users: total.users,
+        engaged_sessions: total.engagedSessions,
+        book_call_clicks: total.bookCallClicks,
+        leads: total.leads,
+        updated_at: new Date(),
+      }));
+      await sql`insert into ga_campaigns_daily ${sql(campaignRows)}`;
+    }
+
+    await sql`delete from ga_campaign_sources_daily where date = ${date}`;
+    if (gaSources.length) {
+      const campaignSourceRows = gaSources.map((s) => ({
+        date,
+        campaign_key: s.campaignKey,
+        source: s.source,
+        medium: s.medium,
+        sessions: s.sessions,
+        users: s.users,
+        engaged_sessions: s.engagedSessions,
+        book_call_clicks: s.bookCallClicks,
+        leads: s.leads,
+        updated_at: new Date(),
+      }));
+      await sql`insert into ga_campaign_sources_daily ${sql(campaignSourceRows)}`;
     }
   }
 

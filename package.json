@@ -8,6 +8,7 @@
     "build": "next build",
     "postbuild": "node scripts/prepare-standalone.mjs",
     "start": "node .next/standalone/server.js",
+    "test": "node --import tsx --test tests/*.test.ts",
     "lint": "next lint",
     "sync": "node --import ./scripts/load-env-if-present.mjs --import tsx scripts/sync-cli.ts",
     "db:migrate": "node --import ./scripts/load-env-if-present.mjs --import tsx scripts/migrate.ts"

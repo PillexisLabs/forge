@@ -18,6 +18,7 @@ export const env = {
 
   ga4PropertyId: () => req('GA4_PROPERTY_ID'),
   gaCredentialsJson: () => process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON,
+  gaHostname: () => process.env.GA4_HOSTNAME ?? 'pillexislabs.com',
 
   metaToken: () => req('META_ACCESS_TOKEN'),
   metaAccountId: () => process.env.META_AD_ACCOUNT_ID ?? 'act_1705074640527431',

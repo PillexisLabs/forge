@@ -86,6 +86,7 @@ Railway's current docs support deploying a Next.js app from GitHub, wiring a Pos
   - `SYNC_SECRET`
   - `API_CLIENTS_JSON`
   - `GA4_PROPERTY_ID`
+  - `GA4_HOSTNAME`
   - `GOOGLE_APPLICATION_CREDENTIALS_JSON`
   - `META_ACCESS_TOKEN`
   - `META_AD_ACCOUNT_ID`
@@ -155,7 +156,7 @@ x-pillexis-client-id: codex
 Authorization: Bearer <client-secret>
 ```
 
-Optional query parameters are `from` and `to` in `YYYY-MM-DD` format. The default is 30 days and the maximum is 366 days. Any other query parameter is rejected.
+Optional query parameters are `from` and `to` in `YYYY-MM-DD` format, plus `campaign` using a campaign ID returned in `data.campaigns`. The default is 30 days across all campaigns and the maximum is 366 days. Any other query parameter is rejected.
 
 Clients are configured in `API_CLIENTS_JSON` as an array with unique IDs, secrets, and scopes. Supported scopes are `analytics:read` and `analytics:sync`. Reads are recorded in `api_request_log` with client ID, route, status, and range; secrets are never logged. Give every external integration its own client so it can be audited and revoked independently.
 
@@ -205,6 +206,8 @@ Nothing fails silently:
 | `daily_summary` | one row per day | KPI cards, funnel, trend, deltas |
 | `meta_ads_daily` | one row per ad per day | Ads view |
 | `ga_sources_daily` | one row per source/medium per day (incl. `book_call_clicks`, `leads`) | Traffic view + per-source conversions |
+| `ga_campaigns_daily` | one row per GA session campaign per day | Campaign-filtered funnel and KPIs |
+| `ga_campaign_sources_daily` | one row per campaign/source/medium/day | Campaign-filtered traffic view |
 | `sync_runs` | one row per sync run | Sync view + status strip |
 | `api_request_log` | one row per machine API request | client audit and access review |
 
@@ -223,6 +226,7 @@ Full DDL in [`db/schema.sql`](db/schema.sql).
 | `SYNC_SECRET` | protects `/api/sync` for cron/manual automation |
 | `API_CLIENTS_JSON` | identified machine clients with `analytics:read` and/or `analytics:sync` scopes |
 | `GA4_PROPERTY_ID` | numeric property ID `543367139` (not the `G-…` measurement ID) |
+| `GA4_HOSTNAME` | website hostname included in the funnel, defaults to `pillexislabs.com` |
 | `GOOGLE_APPLICATION_CREDENTIALS` | local path to `../keys/credentials/pillexislabs-ga4-service-account.json` |
 | `GOOGLE_APPLICATION_CREDENTIALS_JSON` | one-line GA service-account JSON |
 | `META_ACCESS_TOKEN` | long-lived System User token, scope `ads_read` |

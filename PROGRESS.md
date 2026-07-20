@@ -43,6 +43,7 @@ _Last updated: 2026-07-19._
 - No-clobber rule: a failed source preserves prior data instead of zeroing it; run flagged `partial`.
 
 **Recent additions**
+- Added product-grade campaign filtering. Sync retains every Meta and GA campaign, `All campaigns` is the default, and users can select a campaign without changing deployment configuration. Hostname filtering keeps Cal.com and unrelated domains out of website metrics. The funnel now shows engaged sessions between sessions and booking intent.
 - Period-over-period **delta badges** on KPIs (vs previous equal-length range).
 - **Per-source conversions** — `ga_sources_daily` now captures `book_call_clicks` + `leads`; Traffic view shows conv. rate per source.
 - Fixed Meta double-counting — read canonical pixel `action_type`s instead of substring-summing aliases.

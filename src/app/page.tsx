@@ -7,11 +7,11 @@ export const dynamic = 'force-dynamic';
 export default async function Page({
   searchParams,
 }: {
-  searchParams: { from?: string; to?: string };
+  searchParams: { from?: string; to?: string; campaign?: string };
 }) {
   try {
     const range = resolveAnalyticsRange(searchParams?.from, searchParams?.to);
-    const data = await getAnalyticsData(range);
+    const data = await getAnalyticsData(range, searchParams?.campaign);
     return (
       <DashboardView
         summary={data.summary}
@@ -22,6 +22,8 @@ export default async function Page({
         syncRuns={data.syncRuns}
         prev={data.prev}
         prevDays={data.days}
+        campaigns={data.campaigns}
+        campaignId={data.campaignId}
       />
     );
   } catch (error) {

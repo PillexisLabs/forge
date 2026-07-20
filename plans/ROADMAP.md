@@ -108,6 +108,21 @@ None of these alternatives may restore production Meta or GA credentials to stag
 - Verify GA sessions, source attribution, and booking events through production sync.
 - Keep GA credentials absent from staging and represent GA rows through fixtures.
 
+## Priority 2: Product analytics foundation
+
+Forge must treat accounts, campaigns, date ranges, and traffic segments as data dimensions, not deployment configuration.
+
+1. Keep `All campaigns` as the default dashboard scope.
+2. Persist campaign identity during sync and apply campaign filters at query time.
+3. Keep hostname as a connection-level setting because it defines which website belongs to the workspace.
+4. Store provider identifiers alongside display names. Never use a campaign name as the sole identity.
+5. Preserve filters in the URL so analysis is shareable and reproducible.
+6. Return available filters and the active filter through the machine API.
+7. Next, introduce `workspaces`, `connections`, and `workspace_members` before onboarding a second customer. Provider credentials must belong to a connection, not global environment variables.
+8. Add a campaign-mapping layer for GA UTM values that do not equal the provider campaign ID or name.
+9. Build landing-page, device, placement, and geography filters on the same query-time dimension model.
+10. Keep raw provider facts immutable. Derived insights and recommendations should be recomputable when attribution rules change.
+
 ## Product roadmap context
 
 The detailed intelligent analytics and Ad Ops Copilot proposal remains in `intelligent-analytics-plan.html`, with session decisions in `SESSION_STATE.md`. Those files provide product direction; this file is the canonical ordered implementation roadmap.

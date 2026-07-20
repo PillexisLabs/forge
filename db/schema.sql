@@ -60,6 +60,38 @@ create table if not exists ga_sources_daily (
 create index if not exists idx_meta_ads_daily_date on meta_ads_daily (date);
 create index if not exists idx_ga_sources_daily_date on ga_sources_daily (date);
 
+-- GA metrics retain the campaign dimension so the dashboard can filter at
+-- query time. campaign_key is GA's sessionCampaignName. For Meta campaigns it
+-- should be populated through utm_campaign with either the Meta id or name.
+create table if not exists ga_campaigns_daily (
+  date              date    not null,
+  campaign_key      text    not null,
+  sessions          integer default 0,
+  users             integer default 0,
+  engaged_sessions  integer default 0,
+  book_call_clicks  integer default 0,
+  leads             integer default 0,
+  updated_at        timestamptz default now(),
+  primary key (date, campaign_key)
+);
+
+create table if not exists ga_campaign_sources_daily (
+  date              date    not null,
+  campaign_key      text    not null,
+  source            text    not null,
+  medium            text    not null,
+  sessions          integer default 0,
+  users             integer default 0,
+  engaged_sessions  integer default 0,
+  book_call_clicks  integer default 0,
+  leads             integer default 0,
+  updated_at        timestamptz default now(),
+  primary key (date, campaign_key, source, medium)
+);
+
+create index if not exists idx_ga_campaigns_daily_date on ga_campaigns_daily (date);
+create index if not exists idx_ga_campaign_sources_daily_date on ga_campaign_sources_daily (date);
+
 -- Audit log of every sync run (cron / manual / cli) so failures are visible on
 -- the dashboard and in queries, not just buried in console logs.
 create table if not exists sync_runs (

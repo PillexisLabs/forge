@@ -8,10 +8,12 @@ export type GaSummary = {
 };
 
 export type GaSource = {
+  campaignKey: string;
   source: string;
   medium: string;
   sessions: number;
   users: number;
+  engagedSessions: number;
   bookCallClicks: number;
   leads: number;
 };
@@ -82,6 +84,11 @@ export type SourceRow = {
   users: number;
   book_call_clicks: number;
   leads: number;
+};
+
+export type CampaignOption = {
+  id: string;
+  name: string;
 };
 
 export type PeriodTotals = {

@@ -17,6 +17,15 @@ function getClient() {
 
 const property = () => `properties/${env.ga4PropertyId()}`;
 
+function siteFilter() {
+  return {
+    filter: {
+      fieldName: 'hostName',
+      stringFilter: { matchType: 'EXACT' as const, value: env.gaHostname() },
+    },
+  };
+}
+
 /** Top-line GA metrics for a single day (date as YYYY-MM-DD). */
 export async function getGaSummary(date: string): Promise<GaSummary> {
   const client = getClient();
@@ -30,6 +39,7 @@ export async function getGaSummary(date: string): Promise<GaSummary> {
       { name: 'newUsers' },
       { name: 'engagedSessions' },
     ],
+    dimensionFilter: siteFilter(),
   });
 
   const mv = core.rows?.[0]?.metricValues ?? [];
@@ -41,9 +51,16 @@ export async function getGaSummary(date: string): Promise<GaSummary> {
     dimensions: [{ name: 'eventName' }],
     metrics: [{ name: 'eventCount' }],
     dimensionFilter: {
-      filter: {
-        fieldName: 'eventName',
-        inListFilter: { values: ['book_call_clicked', 'generate_lead'] },
+      andGroup: {
+        expressions: [
+          siteFilter(),
+          {
+            filter: {
+              fieldName: 'eventName',
+              inListFilter: { values: ['book_call_clicked', 'generate_lead'] },
+            },
+          },
+        ],
       },
     },
   });
@@ -75,21 +92,25 @@ export async function getGaSources(date: string): Promise<GaSource[]> {
   const [rep] = await client.runReport({
     property: property(),
     dateRanges: [{ startDate: date, endDate: date }],
-    dimensions: [{ name: 'sessionSource' }, { name: 'sessionMedium' }],
-    metrics: [{ name: 'sessions' }, { name: 'totalUsers' }],
+    dimensions: [{ name: 'sessionCampaignName' }, { name: 'sessionSource' }, { name: 'sessionMedium' }],
+    metrics: [{ name: 'sessions' }, { name: 'totalUsers' }, { name: 'engagedSessions' }],
     orderBys: [{ metric: { metricName: 'sessions' }, desc: true }],
-    limit: 50,
+    dimensionFilter: siteFilter(),
+    limit: 1000,
   });
 
   const map = new Map<string, GaSource>();
   for (const r of rep.rows ?? []) {
-    const source = r.dimensionValues?.[0]?.value ?? '(not set)';
-    const medium = r.dimensionValues?.[1]?.value ?? '(not set)';
-    map.set(`${source}|${medium}`, {
+    const campaignKey = r.dimensionValues?.[0]?.value ?? '(not set)';
+    const source = r.dimensionValues?.[1]?.value ?? '(not set)';
+    const medium = r.dimensionValues?.[2]?.value ?? '(not set)';
+    map.set(`${campaignKey}|${source}|${medium}`, {
+      campaignKey,
       source,
       medium,
       sessions: Number(r.metricValues?.[0]?.value ?? 0),
       users: Number(r.metricValues?.[1]?.value ?? 0),
+      engagedSessions: Number(r.metricValues?.[2]?.value ?? 0),
       bookCallClicks: 0,
       leads: 0,
     });
@@ -99,22 +120,30 @@ export async function getGaSources(date: string): Promise<GaSource[]> {
   const [evt] = await client.runReport({
     property: property(),
     dateRanges: [{ startDate: date, endDate: date }],
-    dimensions: [{ name: 'sessionSource' }, { name: 'sessionMedium' }, { name: 'eventName' }],
+    dimensions: [{ name: 'sessionCampaignName' }, { name: 'sessionSource' }, { name: 'sessionMedium' }, { name: 'eventName' }],
     metrics: [{ name: 'eventCount' }],
     dimensionFilter: {
-      filter: { fieldName: 'eventName', inListFilter: { values: ['book_call_clicked', 'generate_lead'] } },
+      andGroup: {
+        expressions: [
+          siteFilter(),
+          {
+            filter: { fieldName: 'eventName', inListFilter: { values: ['book_call_clicked', 'generate_lead'] } },
+          },
+        ],
+      },
     },
-    limit: 200,
+    limit: 2000,
   });
   for (const r of evt.rows ?? []) {
-    const source = r.dimensionValues?.[0]?.value ?? '(not set)';
-    const medium = r.dimensionValues?.[1]?.value ?? '(not set)';
-    const name = r.dimensionValues?.[2]?.value;
+    const campaignKey = r.dimensionValues?.[0]?.value ?? '(not set)';
+    const source = r.dimensionValues?.[1]?.value ?? '(not set)';
+    const medium = r.dimensionValues?.[2]?.value ?? '(not set)';
+    const name = r.dimensionValues?.[3]?.value;
     const count = Number(r.metricValues?.[0]?.value ?? 0);
-    const key = `${source}|${medium}`;
+    const key = `${campaignKey}|${source}|${medium}`;
     let row = map.get(key);
     if (!row) {
-      row = { source, medium, sessions: 0, users: 0, bookCallClicks: 0, leads: 0 };
+      row = { campaignKey, source, medium, sessions: 0, users: 0, engagedSessions: 0, bookCallClicks: 0, leads: 0 };
       map.set(key, row);
     }
     if (name === 'book_call_clicked') row.bookCallClicks += count;

@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
   }
 
   const params = req.nextUrl.searchParams;
-  const unsupported = [...params.keys()].filter((key) => key !== 'from' && key !== 'to');
+  const unsupported = [...params.keys()].filter((key) => !['from', 'to', 'campaign'].includes(key));
   if (unsupported.length > 0) {
     await recordApiRequest({ requestId, clientId: auth.client.id, route, scope, statusCode: 400, userAgent });
     return NextResponse.json(
@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
 
   try {
     const range = resolveAnalyticsRange(params.get('from') ?? undefined, params.get('to') ?? undefined);
-    const data = await getAnalyticsData(range);
+    const data = await getAnalyticsData(range, params.get('campaign') ?? undefined);
     await recordApiRequest({
       requestId, clientId: auth.client.id, route, scope, statusCode: 200,
       from: range.from, to: range.to, userAgent,
@@ -45,6 +45,7 @@ export async function GET(req: NextRequest) {
       requestId,
       client: { id: auth.client.id },
       account: { provider: 'meta', id: env.metaAccountId() },
+      filter: { campaign: data.campaignId },
       range: { from: range.from, to: range.to, days: range.days, daysWithData: data.summary.length },
       data: {
         daily: data.summary,
@@ -52,11 +53,12 @@ export async function GET(req: NextRequest) {
         sources: data.sources,
         syncRuns: data.syncRuns,
         previousPeriod: data.prev,
+        campaigns: data.campaigns,
       },
     }, { headers: responseHeaders });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    const status = /^(from|to|date range)/.test(message) ? 400 : 500;
+    const status = /^(from|to|date range|campaign)/.test(message) ? 400 : 500;
     if (status === 500) console.error('Analytics API query failed', { requestId, error });
     await recordApiRequest({ requestId, clientId: auth.client.id, route, scope, statusCode: status, userAgent });
     return NextResponse.json(

@@ -18,6 +18,7 @@ export type InsightInput = {
   impressions: number;
   clicks: number;
   sessions: number;
+  engagedSessions: number;
   bookCallClicks: number;
   bookings: number;
   ads: AdRow[];
@@ -42,6 +43,7 @@ export function buildInsights(i: InsightInput): Insight[] {
   const out: Insight[] = [];
 
   const ctr = i.impressions > 0 ? (i.clicks / i.impressions) * 100 : 0;
+  const sessionToEngaged = i.sessions > 0 ? (i.engagedSessions / i.sessions) * 100 : 0;
   const sessionToBook = i.sessions > 0 ? (i.bookCallClicks / i.sessions) * 100 : 0;
   const bookToBooking = i.bookCallClicks > 0 ? (i.bookings / i.bookCallClicks) * 100 : 0;
 
@@ -63,6 +65,7 @@ export function buildInsights(i: InsightInput): Insight[] {
 
   // 2) Biggest on-site leak (sessions → book-clicks → bookings).
   const transitions = [
+    { from: 'Sessions', to: 'engaged sessions', rate: sessionToEngaged, a: i.sessions, b: i.engagedSessions },
     { from: 'Sessions', to: 'book-call clicks', rate: sessionToBook, a: i.sessions, b: i.bookCallClicks },
     { from: 'Book-call clicks', to: 'bookings', rate: bookToBooking, a: i.bookCallClicks, b: i.bookings },
   ].filter((t) => t.a > 0);

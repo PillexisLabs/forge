@@ -19,7 +19,7 @@ import {
   TableCell,
   Badge,
 } from '@tremor/react';
-import type { DailySummaryRow, AdRow, SourceRow, SyncRunRow, PeriodTotals } from '@/lib/types';
+import type { CampaignOption, DailySummaryRow, AdRow, SourceRow, SyncRunRow, PeriodTotals } from '@/lib/types';
 import { buildInsights, type Severity } from '@/lib/insights';
 import ThemeToggle from './ThemeToggle';
 
@@ -350,6 +350,7 @@ function InsightsPanel({ insights }: { insights: ReturnType<typeof buildInsights
 function ConversionFunnel({
   clicks,
   sessions,
+  engagedSessions,
   bookCallClicks,
   bookings,
   impressions,
@@ -357,6 +358,7 @@ function ConversionFunnel({
 }: {
   clicks: number;
   sessions: number;
+  engagedSessions: number;
   bookCallClicks: number;
   bookings: number;
   impressions: number;
@@ -365,6 +367,7 @@ function ConversionFunnel({
   const stages = [
     { label: 'Ad clicks', value: clicks },
     { label: 'Sessions', value: sessions },
+    { label: 'Engaged sessions', value: engagedSessions },
     { label: 'Book-call clicks', value: bookCallClicks },
     { label: 'Bookings', value: bookings },
   ];
@@ -587,6 +590,8 @@ export default function DashboardView({
   syncRuns,
   prev,
   prevDays,
+  campaigns,
+  campaignId,
 }: {
   summary: DailySummaryRow[];
   ads: AdRow[];
@@ -596,6 +601,8 @@ export default function DashboardView({
   syncRuns: SyncRunRow[];
   prev: PeriodTotals;
   prevDays: number;
+  campaigns: CampaignOption[];
+  campaignId: string | null;
 }) {
   const router = useRouter();
   const [view, setView] = useState<ViewId>('overview');
@@ -608,12 +615,13 @@ export default function DashboardView({
       acc.clicks += r.meta_clicks;
       acc.schedules += r.meta_schedules;
       acc.sessions += r.ga_sessions;
+      acc.engagedSessions += r.ga_engaged_sessions;
       acc.users += r.ga_users;
       acc.bookCallClicks += r.ga_book_call_clicks;
       acc.leads += r.ga_leads;
       return acc;
     },
-    { spend: 0, impressions: 0, clicks: 0, schedules: 0, sessions: 0, users: 0, bookCallClicks: 0, leads: 0 },
+    { spend: 0, impressions: 0, clicks: 0, schedules: 0, sessions: 0, engagedSessions: 0, users: 0, bookCallClicks: 0, leads: 0 },
   );
 
   const bookings = t.schedules || t.leads;
@@ -634,6 +642,7 @@ export default function DashboardView({
     impressions: t.impressions,
     clicks: t.clicks,
     sessions: t.sessions,
+    engagedSessions: t.engagedSessions,
     bookCallClicks: t.bookCallClicks,
     bookings,
     ads,
@@ -648,7 +657,15 @@ export default function DashboardView({
   }));
 
   function onRange(nextFrom: string, nextTo: string) {
-    router.push(`/?from=${nextFrom}&to=${nextTo}`);
+    const params = new URLSearchParams({ from: nextFrom, to: nextTo });
+    if (campaignId) params.set('campaign', campaignId);
+    router.push(`/?${params}`);
+  }
+
+  function onCampaign(nextCampaignId: string) {
+    const params = new URLSearchParams({ from, to });
+    if (nextCampaignId) params.set('campaign', nextCampaignId);
+    router.push(`/?${params}`);
   }
 
   const rangeLabel = `${from} → ${to} · ${prevDays} days selected · ${summary.length} with data`;
@@ -699,6 +716,7 @@ export default function DashboardView({
         <ConversionFunnel
           clicks={t.clicks}
           sessions={t.sessions}
+          engagedSessions={t.engagedSessions}
           bookCallClicks={t.bookCallClicks}
           bookings={bookings}
           impressions={t.impressions}
@@ -807,8 +825,21 @@ export default function DashboardView({
                 <RefreshButton from={from} to={to} />
               </div>
             </div>
-            <div className="mt-4 flex w-full min-w-0 items-center gap-3 md:mt-5 md:w-auto">
+            <div className="mt-4 flex w-full min-w-0 flex-col items-stretch gap-3 sm:flex-row md:mt-5 md:w-auto md:items-center">
               <RangeControls key={`${from}:${to}`} from={from} to={to} onRange={onRange} />
+              <label className="min-w-0">
+                <span className="sr-only">Campaign</span>
+                <select
+                  value={campaignId ?? ''}
+                  onChange={(event) => onCampaign(event.target.value)}
+                  className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-xs font-medium text-gray-700 dark:border-white/10 dark:bg-[#141417] dark:text-gray-200 sm:w-64"
+                >
+                  <option value="">All campaigns</option>
+                  {campaigns.map((campaign) => (
+                    <option key={campaign.id} value={campaign.id}>{campaign.name}</option>
+                  ))}
+                </select>
+              </label>
             </div>
           </div>
 
