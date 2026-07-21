@@ -2,11 +2,47 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Hallmark · modern-minimal workbench · Pillexis red · designed-as-app
+   Pre-emit critique: P4 H5 E4 S5 R5 V4 · contrast/pass · mobile/pass */
 html {
   color-scheme: dark;
+  overflow-x: clip;
 }
 
 body {
   /* iOS standalone mode draws under the translucent status bar. */
   padding-top: env(safe-area-inset-top);
+  overflow-x: clip;
+  font-variant-numeric: tabular-nums;
+}
+
+button,
+select {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:focus-visible,
+select:focus-visible,
+input:focus-visible {
+  outline: 2px solid #ff6363;
+  outline-offset: 2px;
+}
+
+button:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
 }

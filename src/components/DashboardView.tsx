@@ -86,7 +86,7 @@ function NavIcon({ id }: { id: ViewId }) {
     sync: <path d="M21 12a9 9 0 1 1-3-6.7L21 8M21 3v5h-5" />,
   };
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <svg className="h-[17px] w-[17px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       {p[id]}
     </svg>
   );
@@ -151,7 +151,7 @@ function Sidebar({ view, onSelect, lastStatus }: { view: ViewId; onSelect: (v: V
 function MobileNav({ view, onSelect, lastStatus }: { view: ViewId; onSelect: (v: ViewId) => void; lastStatus?: string }) {
   const items = NAV_SECTIONS.flatMap((section) => section.items);
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-50 grid grid-cols-5 border-t border-gray-200 bg-white/95 px-2 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] pt-2 backdrop-blur dark:border-white/10 dark:bg-[#0a0a0a]/95 md:hidden">
+    <nav aria-label="Dashboard views" className="fixed inset-x-0 bottom-0 z-50 grid grid-cols-5 border-t border-gray-200 bg-white/95 px-2 pb-[calc(env(safe-area-inset-bottom)+0.375rem)] pt-1.5 backdrop-blur dark:border-white/10 dark:bg-[#0a0a0a]/95 md:hidden">
       {items.map((item) => {
         const active = view === item.id;
         return (
@@ -159,14 +159,14 @@ function MobileNav({ view, onSelect, lastStatus }: { view: ViewId; onSelect: (v:
             key={item.id}
             type="button"
             onClick={() => onSelect(item.id)}
-            className={`relative flex min-w-0 flex-col items-center gap-1 rounded-lg px-1 py-1.5 text-[10px] font-medium transition ${
+            className={`relative flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-1 py-1 text-[11px] font-medium leading-none transition ${
               active
                 ? 'bg-gray-100 text-gray-900 dark:bg-white/10 dark:text-white'
                 : 'text-gray-400 dark:text-gray-500'
             }`}
           >
             <NavIcon id={item.id} />
-            <span>{item.label}</span>
+            <span className="whitespace-nowrap">{item.label}</span>
             {item.id === 'sync' && lastStatus && lastStatus !== 'ok' && (
               <span className={`absolute right-3 top-1.5 h-1.5 w-1.5 rounded-full ${lastStatus === 'partial' ? 'bg-amber-500' : 'bg-rose-500'}`} />
             )}
@@ -203,9 +203,10 @@ function RefreshButton({ from, to }: { from: string; to: string }) {
     <div className="flex items-center gap-2">
       {msg && <span className="hidden text-xs text-gray-500 sm:inline">{msg}</span>}
       <button
+        type="button"
         onClick={refresh}
         disabled={loading}
-        className="inline-flex items-center gap-2 rounded-lg bg-[#FF6363] px-3 py-2 text-sm font-medium text-white transition hover:bg-[#FF4D4D] disabled:opacity-60"
+        className="inline-flex min-h-10 items-center gap-1.5 whitespace-nowrap rounded-lg bg-[#FF6363] px-3 py-2 text-[13px] font-semibold text-white transition hover:bg-[#FF4D4D] disabled:opacity-60 sm:text-sm"
       >
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <path d="M20 11a8 8 0 1 0 2 5M20 4v7h-7" />
@@ -245,7 +246,7 @@ function RangeControls({
             key={days}
             type="button"
             onClick={() => selectPreset(days)}
-            className={`flex-1 rounded-md px-3 py-2 text-xs font-medium transition md:flex-none ${
+            className={`min-h-10 flex-1 whitespace-nowrap rounded-md px-2 py-2 text-[13px] font-medium transition sm:px-3 md:flex-none ${
               selectedDays === days
                 ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900'
                 : 'text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/10'
@@ -258,7 +259,7 @@ function RangeControls({
           type="button"
           aria-expanded={customOpen}
           onClick={() => setCustomOpen((open) => !open)}
-          className={`flex-1 rounded-md px-3 py-2 text-xs font-medium transition md:flex-none ${
+          className={`min-h-10 flex-1 whitespace-nowrap rounded-md px-2 py-2 text-[13px] font-medium transition sm:px-3 md:flex-none ${
             customOpen || ![7, 30, 90].includes(selectedDays)
               ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900'
               : 'text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/10'
@@ -310,7 +311,7 @@ function RangeControls({
 function SyncStatus({ run }: { run: SyncRunRow | null }) {
   if (!run) return null;
   return (
-    <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+    <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] leading-5 text-gray-500 dark:text-gray-400">
       <span className={`h-2 w-2 rounded-full ${run.status === 'ok' ? 'bg-emerald-500' : run.status === 'partial' ? 'bg-amber-500' : 'bg-rose-500'}`} />
       <span>Updated {timeAgo(run.finished_at)}</span>
       <span className="text-gray-300 dark:text-gray-700">·</span>
@@ -321,20 +322,20 @@ function SyncStatus({ run }: { run: SyncRunRow | null }) {
 
 function InsightsPanel({ insights }: { insights: ReturnType<typeof buildInsights> }) {
   return (
-    <Card className={CARD}>
-      <Flex>
-        <Title className={titleCls}>What&apos;s happening</Title>
-        <Text className="!text-gray-500">read of this range</Text>
+    <Card className={`${CARD} !p-4 sm:!p-6`}>
+      <Flex alignItems="baseline">
+        <Title className={`${titleCls} !text-lg sm:!text-xl`}>What&apos;s happening</Title>
+        <Text className="!text-xs !text-gray-500 sm:!text-sm">This range</Text>
       </Flex>
-      <div className="mt-4 space-y-3.5">
+      <div className="mt-4 space-y-4">
         {insights.map((ins, i) => (
-          <div key={i} className={`${i >= 3 ? 'hidden md:flex' : 'flex'} gap-3`}>
+          <div key={i} className={`${i >= 3 ? 'hidden md:flex' : 'flex'} gap-2.5`}>
             <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${SEV_DOT[ins.severity]}`} />
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-gray-900 dark:text-white">{ins.title}</p>
-              <p className="text-sm text-gray-600 dark:text-gray-400">{ins.detail}</p>
+              <p className="text-sm font-semibold leading-5 text-gray-900 dark:text-white">{ins.title}</p>
+              <p className="mt-0.5 text-[13px] leading-[1.45] text-gray-600 dark:text-gray-400 sm:text-sm">{ins.detail}</p>
               {ins.action && (
-                <p className="mt-0.5 text-xs text-gray-500">
+                <p className="mt-1 text-xs leading-4 text-gray-500 sm:text-[13px]">
                   <span className="font-semibold text-gray-600 dark:text-gray-400">→ Do: </span>
                   {ins.action}
                 </p>
@@ -384,7 +385,7 @@ function ConversionFunnel({
   }
   return (
     <div>
-      <Text className="!text-gray-500">
+      <Text className="!text-[13px] !leading-5 !text-gray-500 sm:!text-sm">
         {num(impressions)} impressions · {ctr.toFixed(2)}% CTR → {num(clicks)} clicks
       </Text>
       <div className="mt-3">
@@ -394,11 +395,11 @@ function ConversionFunnel({
           return (
             <div key={idx} className="py-1.5">
               <Flex>
-                <Text className={isLeak ? '!text-rose-500 !font-medium' : '!text-gray-700 dark:!text-gray-300'}>
+                <Text className={`${isLeak ? '!text-rose-500 !font-medium' : '!text-gray-700 dark:!text-gray-300'} !text-[13px] sm:!text-sm`}>
                   {s.label}
                   {isLeak ? ' · leak' : ''}
                 </Text>
-                <Text className="!text-gray-500 dark:!text-gray-400">
+                <Text className="!text-[13px] !text-gray-500 dark:!text-gray-400 sm:!text-sm">
                   {num(s.value)}
                   {idx > 0 ? ` · ${conv[idx].toFixed(0)}%` : ''}
                 </Text>
@@ -428,22 +429,22 @@ function AdsTable({ ads, rangeTo }: { ads: AdRow[]; rangeTo: string }) {
     last != null && differenceInCalendarDays(parseISO(rangeTo), parseISO(last)) >= 2 ? last : null;
   return (
     <>
-      <div className="mt-4 space-y-2 md:hidden">
+      <div className="mt-4 space-y-2.5 md:hidden">
         {ads.map((ad, index) => {
           const ended = endedBefore(ad.last_active);
           return (
-            <div key={index} className={`rounded-lg bg-gray-50 p-3 dark:bg-white/5 ${ended ? 'opacity-55' : ''}`}>
+            <div key={index} className={`rounded-lg bg-gray-50 p-3.5 dark:bg-white/5 ${ended ? 'opacity-70' : ''}`}>
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-gray-900 dark:text-white">{ad.ad_name ?? 'Unnamed ad'}</p>
-                  <p className="truncate text-xs text-gray-500">{ad.campaign_name ?? 'No campaign'}</p>
+                  <p className="truncate text-sm font-semibold leading-5 text-gray-900 dark:text-white">{ad.ad_name ?? 'Unnamed ad'}</p>
+                  <p className="truncate text-xs leading-4 text-gray-500">{ad.campaign_name ?? 'No campaign'}</p>
                 </div>
                 <p className="shrink-0 text-sm font-semibold text-gray-900 dark:text-white">{inr(ad.spend)}</p>
               </div>
-              <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
-                <div><span className="block text-gray-400">CTR</span><span className="font-medium text-gray-700 dark:text-gray-200">{pct(ad.ctr)}</span></div>
-                <div><span className="block text-gray-400">Bookings</span><span className="font-medium text-gray-700 dark:text-gray-200">{ad.schedules}</span></div>
-                <div><span className="block text-gray-400">Cost / booking</span><span className="font-medium text-gray-700 dark:text-gray-200">{inr(ad.cost_per_schedule)}</span></div>
+              <div className="mt-3 grid grid-cols-3 gap-2 text-xs leading-4">
+                <div className="min-w-0"><span className="block text-gray-400">CTR</span><span className="font-medium text-gray-700 dark:text-gray-200">{pct(ad.ctr)}</span></div>
+                <div className="min-w-0"><span className="block text-gray-400">Bookings</span><span className="font-medium text-gray-700 dark:text-gray-200">{ad.schedules}</span></div>
+                <div className="min-w-0"><span className="block whitespace-nowrap text-gray-400">Cost / booking</span><span className="font-medium text-gray-700 dark:text-gray-200">{inr(ad.cost_per_schedule)}</span></div>
               </div>
             </div>
           );
@@ -672,46 +673,46 @@ export default function DashboardView({
 
   const vsLabel = `vs prev ${prevDays}d`;
   const KpiCards = (
-    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
-      <Card className={`${CARD} !p-4 sm:!p-6`}>
+    <div className="grid grid-cols-1 gap-3 min-[360px]:grid-cols-2 lg:grid-cols-4 lg:gap-4">
+      <Card className={`${CARD} !p-3.5 sm:!p-5`}>
         <Flex alignItems="start">
-          <Text className={labelCls}>Cost per booked call</Text>
+          <Text className={`${labelCls} !text-[13px] !leading-[1.35] sm:!text-sm`}>Cost per booked call</Text>
           {hasPrev && <DeltaBadge curr={costPerBooking} prev={pCostPerBooking} mode="lower" />}
         </Flex>
-        <Metric className={`${titleCls} !text-2xl sm:!text-3xl`}>{inr(costPerBooking)}</Metric>
-        <Text className="!text-gray-500">{bookings > 0 ? `${num(bookings)} bookings · ${vsLabel}` : 'no bookings yet'}</Text>
+        <Metric className={`${titleCls} !mt-1 !text-2xl !leading-tight sm:!text-[1.75rem]`}>{inr(costPerBooking)}</Metric>
+        <Text className="!mt-1 !text-[13px] !leading-[1.4] !text-gray-500 sm:!text-sm">{bookings > 0 ? `${num(bookings)} bookings · ${vsLabel}` : 'no bookings yet'}</Text>
       </Card>
-      <Card className={`${CARD} !p-4 sm:!p-6`}>
+      <Card className={`${CARD} !p-3.5 sm:!p-5`}>
         <Flex alignItems="start">
-          <Text className={labelCls}>Session → booking rate</Text>
+          <Text className={`${labelCls} !text-[13px] !leading-[1.35] sm:!text-sm`}>Session → booking rate</Text>
           {hasPrev && <DeltaBadge curr={sessionToBooking} prev={pSessionToBooking} mode="higher" />}
         </Flex>
-        <Metric className={`${titleCls} !text-2xl sm:!text-3xl`}>{pct(sessionToBooking)}</Metric>
-        <Text className="!text-gray-500">{num(t.sessions)} sessions · {num(bookings)} booked</Text>
+        <Metric className={`${titleCls} !mt-1 !text-2xl !leading-tight sm:!text-[1.75rem]`}>{pct(sessionToBooking)}</Metric>
+        <Text className="!mt-1 !text-[13px] !leading-[1.4] !text-gray-500 sm:!text-sm">{num(t.sessions)} sessions · {num(bookings)} booked</Text>
       </Card>
-      <Card className={`${CARD} !p-4 sm:!p-6`}>
+      <Card className={`${CARD} !p-3.5 sm:!p-5`}>
         <Flex alignItems="start">
-          <Text className={labelCls}>Ad spend</Text>
+          <Text className={`${labelCls} !text-[13px] !leading-[1.35] sm:!text-sm`}>Ad spend</Text>
           {hasPrev && <DeltaBadge curr={t.spend} prev={prev.spend} mode="neutral" />}
         </Flex>
-        <Metric className={`${titleCls} !text-2xl sm:!text-3xl`}>{inr(t.spend)}</Metric>
-        <Text className="!text-gray-500">{ctr.toFixed(2)}% CTR · {num(t.clicks)} clicks</Text>
+        <Metric className={`${titleCls} !mt-1 !text-2xl !leading-tight sm:!text-[1.75rem]`}>{inr(t.spend)}</Metric>
+        <Text className="!mt-1 !text-[13px] !leading-[1.4] !text-gray-500 sm:!text-sm">{ctr.toFixed(2)}% CTR · {num(t.clicks)} clicks</Text>
       </Card>
-      <Card className={`${CARD} !p-4 sm:!p-6`}>
+      <Card className={`${CARD} !p-3.5 sm:!p-5`}>
         <Flex alignItems="start">
-          <Text className={labelCls}>Book-call intent</Text>
+          <Text className={`${labelCls} !text-[13px] !leading-[1.35] sm:!text-sm`}>Book-call intent</Text>
           {hasPrev && <DeltaBadge curr={bookRate} prev={pBookRate} mode="higher" />}
         </Flex>
-        <Metric className={`${titleCls} !text-2xl sm:!text-3xl`}>{pct(bookRate)}</Metric>
-        <Text className="!text-gray-500">{num(t.bookCallClicks)} of {num(t.sessions)} sessions</Text>
+        <Metric className={`${titleCls} !mt-1 !text-2xl !leading-tight sm:!text-[1.75rem]`}>{pct(bookRate)}</Metric>
+        <Text className="!mt-1 !text-[13px] !leading-[1.4] !text-gray-500 sm:!text-sm">{num(t.bookCallClicks)} of {num(t.sessions)} sessions</Text>
       </Card>
     </div>
   );
 
   const FunnelCard = (
-    <Card className={CARD}>
-      <Title className={titleCls}>Conversion funnel</Title>
-      <Text className="!text-gray-500">Where the range leaks</Text>
+    <Card className={`${CARD} !p-4 sm:!p-6`}>
+      <Title className={`${titleCls} !text-lg sm:!text-xl`}>Conversion funnel</Title>
+      <Text className="!text-[13px] !text-gray-500 sm:!text-sm">Where the range leaks</Text>
       <div className="mt-3">
         <ConversionFunnel
           clicks={t.clicks}
@@ -727,9 +728,9 @@ export default function DashboardView({
   );
 
   const TrendCard = (
-    <Card className={CARD}>
-      <Title className={titleCls}>Cost per booking & spend</Title>
-      <Text className="!text-gray-500">{rangeLabel}</Text>
+    <Card className={`${CARD} !p-4 sm:!p-6`}>
+      <Title className={`${titleCls} !text-lg sm:!text-xl`}>Cost per booking & spend</Title>
+      <Text className="!text-[13px] !leading-5 !text-gray-500 sm:!text-sm">{rangeLabel}</Text>
       <AreaChart
         className="mt-4 h-72"
         data={chartData}
@@ -781,15 +782,15 @@ export default function DashboardView({
         );
       case 'ads':
         return (
-          <Card className={CARD}>
-            <Title className={titleCls}>Meta ads · range total</Title>
+          <Card className={`${CARD} !p-4 sm:!p-6`}>
+            <Title className={`${titleCls} !text-lg sm:!text-xl`}>Meta ads · range total</Title>
             <AdsTable ads={ads} rangeTo={to} />
           </Card>
         );
       case 'traffic':
         return (
-          <Card className={CARD}>
-            <Title className={titleCls}>Traffic sources · range total</Title>
+          <Card className={`${CARD} !p-4 sm:!p-6`}>
+            <Title className={`${titleCls} !text-lg sm:!text-xl`}>Traffic sources · range total</Title>
             <SourcesTable sources={sources} />
           </Card>
         );
@@ -808,14 +809,14 @@ export default function DashboardView({
     <div className="md:flex">
       <Sidebar view={view} onSelect={setView} lastStatus={lastSync?.status} />
       <div className="min-w-0 flex-1">
-        <div className="mx-auto max-w-6xl px-4 py-4 pb-24 sm:px-6 md:py-8 md:pb-12">
+        <main className="mx-auto max-w-6xl px-4 pb-24 pt-4 sm:px-6 md:py-8 md:pb-12">
           {/* Top bar */}
           <div className="mb-5 md:mb-6">
-            <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start justify-between gap-2.5 sm:gap-4">
               <div className="min-w-0">
                 <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#FF6363] md:hidden">Pillexis Analytics</p>
-                <h1 className="text-xl font-semibold tracking-tight text-gray-900 dark:text-white md:text-lg">{VIEW_TITLE[view]}</h1>
-                <Text className="mt-0.5 !text-gray-500">
+                <h1 className="text-xl font-bold leading-tight tracking-[-0.025em] text-gray-900 dark:text-white md:text-xl">{VIEW_TITLE[view]}</h1>
+                <Text className="mt-1 !text-[13px] !leading-5 !text-gray-500 sm:!text-sm">
                   {format(parseISO(from), 'MMM d')} – {format(parseISO(to), 'MMM d')} · {summary.length} synced days
                 </Text>
                 <SyncStatus run={lastSync} />
@@ -825,14 +826,14 @@ export default function DashboardView({
                 <RefreshButton from={from} to={to} />
               </div>
             </div>
-            <div className="mt-4 flex w-full min-w-0 flex-col items-stretch gap-3 sm:flex-row md:mt-5 md:w-auto md:items-center">
+            <div className="mt-4 flex w-full min-w-0 flex-col items-stretch gap-2.5 sm:flex-row md:mt-5 md:w-auto md:items-center">
               <RangeControls key={`${from}:${to}`} from={from} to={to} onRange={onRange} />
               <label className="min-w-0">
                 <span className="sr-only">Campaign</span>
                 <select
                   value={campaignId ?? ''}
                   onChange={(event) => onCampaign(event.target.value)}
-                  className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-xs font-medium text-gray-700 dark:border-white/10 dark:bg-[#141417] dark:text-gray-200 sm:w-64"
+                  className="min-h-11 w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-[13px] font-medium text-gray-700 dark:border-white/10 dark:bg-[#141417] dark:text-gray-200 sm:w-64"
                 >
                   <option value="">All campaigns</option>
                   {campaigns.map((campaign) => (
@@ -844,7 +845,7 @@ export default function DashboardView({
           </div>
 
           <div>{renderView()}</div>
-        </div>
+        </main>
       </div>
       <MobileNav view={view} onSelect={setView} lastStatus={lastSync?.status} />
     </div>
