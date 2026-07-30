@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { format, subDays, parseISO, differenceInCalendarDays } from 'date-fns';
 import {
@@ -236,12 +236,29 @@ function RangeControls({
 
 function SyncStatus({ run }: { run: SyncRunRow | null }) {
   if (!run) return null;
+  // A green dot next to week-old data reads as "healthy" when it isn't.
+  const ageDays = run.finished_at
+    ? (Date.now() - new Date(run.finished_at).getTime()) / 86_400_000
+    : Number.POSITIVE_INFINITY;
+  const staleness = ageDays >= 7 ? 'stale' : ageDays >= 2 ? 'aging' : 'fresh';
+  const dot = run.status !== 'ok'
+    ? run.status === 'partial' ? 'bg-[var(--color-warning)]' : 'bg-[var(--color-critical)]'
+    : staleness === 'stale'
+      ? 'bg-[var(--color-critical)]'
+      : staleness === 'aging'
+        ? 'bg-[var(--color-warning)]'
+        : 'bg-[var(--color-positive)]';
+  const label = run.status !== 'ok'
+    ? `${run.error_count} issue${run.error_count === 1 ? '' : 's'}`
+    : staleness === 'fresh'
+      ? 'All sources synced'
+      : 'Sync overdue — run a sync for current numbers';
   return (
     <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] leading-5 text-[var(--color-muted)]">
-      <span className={`h-2 w-2 rounded-full ${run.status === 'ok' ? 'bg-[var(--color-positive)]' : run.status === 'partial' ? 'bg-[var(--color-warning)]' : 'bg-[var(--color-critical)]'}`} />
+      <span className={`h-2 w-2 rounded-full ${dot}`} />
       <span>Updated {timeAgo(run.finished_at)}</span>
       <span className="text-[var(--color-rule-strong)]">·</span>
-      <span>{run.status === 'ok' ? 'All sources synced' : `${run.error_count} issue${run.error_count === 1 ? '' : 's'}`}</span>
+      <span>{label}</span>
     </div>
   );
 }
@@ -519,6 +536,7 @@ export default function DashboardView({
   prevDays,
   campaigns,
   campaignId,
+  initialView,
 }: {
   summary: DailySummaryRow[];
   ads: AdRow[];
@@ -530,9 +548,20 @@ export default function DashboardView({
   prevDays: number;
   campaigns: CampaignOption[];
   campaignId: string | null;
+  initialView?: string;
 }) {
   const router = useRouter();
-  const [view, setView] = useState<ViewId>('overview');
+  const [view, setView] = useState<ViewId>(
+    ANALYTICS_TABS.some((candidate) => candidate.id === initialView) ? (initialView as ViewId) : 'overview',
+  );
+
+  // The persistent sidebar navigates with ?view= links; follow them.
+  useEffect(() => {
+    if (initialView && initialView !== view && ANALYTICS_TABS.some((candidate) => candidate.id === initialView)) {
+      setView(initialView as ViewId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialView]);
   const lastSync = syncRuns[0] ?? null;
 
   const t = summary.reduce(
@@ -733,7 +762,12 @@ export default function DashboardView({
         attention: tab.id === 'sync' && Boolean(lastSync && lastSync.status !== 'ok'),
       }))}
       activeTab={view}
-      onTabChange={setView}
+      onTabChange={(next) => {
+        setView(next);
+        const url = new URL(window.location.href);
+        url.searchParams.set('view', next);
+        window.history.replaceState(null, '', url);
+      }}
       actions={<RefreshButton from={from} to={to} />}
       status={
         <div>

@@ -1,7 +1,7 @@
 # Progress & Changelog
 
 Running log of what's built, what's known-broken, and what's next.
-_Last updated: 2026-07-30._
+_Last updated: 2026-07-31._
 
 ## Current state
 
@@ -43,6 +43,9 @@ _Last updated: 2026-07-30._
 - No-clobber rule: a failed source preserves prior data instead of zeroing it; run flagged `partial`.
 
 **Recent additions**
+- WhatsApp automation now sends for real. A Cloud API provider module and a queue worker (`npm run crm:whatsapp-worker`, `--watch` for continuous mode) drain `next_message_at`: confirmation, one silence nudge, the 24 hour reminder, and the 2 hour attendance check, all audited with Meta message ids. An inbound webhook (`/api/whatsapp/webhook`, signature verified) records replies on the lead, classifies confirm / reschedule / stop keywords (free form escalates to a founder), moves the state, and sends an acknowledgement. Consent is enforced on every transition that enables sending, opt out is a one way latch, and closing a deal won or lost stops its queue. Currently on the Meta test number; production needs a real number plus approved templates.
+- Deterministic demo fixtures: `npm run crm:seed-demo` seeds 15 fictional D2C leads covering every workflow state with time-relative dates, refuses non-localhost databases without `--allow-remote`, and only ever deletes its own tagged rows. An All / Live / Demo scope toggle on the CRM keeps demo and real leads separate on screen.
+- Workspace UX overhaul: the sidebar and topbar moved into a persistent root-layout chrome (no more remount flicker), navigation is grouped under collapsible Analytics / CRM sections in the ProductLogz style with mask-tinted icons, every CRM view has its own page header, analytics views are deep linkable via `?view=`, the sync status dot degrades when data is stale, tables scroll inside their panel with sticky headers, and dialogs lock background scroll.
 - Added real nested URLs for every CRM view and kept them visually nested below CRM in the desktop sidebar. The client record now uses a native modal dialog with focused Overview, WhatsApp, and Activity sections instead of one long form. WhatsApp rows open directly to WhatsApp, Calls opens to Activity, and other views open to Overview.
 - Added a reusable ProductLogz-style core UI system for panels, headers, buttons, fields, badges, avatars, alerts, and dialogs. The CRM now consumes these shared components across desktop and mobile.
 - Configured the local CRM data for end-to-end WhatsApp testing. Twenty two non-opted-out leads have test phone numbers, granted consent, and future call times. Ajay remains the explicit opted-out fixture so the stop branch stays testable.

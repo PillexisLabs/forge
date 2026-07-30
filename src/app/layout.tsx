@@ -1,8 +1,9 @@
 import './globals.css';
 import type { Metadata } from 'next';
 import type { Viewport } from 'next';
-import type { ReactNode } from 'react';
+import { Suspense, type ReactNode } from 'react';
 import PwaRegistration from '@/components/PwaRegistration';
+import WorkspaceChrome from '@/components/WorkspaceChrome';
 
 export const metadata: Metadata = {
   title: 'Forge',
@@ -33,7 +34,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="en">
       <body className="min-h-screen antialiased">
         <PwaRegistration />
-        {children}
+        <Suspense fallback={children}>
+          <WorkspaceChrome>{children}</WorkspaceChrome>
+        </Suspense>
       </body>
     </html>
   );

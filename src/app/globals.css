@@ -116,25 +116,6 @@ textarea:disabled {
   font-weight: 600;
 }
 
-.forge-workspace-switcher {
-  display: flex;
-  min-height: 2.5rem;
-  align-items: center;
-  gap: var(--space-3);
-  border-radius: var(--radius-control);
-  background: var(--color-surface);
-  padding: var(--space-1) var(--space-2);
-  color: var(--color-ink);
-  font-size: 0.8125rem;
-  font-weight: 550;
-}
-
-.forge-workspace-logo {
-  width: 2rem;
-  height: 2rem;
-  border-radius: var(--radius-small);
-}
-
 .forge-sidebar-section {
   display: grid;
   gap: var(--space-2);
@@ -150,17 +131,48 @@ textarea:disabled {
 
 .forge-sidebar-nav {
   display: grid;
-  gap: var(--space-1);
+  gap: var(--space-5);
+  align-content: start;
+  overflow-y: auto;
 }
 
-.forge-sidebar-route {
+.forge-sidebar-group {
   display: grid;
-  gap: var(--space-1);
+  gap: 2px;
+}
+
+.forge-sidebar-nav .forge-sidebar-group-toggle {
+  display: flex;
+  min-height: 1.75rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-1);
+  padding: var(--space-1) var(--space-3);
+  color: var(--color-muted);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.forge-sidebar-nav .forge-sidebar-group-toggle:hover {
+  background: none;
+  color: var(--color-ink);
+}
+
+.forge-sidebar-group-toggle svg {
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+
+.forge-sidebar-group[data-open='false'] .forge-sidebar-group-toggle svg {
+  transform: rotate(-90deg);
 }
 
 .forge-sidebar-nav a,
 .forge-sidebar-nav button,
 .forge-sidebar-note {
+  position: relative;
   display: flex;
   width: 100%;
   min-height: 2.25rem;
@@ -185,10 +197,39 @@ textarea:disabled {
   color: var(--color-ink);
 }
 
+/* Icon inherits the item's text color, so it turns violet when active. */
+.forge-nav-icon {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  background: currentColor;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+}
+
 .forge-sidebar-nav a[aria-current='page'],
 .forge-sidebar-nav button[aria-pressed='true'] {
-  background: var(--color-surface);
+  background: oklch(93.6% 0.016 290);
   color: var(--color-accent-strong);
+  font-weight: 600;
+}
+
+/* Active indicator bar at the sidebar's left edge, like the reference. */
+.forge-sidebar-nav a[aria-current='page']::before,
+.forge-sidebar-nav button[aria-pressed='true']::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: calc(-1 * var(--space-5));
+  width: 3px;
+  height: 1.25rem;
+  border-radius: 0 999px 999px 0;
+  background: var(--color-accent-strong);
+  transform: translateY(-50%);
 }
 
 .forge-sidebar-nav a img,
@@ -201,30 +242,6 @@ textarea:disabled {
   margin-left: auto;
 }
 
-.forge-sidebar-subnav {
-  display: grid;
-  gap: var(--space-1);
-  padding-inline-start: var(--space-5);
-}
-
-.forge-sidebar-subnav a,
-.forge-sidebar-subnav button {
-  min-height: 2rem;
-  padding-block: var(--space-1);
-  padding-inline: var(--space-2);
-  color: var(--color-faint);
-  font-size: 0.8125rem;
-}
-
-.forge-sidebar-subnav a[aria-current='page'],
-.forge-sidebar-subnav button[aria-pressed='true'] {
-  background: var(--color-accent-soft);
-  color: var(--color-accent-strong);
-}
-
-.forge-sidebar-bottom {
-  margin-top: auto;
-}
 
 .forge-sidebar-note {
   color: var(--color-faint);
@@ -802,7 +819,7 @@ textarea:disabled {
 
 .crm-followup-groups {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
   gap: var(--space-3);
   padding: var(--space-5);
 }
@@ -942,8 +959,81 @@ textarea:disabled {
 }
 
 .crm-table-desktop {
-  overflow-x: auto;
+  overflow: auto;
+  max-height: calc(100vh - 21rem);
   padding: 0 var(--space-5) var(--space-5);
+}
+
+.crm-table-desktop thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.crm-dim {
+  color: var(--color-faint);
+}
+
+.crm-row-link {
+  cursor: pointer;
+}
+
+.crm-row-link:hover td {
+  background: var(--color-surface-hover);
+}
+
+.crm-setup-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+  border: 1px dashed var(--color-rule-strong);
+  border-radius: var(--radius-small);
+  padding: var(--space-3) var(--space-4);
+  color: var(--color-muted);
+  font-size: 0.8125rem;
+  text-decoration: none;
+  transition: background var(--duration-fast) var(--ease-out);
+}
+
+.crm-setup-summary:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-ink);
+}
+
+.crm-setup-summary strong {
+  font-weight: 550;
+}
+
+.crm-setup-summary > span {
+  flex: 0 0 auto;
+  color: var(--color-accent-strong);
+  font-weight: 550;
+}
+
+.forge-scope-toggle {
+  display: inline-flex;
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  padding: 2px;
+}
+
+.forge-scope-toggle button {
+  border-radius: calc(var(--radius-control) - 2px);
+  padding: var(--space-1) var(--space-3);
+  color: var(--color-muted);
+  font-size: 0.8125rem;
+  font-weight: 550;
+  transition:
+    background var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.forge-scope-toggle button[aria-pressed='true'] {
+  background: var(--color-accent-soft);
+  color: var(--color-accent-strong);
 }
 
 .crm-table-desktop table {

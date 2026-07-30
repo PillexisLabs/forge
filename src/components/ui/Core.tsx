@@ -214,6 +214,16 @@ export function UiDialog({
     if (!open && dialog.open) dialog.close();
   }, [open]);
 
+  // Native <dialog> does not lock the page behind it.
+  useEffect(() => {
+    if (!open) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [open]);
+
   return (
     <dialog
       ref={dialogRef}

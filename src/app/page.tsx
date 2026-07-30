@@ -7,13 +7,14 @@ export const dynamic = 'force-dynamic';
 export default async function Page({
   searchParams,
 }: {
-  searchParams: { from?: string; to?: string; campaign?: string };
+  searchParams: { from?: string; to?: string; campaign?: string; view?: string };
 }) {
   try {
     const range = resolveAnalyticsRange(searchParams?.from, searchParams?.to);
     const data = await getAnalyticsData(range, searchParams?.campaign);
     return (
       <DashboardView
+        initialView={searchParams?.view}
         summary={data.summary}
         ads={data.ads}
         sources={data.sources}

@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { FormEvent, useMemo, useState, useTransition } from 'react';
 import ForgeShell from '@/components/ForgeShell';
@@ -109,6 +110,23 @@ function friendlyDateTime(value: string | null) {
   }).format(new Date(value));
 }
 
+// datetime-local fields are rendered and interpreted in IST so reads and
+// writes agree regardless of the browser's timezone.
+function istToIso(value: string) {
+  return new Date(`${value}:00+05:30`).toISOString();
+}
+function relativeTime(value: string | null) {
+  if (!value) return 'Not scheduled';
+  const minutes = Math.round((new Date(value).getTime() - Date.now()) / 60_000);
+  const past = minutes < 0;
+  const abs = Math.abs(minutes);
+  const label = abs < 60
+    ? `${abs}m`
+    : abs < 48 * 60
+      ? `${Math.round(abs / 60)}h`
+      : `${Math.round(abs / (24 * 60))}d`;
+  return past ? `${label} overdue` : `in ${label}`;
+}
 function dateTimeLocalValue(value: string | null) {
   if (!value) return '';
   return new Intl.DateTimeFormat('sv-SE', {
@@ -214,6 +232,10 @@ function TodayView({
     return new Date(right.last_interaction_at || 0).getTime()
       - new Date(left.last_interaction_at || 0).getTime();
   });
+  // Only dated, urgent work belongs in the queue. Leads that merely lack an
+  // owner or a next action collapse into one summary row instead of drowning it.
+  const urgentDeals = orderedDeals.filter((deal) => attentionState(deal, today).rank <= 1);
+  const setupCount = orderedDeals.length - urgentDeals.length;
 
   return (
     <>
@@ -237,10 +259,10 @@ function TodayView({
             className="crm-panel-heading"
             title="Follow up now"
             description="One priority queue, ordered by urgency."
-            meta={<span>{orderedDeals.length} leads</span>}
+            meta={<span>{urgentDeals.length} due</span>}
           />
           <div className="crm-priority-list">
-            {orderedDeals.map((deal) => {
+            {urgentDeals.map((deal) => {
               const attention = attentionState(deal, today);
               return (
                 <button key={deal.id} type="button" className="crm-priority-row" onClick={() => onSelect(deal.id)}>
@@ -256,11 +278,17 @@ function TodayView({
                 </button>
               );
             })}
-            {!orderedDeals.length && (
+            {!urgentDeals.length && (
               <div className="crm-empty">
-                <strong>Nothing needs attention</strong>
-                <p>New overdue, unassigned, or incomplete leads will appear here.</p>
+                <strong>Nothing due right now</strong>
+                <p>Overdue and due-today follow ups will appear here.</p>
               </div>
+            )}
+            {setupCount > 0 && (
+              <Link href={CRM_VIEW_PATHS.leads} className="crm-setup-summary">
+                <strong>{setupCount} more {setupCount === 1 ? 'lead needs' : 'leads need'} an owner or a next action</strong>
+                <span>Review in Leads →</span>
+              </Link>
             )}
           </div>
         </UiPanel>
@@ -309,20 +337,6 @@ function PipelineView({
 
   return (
     <UiPanel className="crm-pipeline-shell">
-      <UiPanelHeader
-        className="crm-list-heading"
-        title="Pipeline"
-        description="Every opportunity grouped by its current commercial stage."
-        meta={<span className="crm-saving">{deals.length} total</span>}
-      />
-      <ol className="crm-stage-summary" aria-label="Deals by pipeline stage">
-        {stageGroups.map(({ stage, deals: stageDeals }) => (
-          <li key={stage} data-populated={stageDeals.length > 0}>
-            <span>{STAGE_LABELS[stage]}</span>
-            <strong>{stageDeals.length}</strong>
-          </li>
-        ))}
-      </ol>
       <div className="crm-pipeline-board" data-columns={Math.min(populatedStages.length, 3)}>
         {populatedStages.map(({ stage, deals: stageDeals }) => (
             <section key={stage} className="crm-stage-column">
@@ -337,10 +351,18 @@ function PipelineView({
                   <button key={deal.id} type="button" className="crm-deal-card" onClick={() => onSelect(deal.id)}>
                     <strong>{deal.title || deal.company_name || deal.contact_name}</strong>
                     <span>{deal.contact_name}</span>
-                    <p>{deal.next_action || 'Next action not set'}</p>
+                    {deal.next_action
+                      ? <p>{deal.next_action}</p>
+                      : <p className="crm-dim">No next action</p>}
                     <footer>
-                      <span>{OWNER_LABELS[deal.owner]}</span>
-                      <span>{friendlyDate(deal.next_action_due_at)}</span>
+                      {deal.owner === 'unassigned' && !deal.next_action_due_at
+                        ? <span className="crm-dim">Needs owner and date</span>
+                        : (
+                          <>
+                            <span className={deal.owner === 'unassigned' ? 'crm-dim' : undefined}>{OWNER_LABELS[deal.owner]}</span>
+                            <span className={deal.next_action_due_at ? undefined : 'crm-dim'}>{friendlyDate(deal.next_action_due_at)}</span>
+                          </>
+                        )}
                     </footer>
                   </button>
                 ))}
@@ -396,14 +418,8 @@ function FollowUpsView({
 
   return (
     <UiPanel className="crm-followup-shell">
-      <UiPanelHeader
-        className="crm-list-heading"
-        title="Follow ups"
-        description="Dated next actions across both founders."
-        meta={<span className="crm-saving">{deals.length} active</span>}
-      />
       <div className="crm-followup-groups">
-        {groups.map((group) => (
+        {groups.filter((group) => group.deals.length > 0).map((group) => (
           <section key={group.id} className="crm-followup-group">
             <header>
               <div>
@@ -422,10 +438,15 @@ function FollowUpsView({
                   </span>
                 </button>
               ))}
-              {!group.deals.length && <p className="crm-stage-empty">No follow ups here.</p>}
             </div>
           </section>
         ))}
+        {groups.every((group) => !group.deals.length) && (
+          <div className="crm-empty">
+            <strong>No follow ups scheduled</strong>
+            <p>Dated next actions will appear here grouped by urgency.</p>
+          </div>
+        )}
       </div>
     </UiPanel>
   );
@@ -440,6 +461,7 @@ export default function CrmDashboard({
 }) {
   const router = useRouter();
   const [search, setSearch] = useState('');
+  const [scope, setScope] = useState<'all' | 'live' | 'demo'>('all');
   const [stageFilter, setStageFilter] = useState<CrmStage | 'all'>('all');
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [drawerSection, setDrawerSection] = useState<DrawerSection>('overview');
@@ -456,8 +478,19 @@ export default function CrmDashboard({
   const selected = initialWorkspace.deals.find((deal) => deal.id === selectedId) ?? null;
   const workflowConfigured = selected ? canQueueConfirmation(selected) : false;
 
+  const hasDemoDeals = useMemo(
+    () => initialWorkspace.deals.some((deal) => deal.lead_source === 'demo'),
+    [initialWorkspace.deals],
+  );
+  const scopedDeals = useMemo(() => {
+    if (scope === 'all') return initialWorkspace.deals;
+    return initialWorkspace.deals.filter((deal) =>
+      scope === 'demo' ? deal.lead_source === 'demo' : deal.lead_source !== 'demo',
+    );
+  }, [initialWorkspace.deals, scope]);
+
   const counts = useMemo(() => {
-    const active = initialWorkspace.deals.filter((deal) => !CLOSED_STAGES.includes(deal.stage));
+    const active = scopedDeals.filter((deal) => !CLOSED_STAGES.includes(deal.stage));
     return {
       overdue: active.filter((deal) => dateKey(deal.next_action_due_at) && dateKey(deal.next_action_due_at)! < today).length,
       dueToday: active.filter((deal) => dateKey(deal.next_action_due_at) === today).length,
@@ -468,25 +501,25 @@ export default function CrmDashboard({
 
   const viewDeals = useMemo(() => {
     if (view === 'today') {
-      return initialWorkspace.deals.filter((deal) => {
+      return scopedDeals.filter((deal) => {
         const due = dateKey(deal.next_action_due_at);
         return !CLOSED_STAGES.includes(deal.stage)
           && (deal.owner === 'unassigned' || !deal.next_action || !due || due <= today);
       });
     }
     if (view === 'followups') {
-      return initialWorkspace.deals.filter((deal) => (
+      return scopedDeals.filter((deal) => (
         Boolean(deal.next_action) && !CLOSED_STAGES.includes(deal.stage)
       ));
     }
     if (view === 'pipeline') {
-      return initialWorkspace.deals.filter((deal) => !CLOSED_STAGES.includes(deal.stage));
+      return scopedDeals.filter((deal) => !CLOSED_STAGES.includes(deal.stage));
     }
     if (view === 'calls') {
-      return initialWorkspace.deals.filter((deal) => deal.meeting_count > 0);
+      return scopedDeals.filter((deal) => deal.meeting_count > 0);
     }
-    return initialWorkspace.deals;
-  }, [initialWorkspace.deals, today, view]);
+    return scopedDeals;
+  }, [scopedDeals, today, view]);
 
   const visibleDeals = useMemo(() => {
     const needle = search.trim().toLowerCase();
@@ -537,10 +570,11 @@ export default function CrmDashboard({
     event.preventDefault();
     if (!selected) return;
     const form = new FormData(event.currentTarget);
+    const dueValue = String(form.get('nextActionDueAt') || '');
     try {
       await patchDeal(selected.id, {
         nextAction: form.get('nextAction'),
-        nextActionDueAt: form.get('nextActionDueAt'),
+        nextActionDueAt: dueValue ? istToIso(dueValue) : null,
       });
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Could not save the update');
@@ -559,7 +593,7 @@ export default function CrmDashboard({
       body: JSON.stringify({
         primaryPhone: form.get('primaryPhone'),
         consentStatus: form.get('consentStatus'),
-        appointmentAt: appointmentValue ? new Date(appointmentValue).toISOString() : null,
+        appointmentAt: appointmentValue ? istToIso(appointmentValue) : null,
         actor: 'Founder',
       }),
     });
@@ -614,16 +648,31 @@ export default function CrmDashboard({
     <>
       <ForgeShell
         activeArea="crm"
-        title="CRM"
-        description="One client record from first call to next action."
+        title={copy.title}
+        description={copy.description}
         tabs={VIEWS}
         activeTab={view}
         status={
           <p className="mt-2 text-sm text-[var(--color-muted)]">
-            {initialWorkspace.deals.length} leads,{' '}
-            {initialWorkspace.deals.reduce((total, deal) => total + deal.meeting_count, 0)} calls recorded
+            {scopedDeals.length} leads,{' '}
+            {scopedDeals.reduce((total, deal) => total + deal.meeting_count, 0)} calls recorded
+            {isPending && <span className="crm-saving"> · Updating</span>}
           </p>
         }
+        actions={hasDemoDeals ? (
+          <div className="forge-scope-toggle" role="group" aria-label="Data scope">
+            {([['all', 'All'], ['live', 'Live'], ['demo', 'Demo']] as const).map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                aria-pressed={scope === id}
+                onClick={() => setScope(id)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        ) : undefined}
       >
         {view === 'today' && (
           <TodayView
@@ -636,7 +685,7 @@ export default function CrmDashboard({
 
         {view === 'pipeline' && (
           <PipelineView
-            deals={initialWorkspace.deals}
+            deals={scopedDeals}
             onSelect={openDeal}
           />
         )}
@@ -651,13 +700,6 @@ export default function CrmDashboard({
 
         {(view === 'leads' || view === 'calls' || view === 'automation') && (
           <UiPanel className="crm-list-shell">
-            <UiPanelHeader
-              className="crm-list-heading"
-              title={copy.title}
-              description={copy.description}
-              meta={isPending ? <span className="crm-saving">Updating</span> : undefined}
-            />
-
             <div className="crm-toolbar">
               <label>
                 <span className="sr-only">Filter by stage</span>
@@ -718,7 +760,7 @@ export default function CrmDashboard({
                 </thead>
                 <tbody>
                   {visibleDeals.map((deal) => (
-                    <tr key={deal.id}>
+                    <tr key={deal.id} className="crm-row-link" onClick={() => openDeal(deal.id)}>
                       <td>
                         <div className="crm-lead-cell">
                           <UiAvatar name={deal.contact_name} seed={deal.id} />
@@ -730,7 +772,11 @@ export default function CrmDashboard({
                       </td>
                       {view === 'calls' ? (
                         <>
-                          <td><p className="crm-summary-cell">{deal.latest_meeting_summary || 'Summary unavailable'}</p></td>
+                          <td>
+                            {deal.latest_meeting_summary
+                              ? <p className="crm-summary-cell">{deal.latest_meeting_summary}</p>
+                              : <p className="crm-summary-cell crm-dim">No summary synced</p>}
+                          </td>
                           <td>{deal.meeting_count}</td>
                           <td>{friendlyDate(deal.last_interaction_at)}</td>
                         </>
@@ -739,7 +785,11 @@ export default function CrmDashboard({
                           <td>{deal.primary_phone || 'Not added'}</td>
                           <td>{deal.whatsapp ? WHATSAPP_CONSENT_LABELS[deal.whatsapp.consent_status] : 'Not configured'}</td>
                           <td><UiBadge tone={automationTone(deal)}>{workflowReadiness(deal)}</UiBadge></td>
-                          <td>{friendlyDateTime(deal.whatsapp?.next_message_at ?? null)}</td>
+                          <td title={friendlyDateTime(deal.whatsapp?.next_message_at ?? null)}>
+                            <span className={deal.whatsapp?.next_message_at ? undefined : 'crm-dim'}>
+                              {relativeTime(deal.whatsapp?.next_message_at ?? null)}
+                            </span>
+                          </td>
                         </>
                       ) : (
                         <>
@@ -881,7 +931,7 @@ export default function CrmDashboard({
                   <input
                     name="nextActionDueAt"
                     type="datetime-local"
-                    defaultValue={selected.next_action_due_at?.slice(0, 16) ?? ''}
+                    defaultValue={dateTimeLocalValue(selected.next_action_due_at)}
                   />
                 </UiField>
               </div>
