@@ -27,6 +27,7 @@ import {
   type CrmStage,
   type CrmWorkspace,
   type WhatsAppConsentStatus,
+  type WhatsAppWorkflowState,
 } from '@/lib/crm-types';
 import { CRM_VIEW_PATHS, type CrmView } from '@/lib/crm-routes';
 import type { WhatsAppWorkflowAction } from '@/lib/crm-whatsapp-rules';
@@ -43,6 +44,38 @@ const VIEWS: { id: CrmView; label: string; icon: string; href: string }[] = [
 ];
 
 const CLOSED_STAGES: CrmStage[] = ['won', 'lost'];
+
+const WHATSAPP_ACTION_LABELS: Record<WhatsAppWorkflowAction, string> = {
+  start: 'Queue confirmation',
+  confirm: 'Mark confirmed',
+  attended: 'Mark attended',
+  reschedule: 'Reschedule',
+  handoff: 'Human handoff',
+  pause: 'Pause',
+  opt_out: 'Opt out',
+};
+
+// Only the actions that make sense for the lead's current state are shown.
+function whatsAppActionsFor(state: WhatsAppWorkflowState | null): {
+  primary: WhatsAppWorkflowAction | null;
+  secondary: WhatsAppWorkflowAction[];
+} {
+  switch (state) {
+    case 'awaiting_confirmation':
+      return { primary: 'confirm', secondary: ['reschedule', 'handoff', 'opt_out'] };
+    case 'confirmed':
+    case 'attending':
+      return { primary: 'attended', secondary: ['reschedule', 'pause', 'opt_out'] };
+    case 'human_handoff':
+      return { primary: null, secondary: ['confirm', 'reschedule', 'attended', 'opt_out'] };
+    case 'attended':
+      return { primary: null, secondary: ['opt_out'] };
+    case 'opted_out':
+      return { primary: null, secondary: [] };
+    default:
+      return { primary: 'start', secondary: ['opt_out'] };
+  }
+}
 const PERSONAL_EMAIL_COMPANIES = new Set([
   'gmail',
   'googlemail',
@@ -465,6 +498,7 @@ export default function CrmDashboard({
   const [stageFilter, setStageFilter] = useState<CrmStage | 'all'>('all');
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [drawerSection, setDrawerSection] = useState<DrawerSection>('overview');
+  const [editingSetup, setEditingSetup] = useState(false);
   const [error, setError] = useState('');
   const [workflowError, setWorkflowError] = useState('');
   const [isPending, startTransition] = useTransition();
@@ -545,6 +579,7 @@ export default function CrmDashboard({
   function openDeal(dealId: number) {
     setError('');
     setWorkflowError('');
+    setEditingSetup(false);
     setDrawerSection(view === 'automation' ? 'whatsapp' : view === 'calls' ? 'activity' : 'overview');
     setSelectedId(dealId);
   }
@@ -602,6 +637,7 @@ export default function CrmDashboard({
       setWorkflowError(result.error || 'Could not configure WhatsApp automation');
       return;
     }
+    setEditingSetup(false);
     refreshWorkspace();
   }
 
@@ -961,83 +997,125 @@ export default function CrmDashboard({
             </div>
           )}
 
-          {drawerSection === 'whatsapp' && (
-            <form onSubmit={saveWhatsApp} className="crm-drawer-section crm-whatsapp-panel">
-              <div className="crm-section-title">
-                <div>
-                  <h3>WhatsApp automation</h3>
-                  <p>Confirmation and reminder state for this lead.</p>
-                </div>
-                <UiBadge tone={automationTone(selected)}>{workflowReadiness(selected)}</UiBadge>
-              </div>
-
-              <div className="crm-drawer-grid">
-                <UiField label="WhatsApp phone">
-                  <input
-                    name="primaryPhone"
-                    type="tel"
-                    defaultValue={selected.primary_phone ?? ''}
-                    placeholder="+91 98765 43210"
-                  />
-                </UiField>
-                <UiField label="Consent">
-                  <select
-                    name="consentStatus"
-                    defaultValue={selected.whatsapp?.consent_status ?? 'unknown'}
-                  >
-                    <option value="unknown">Consent unknown</option>
-                    <option value="granted">Consent granted</option>
-                    <option value="opted_out">Opted out</option>
-                  </select>
-                </UiField>
-              </div>
-              <UiField label="Call date and time" className="crm-field">
-                <input
-                  name="appointmentAt"
-                  type="datetime-local"
-                  defaultValue={dateTimeLocalValue(selected.whatsapp?.appointment_at ?? null)}
-                />
-              </UiField>
-              <div className="crm-form-row crm-workflow-actions">
-                <UiButton type="submit">Save setup</UiButton>
-                <UiButton
-                  variant="primary"
-                  type="button"
-                  disabled={!workflowConfigured}
-                  aria-describedby="crm-workflow-guidance"
-                  onClick={() => runWhatsAppAction('start')}
-                >
-                  Queue confirmation
-                </UiButton>
-              </div>
-              <p
-                id="crm-workflow-guidance"
-                className="crm-workflow-guidance"
-                data-ready={workflowConfigured}
-              >
-                {workflowSetupGuidance(selected)}
-              </p>
-              {workflowError && <UiAlert>{workflowError}</UiAlert>}
-
-              {selected.whatsapp && (
-                <div className="crm-workflow-state">
-                  <dl>
-                    <div><dt>State</dt><dd>{WHATSAPP_STATE_LABELS[selected.whatsapp.state]}</dd></div>
-                    <div><dt>Next message</dt><dd>{friendlyDateTime(selected.whatsapp.next_message_at)}</dd></div>
-                  </dl>
-                  <div className="crm-workflow-secondary-actions">
-                    <UiButton size="small" variant="ghost" type="button" onClick={() => runWhatsAppAction('confirm')}>Mark confirmed</UiButton>
-                    <UiButton size="small" variant="ghost" type="button" onClick={() => runWhatsAppAction('attended')}>Mark attended</UiButton>
-                    <UiButton size="small" variant="ghost" type="button" onClick={() => runWhatsAppAction('reschedule')}>Reschedule</UiButton>
-                    <UiButton size="small" variant="ghost" type="button" onClick={() => runWhatsAppAction('handoff')}>Human handoff</UiButton>
-                    <UiButton size="small" variant="ghost" type="button" onClick={() => runWhatsAppAction('pause')}>Pause</UiButton>
-                    <UiButton size="small" variant="danger" type="button" onClick={() => runWhatsAppAction('opt_out')}>Opt out</UiButton>
+          {drawerSection === 'whatsapp' && (() => {
+            const workflowState = selected.whatsapp?.state ?? null;
+            const actions = whatsAppActionsFor(workflowState);
+            const optedOut = selected.whatsapp?.consent_status === 'opted_out';
+            const setupComplete = Boolean(
+              selected.primary_phone
+              && selected.whatsapp
+              && selected.whatsapp.consent_status !== 'unknown'
+              && selected.whatsapp.appointment_at,
+            );
+            const showSetupForm = editingSetup || !setupComplete;
+            return (
+              <form onSubmit={saveWhatsApp} className="crm-drawer-section crm-whatsapp-panel">
+                <div className="crm-section-title">
+                  <div>
+                    <h3>WhatsApp automation</h3>
+                    <p>
+                      {optedOut
+                        ? 'This lead opted out. Messaging is permanently off.'
+                        : 'Confirmation and reminders for the booked call.'}
+                    </p>
                   </div>
+                  <UiBadge tone={automationTone(selected)}>{workflowReadiness(selected)}</UiBadge>
                 </div>
-              )}
-              <p className="crm-provider-note">Sending runs through the WhatsApp Cloud API. Queued messages go out while the queue worker is running.</p>
-            </form>
-          )}
+
+                {showSetupForm ? (
+                  <>
+                    <div className="crm-drawer-grid">
+                      <UiField label="WhatsApp phone">
+                        <input
+                          name="primaryPhone"
+                          type="tel"
+                          defaultValue={selected.primary_phone ?? ''}
+                          placeholder="+91 98765 43210"
+                        />
+                      </UiField>
+                      <UiField label="Consent">
+                        <select
+                          name="consentStatus"
+                          defaultValue={selected.whatsapp?.consent_status ?? 'unknown'}
+                        >
+                          <option value="unknown">Consent unknown</option>
+                          <option value="granted">Consent granted</option>
+                          <option value="opted_out">Opted out</option>
+                        </select>
+                      </UiField>
+                    </div>
+                    <UiField label="Call date and time" className="crm-field">
+                      <input
+                        name="appointmentAt"
+                        type="datetime-local"
+                        defaultValue={dateTimeLocalValue(selected.whatsapp?.appointment_at ?? null)}
+                      />
+                    </UiField>
+                    <div className="crm-form-row crm-workflow-actions">
+                      <UiButton variant="primary" type="submit">Save setup</UiButton>
+                      {setupComplete && (
+                        <UiButton variant="ghost" type="button" onClick={() => setEditingSetup(false)}>Cancel</UiButton>
+                      )}
+                    </div>
+                    {!setupComplete && (
+                      <p className="crm-workflow-guidance" data-ready={workflowConfigured}>
+                        {workflowSetupGuidance(selected)}
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <div className="crm-setup-line">
+                    <span>{selected.primary_phone}</span>
+                    <span>{WHATSAPP_CONSENT_LABELS[selected.whatsapp!.consent_status]}</span>
+                    <span>Call {friendlyDateTime(selected.whatsapp!.appointment_at)}</span>
+                    {!optedOut && (
+                      <button type="button" className="crm-view-link" onClick={() => setEditingSetup(true)}>Edit</button>
+                    )}
+                  </div>
+                )}
+
+                {workflowError && <UiAlert>{workflowError}</UiAlert>}
+
+                {!optedOut && setupComplete && (
+                  <div className="crm-workflow-state">
+                    <dl>
+                      <div><dt>State</dt><dd>{workflowState ? WHATSAPP_STATE_LABELS[workflowState] : 'Not started'}</dd></div>
+                      <div>
+                        <dt>Next message</dt>
+                        <dd title={friendlyDateTime(selected.whatsapp?.next_message_at ?? null)}>
+                          {relativeTime(selected.whatsapp?.next_message_at ?? null)}
+                        </dd>
+                      </div>
+                    </dl>
+                    <div className="crm-workflow-secondary-actions">
+                      {actions.primary && (
+                        <UiButton
+                          size="small"
+                          variant="primary"
+                          type="button"
+                          disabled={actions.primary === 'start' && !workflowConfigured}
+                          onClick={() => runWhatsAppAction(actions.primary!)}
+                        >
+                          {WHATSAPP_ACTION_LABELS[actions.primary]}
+                        </UiButton>
+                      )}
+                      {actions.secondary.map((action) => (
+                        <UiButton
+                          key={action}
+                          size="small"
+                          variant={action === 'opt_out' ? 'danger' : 'ghost'}
+                          type="button"
+                          onClick={() => runWhatsAppAction(action)}
+                        >
+                          {WHATSAPP_ACTION_LABELS[action]}
+                        </UiButton>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </form>
+            );
+          })()}
 
           {drawerSection === 'activity' && (
             <div className="crm-drawer-view">

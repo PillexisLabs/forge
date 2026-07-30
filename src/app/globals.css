@@ -2255,3 +2255,20 @@ textarea:disabled {
     animation-duration: var(--duration-base) !important;
   }
 }
+
+.crm-setup-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-small);
+  background: var(--color-surface);
+  padding: var(--space-3) var(--space-4);
+  font-size: 0.875rem;
+  color: var(--color-ink-2);
+}
+
+.crm-setup-line .crm-view-link {
+  margin-left: auto;
+}
