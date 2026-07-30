@@ -20,6 +20,7 @@ const ACTIONS: WhatsAppWorkflowAction[] = [
   'handoff',
   'opt_out',
   'attended',
+  'no_show',
   'pause',
 ];
 

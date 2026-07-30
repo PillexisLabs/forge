@@ -1,4 +1,5 @@
 import { getSql } from './db';
+import { env } from './env';
 import { resolveDueSend } from './crm-whatsapp-rules';
 import { sendWhatsAppText } from './whatsapp-provider';
 
@@ -58,6 +59,7 @@ export async function processDueRows(): Promise<number> {
         contactName: current.contact_name,
         appointmentAt: current.appointment_at,
         sendCount: Number(current.send_count),
+        rescheduleLink: env.whatsappRescheduleLink(),
       });
 
       if (!plan || !current.primary_phone) {

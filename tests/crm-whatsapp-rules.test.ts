@@ -189,3 +189,24 @@ test('inbound acks match the intent', () => {
   assert.match(inboundAck('opt_out', 'Riya Sharma', 'https://cal.test')!, /not receive any more/);
   assert.match(inboundAck('handoff', 'Riya Sharma', 'https://cal.test')!, /Anurag will reply/);
 });
+
+test('no-show queues the recovery message immediately', () => {
+  const transition = resolveWhatsAppTransition('no_show', '2026-08-02T12:00:00.000Z', new Date('2026-08-02T12:30:00.000Z'));
+  assert.equal(transition.state, 'no_show');
+  assert.equal(transition.enabled, true);
+  assert.equal(transition.nextMessageAt, '2026-08-02T12:30:00.000Z');
+});
+
+test('no-show recovery sends the rebooking link once, then goes quiet', () => {
+  const plan = resolveDueSend({
+    state: 'no_show',
+    contactName: 'Meera Pillai',
+    appointmentAt: '2026-08-02T12:00:00.000Z',
+    sendCount: 3,
+    rescheduleLink: 'https://cal.test/rebook',
+  });
+  assert.ok(plan);
+  assert.match(plan!.body, /missed you/);
+  assert.match(plan!.body, /https:\/\/cal\.test\/rebook/);
+  assert.equal(plan!.nextMessageAt, null);
+});

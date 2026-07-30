@@ -49,6 +49,7 @@ const WHATSAPP_ACTION_LABELS: Record<WhatsAppWorkflowAction, string> = {
   start: 'Queue confirmation',
   confirm: 'Mark confirmed',
   attended: 'Mark attended',
+  no_show: 'Mark no-show',
   reschedule: 'Reschedule',
   handoff: 'Human handoff',
   pause: 'Pause',
@@ -59,6 +60,7 @@ const WHATSAPP_ACTION_DESCRIPTIONS: Record<WhatsAppWorkflowAction, string> = {
   start: 'Sends the first WhatsApp confirmation for the booked call.',
   confirm: 'The client said yes outside WhatsApp. Schedules the reminders.',
   attended: 'The call happened. Ends messaging for this lead.',
+  no_show: 'They did not join. Sends a rebooking message automatically.',
   reschedule: 'The client wants a new time. Pauses reminders until you set it.',
   handoff: 'You take over the chat personally. Automation steps back.',
   pause: 'Hold all messages for now. You can restart later.',
@@ -81,7 +83,9 @@ function whatsAppActionsFor(state: WhatsAppWorkflowState | null): {
       return { primary: 'confirm', secondary: ['reschedule', 'handoff', 'opt_out'] };
     case 'confirmed':
     case 'attending':
-      return { primary: 'attended', secondary: ['reschedule', 'pause', 'opt_out'] };
+      return { primary: 'attended', secondary: ['no_show', 'reschedule', 'pause', 'opt_out'] };
+    case 'no_show':
+      return { primary: null, secondary: ['reschedule', 'opt_out'] };
     case 'human_handoff':
       return { primary: null, secondary: ['confirm', 'reschedule', 'attended', 'opt_out'] };
     case 'attended':

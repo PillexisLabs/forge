@@ -7,6 +7,7 @@ export type WhatsAppWorkflowAction =
   | 'handoff'
   | 'opt_out'
   | 'attended'
+  | 'no_show'
   | 'pause';
 
 export type WhatsAppWorkflowTransition = {
@@ -83,6 +84,13 @@ export function resolveWhatsAppTransition(
         nextMessageAt: null,
         subject: 'Call marked as attended',
       };
+    case 'no_show':
+      return {
+        state: 'no_show',
+        enabled: true,
+        nextMessageAt: now.toISOString(),
+        subject: 'Call marked as no-show, recovery message queued',
+      };
     case 'pause':
       return {
         state: 'paused',
@@ -147,6 +155,7 @@ export function resolveDueSend(input: {
   contactName: string;
   appointmentAt: string | null;
   sendCount: number;
+  rescheduleLink?: string;
   now?: Date;
 }): DueSend | null {
   const now = input.now ?? new Date();
@@ -192,6 +201,16 @@ export function resolveDueSend(input: {
       body: `Hi ${firstName}, your Pillexis Labs call is at ${istStamp(input.appointmentAt)} today. Will you be able to join?`,
       subject: 'WhatsApp 2 hour reminder sent',
       nextState: 'attending',
+      nextMessageAt: null,
+    };
+  }
+
+  if (input.state === 'no_show') {
+    // One recovery message, then the queue goes quiet.
+    return {
+      body: `Hi ${firstName}, we missed you on the call today — no stress at all. Grab another slot that works better: ${input.rescheduleLink ?? 'https://cal.com/pillexislabs/pillexis-labs-intro-call'}`,
+      subject: 'WhatsApp no-show recovery sent',
+      nextState: 'no_show',
       nextMessageAt: null,
     };
   }
