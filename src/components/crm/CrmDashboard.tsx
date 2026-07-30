@@ -1035,7 +1035,7 @@ export default function CrmDashboard({
                   </div>
                 </div>
               )}
-              <p className="crm-provider-note">The workflow queue is active. Provider delivery is not connected yet, so queued messages are not marked as delivered.</p>
+              <p className="crm-provider-note">Sending runs through the WhatsApp Cloud API. Queued messages go out while the queue worker is running.</p>
             </form>
           )}
 
