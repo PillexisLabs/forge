@@ -940,25 +940,42 @@ export default function CrmDashboard({
                 <span>{selected.primary_email || 'No email added'}</span>
               </div>
             </div>
-            <UiButton
-              type="button"
-              variant="ghost"
-              size="small"
-              aria-busy={isPending}
-              onClick={refreshWorkspace}
-            >
-              {isPending ? 'Refreshing…' : 'Refresh'}
-            </UiButton>
-            <UiButton
-              type="button"
-              variant="ghost"
-              className="crm-close"
-              size="small"
-              aria-label="Close client record"
-              onClick={closeDeal}
+            <div className="crm-drawer-controls">
+              <UiButton
+                type="button"
+                variant="ghost"
+                size="small"
+                aria-label="Refresh this record"
+                title="Refresh this record"
+                aria-busy={isPending}
+                onClick={refreshWorkspace}
+              >
+                <svg
+                  className={isPending ? 'crm-spin' : undefined}
+                  width="15"
+                  height="15"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M20 11a8 8 0 1 0 2 5M20 4v7h-7" />
+                </svg>
+              </UiButton>
+              <UiButton
+                type="button"
+                variant="ghost"
+                className="crm-close"
+                size="small"
+                aria-label="Close client record"
+                onClick={closeDeal}
             >
               ×
             </UiButton>
+            </div>
           </header>
 
           <nav className="crm-drawer-tabs" aria-label="Client record sections">
@@ -1062,6 +1079,7 @@ export default function CrmDashboard({
               && selected.whatsapp.appointment_at,
             );
             const showSetupForm = editingSetup || !setupComplete;
+            const queued = Boolean(selected.whatsapp?.enabled && selected.whatsapp.next_message_at);
             return (
               <form onSubmit={saveWhatsApp} className="crm-drawer-section crm-whatsapp-panel">
                 <div className="crm-section-title">
@@ -1073,7 +1091,29 @@ export default function CrmDashboard({
                         : 'Confirmation and reminders for the booked call.'}
                     </p>
                   </div>
-                  <UiBadge tone={automationTone(selected)}>{workflowReadiness(selected)}</UiBadge>
+                </div>
+
+                <div className="crm-status-hero" data-tone={automationTone(selected)}>
+                  <div className="crm-status-now">
+                    <span className="crm-status-dot" aria-hidden="true" />
+                    <div>
+                      <span>Status</span>
+                      <strong>{workflowReadiness(selected)}</strong>
+                    </div>
+                  </div>
+                  {!optedOut && (
+                    <div className="crm-status-next">
+                      <span>Next message</span>
+                      <strong title={friendlyDateTime(selected.whatsapp?.next_message_at ?? null)}>
+                        {relativeTime(selected.whatsapp?.next_message_at ?? null)}
+                      </strong>
+                      {queued && (
+                        <button type="button" className="crm-view-link" onClick={sendQueuedNow}>
+                          {sendNowLabel(workflowState)}
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {showSetupForm ? (
@@ -1130,56 +1170,41 @@ export default function CrmDashboard({
 
                 {workflowError && <UiAlert>{workflowError}</UiAlert>}
 
-                {!optedOut && setupComplete && (
-                  <>
-                    <div className="crm-workflow-state">
-                      <dl>
-                        <div><dt>State</dt><dd>{workflowState ? WHATSAPP_STATE_LABELS[workflowState] : 'Not started'}</dd></div>
-                        <div>
-                          <dt>Next message</dt>
-                          <dd title={friendlyDateTime(selected.whatsapp?.next_message_at ?? null)}>
-                            {relativeTime(selected.whatsapp?.next_message_at ?? null)}
-                          </dd>
-                        </div>
-                      </dl>
-                    </div>
-
-                    {selected.whatsapp?.enabled && selected.whatsapp.next_message_at && (
-                      <div className="crm-send-now-row">
-                        <UiButton size="small" variant="ghost" type="button" onClick={sendQueuedNow}>
-                          {sendNowLabel(workflowState)}
-                        </UiButton>
-                        <span>Skips the schedule and delivers the queued message immediately.</span>
-                      </div>
-                    )}
-
-                    <div className="crm-action-cards">
+                {!optedOut && setupComplete && (actions.primary || actions.secondary.length > 0) && (
+                  <div className="crm-actions-block">
+                    <p className="crm-actions-label">Actions</p>
+                    <div className="crm-actions-row">
                       {actions.primary && (
-                        <button
+                        <UiButton
+                          variant="primary"
                           type="button"
-                          className="crm-action-card"
-                          data-variant="primary"
                           disabled={actions.primary === 'start' && !workflowConfigured}
+                          title={WHATSAPP_ACTION_DESCRIPTIONS[actions.primary]}
                           onClick={() => runWhatsAppAction(actions.primary!)}
                         >
-                          <strong>{WHATSAPP_ACTION_LABELS[actions.primary]}</strong>
-                          <span>{WHATSAPP_ACTION_DESCRIPTIONS[actions.primary]}</span>
-                        </button>
+                          {WHATSAPP_ACTION_LABELS[actions.primary]}
+                        </UiButton>
                       )}
                       {actions.secondary.map((action) => (
-                        <button
+                        <UiButton
                           key={action}
+                          size="small"
+                          variant={action === 'opt_out' ? 'danger' : 'ghost'}
                           type="button"
-                          className="crm-action-card"
-                          data-variant={action === 'opt_out' ? 'danger' : 'default'}
+                          title={WHATSAPP_ACTION_DESCRIPTIONS[action]}
                           onClick={() => runWhatsAppAction(action)}
                         >
-                          <strong>{WHATSAPP_ACTION_LABELS[action]}</strong>
-                          <span>{WHATSAPP_ACTION_DESCRIPTIONS[action]}</span>
-                        </button>
+                          {WHATSAPP_ACTION_LABELS[action]}
+                        </UiButton>
                       ))}
                     </div>
-                  </>
+                    <p className="crm-actions-hint">
+                      {actions.primary
+                        ? WHATSAPP_ACTION_DESCRIPTIONS[actions.primary]
+                        : 'WhatsApp replies update this lead automatically.'}
+                      {' '}Hover any button for what it does — use them when something happens outside WhatsApp.
+                    </p>
+                  </div>
                 )}
               </form>
             );

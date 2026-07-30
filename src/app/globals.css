@@ -2340,3 +2340,106 @@ textarea:disabled {
 .crm-action-card[data-variant='danger'] strong {
   color: var(--color-critical);
 }
+
+.crm-status-hero {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3) var(--space-5);
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-small);
+  background: var(--color-surface-raised);
+  padding: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+.crm-status-now {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.crm-status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--color-faint);
+}
+
+.crm-status-hero[data-tone='positive'] .crm-status-dot { background: var(--color-positive); }
+.crm-status-hero[data-tone='warning'] .crm-status-dot { background: var(--color-warning); }
+.crm-status-hero[data-tone='critical'] .crm-status-dot { background: var(--color-critical); }
+.crm-status-hero[data-tone='accent'] .crm-status-dot { background: var(--color-accent); }
+
+.crm-status-now span,
+.crm-status-next > span {
+  display: block;
+  color: var(--color-faint);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.crm-status-now strong {
+  font-size: 1rem;
+  font-weight: 650;
+  color: var(--color-ink);
+}
+
+.crm-status-next {
+  display: grid;
+  justify-items: end;
+  gap: 1px;
+}
+
+.crm-status-next strong {
+  font-size: 0.9375rem;
+  color: var(--color-ink);
+}
+
+.crm-actions-block {
+  margin-top: var(--space-4);
+  border-top: 1px solid var(--color-rule);
+  padding-top: var(--space-4);
+}
+
+.crm-actions-label {
+  margin-bottom: var(--space-2);
+  color: var(--color-faint);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.crm-actions-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.crm-actions-hint {
+  margin-top: var(--space-2);
+  color: var(--color-faint);
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+.crm-drawer-controls {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+
+.crm-spin {
+  animation: crm-spin 0.9s linear infinite;
+}
+
+@keyframes crm-spin {
+  to { transform: rotate(360deg); }
+}
