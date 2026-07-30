@@ -208,7 +208,7 @@ export function resolveDueSend(input: {
   if (input.state === 'no_show') {
     // One recovery message, then the queue goes quiet.
     return {
-      body: `Hi ${firstName}, we missed you on the call today — no stress at all. Grab another slot that works better: ${input.rescheduleLink ?? 'https://cal.com/pillexislabs/pillexis-labs-intro-call'}`,
+      body: `Hi ${firstName}, we missed you on the call today. No stress at all. Grab another slot that works better: ${input.rescheduleLink ?? 'https://cal.com/pillexislabs/pillexis-labs-intro-call'}`,
       subject: 'WhatsApp no-show recovery sent',
       nextState: 'no_show',
       nextMessageAt: null,
@@ -241,10 +241,10 @@ export function inboundAck(intent: InboundIntent, contactName: string, reschedul
     case 'confirm':
       return `Thanks ${firstName}, your slot is locked in. You'll get a reminder before the call.`;
     case 'reschedule':
-      return `No problem ${firstName} — pick a time that works better here: ${rescheduleLink}`;
+      return `No problem ${firstName}. Pick a time that works better here: ${rescheduleLink}`;
     case 'opt_out':
-      return 'Understood — you will not receive any more messages from us.';
+      return 'Understood. You will not receive any more messages from us.';
     case 'handoff':
-      return `Thanks ${firstName} — Anurag will reply to you here shortly.`;
+      return `Thanks ${firstName}, Anurag will reply to you here shortly.`;
   }
 }

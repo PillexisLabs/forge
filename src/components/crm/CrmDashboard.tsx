@@ -674,6 +674,9 @@ export default function CrmDashboard({
       setWorkflowError(result?.error || 'Could not send the queued message');
       return;
     }
+    if (result?.sent === 0) {
+      setWorkflowError('The send failed. Open the Activity tab to see the provider error.');
+    }
     refreshWorkspace();
   }
 
