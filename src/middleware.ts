@@ -15,7 +15,7 @@ export async function middleware(req: NextRequest) {
     pathname.startsWith('/api/health') ||
     pathname.startsWith('/icons/') ||
     pathname === '/manifest.webmanifest' ||
-    pathname === '/icon.svg' ||
+    pathname === '/forge-logo.png' ||
     pathname === '/apple-icon.png' ||
     pathname === '/sw.js'
   ) {

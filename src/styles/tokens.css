@@ -1,0 +1,74 @@
+/* Hallmark · genre: modern-minimal · macrostructure: Workbench operations views · component system: ProductLogz core UI · theme: studied-DNA (ProductLogz Users 2896:2044) · tone: technical · anchor hue: violet · nav: fixed parent with nested route links · footer: none · pre-emit critique: P5 H5 E5 S5 R5 V5 · contrast: pass (40–41) · slop: pass (42–49) · mobile: pass (34, 49–57) */
+:root {
+  color-scheme: light;
+
+  --color-paper: oklch(99.2% 0.004 292);
+  --color-surface: oklch(97.2% 0.008 260);
+  --color-surface-raised: oklch(99.8% 0.002 290);
+  --color-surface-hover: oklch(95.4% 0.012 282);
+  --color-rule: oklch(88.5% 0.01 260);
+  --color-rule-strong: oklch(80.5% 0.015 260);
+  --color-ink: oklch(18.5% 0.018 270);
+  --color-ink-2: oklch(31% 0.018 270);
+  --color-muted: oklch(49% 0.018 265);
+  --color-faint: oklch(65% 0.016 260);
+
+  --color-accent: oklch(57% 0.12 305);
+  --color-accent-strong: oklch(43% 0.13 305);
+  --color-accent-soft: oklch(95.5% 0.024 305);
+  --color-accent-ink: oklch(99% 0.004 292);
+
+  --color-positive: oklch(54% 0.13 154);
+  --color-positive-soft: oklch(95% 0.035 154);
+  --color-warning: oklch(65% 0.14 78);
+  --color-warning-soft: oklch(96% 0.04 84);
+  --color-critical: oklch(56% 0.18 24);
+  --color-critical-soft: oklch(95% 0.035 24);
+  --color-info: oklch(57% 0.13 248);
+  --color-info-soft: oklch(95% 0.03 248);
+  --color-overlay: oklch(18.5% 0.018 270 / 0.28);
+  --color-avatar-green: oklch(91% 0.055 154);
+  --color-avatar-green-ink: oklch(44% 0.09 154);
+  --color-avatar-yellow: oklch(93% 0.07 88);
+  --color-avatar-yellow-ink: oklch(48% 0.095 74);
+  --color-avatar-teal: oklch(91% 0.055 184);
+  --color-avatar-teal-ink: oklch(43% 0.075 184);
+  --color-avatar-red: oklch(92% 0.045 23);
+  --color-avatar-red-ink: oklch(49% 0.11 23);
+  --color-avatar-blue: oklch(92% 0.04 246);
+  --color-avatar-blue-ink: oklch(47% 0.09 246);
+  --color-avatar-pink: oklch(92% 0.05 340);
+  --color-avatar-pink-ink: oklch(48% 0.1 340);
+
+  --font-body: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-display: "Inter Display", Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+
+  --radius-control: 0.5rem;
+  --radius-card: 0.75rem;
+  --radius-small: 0.375rem;
+
+  --shadow-card:
+    0 1px 2px oklch(18.5% 0.018 270 / 0.06),
+    0 8px 24px oklch(18.5% 0.018 270 / 0.025);
+  --shadow-float: 0 18px 48px oklch(18.5% 0.018 270 / 0.16);
+  --shadow-accent: 0 8px 22px oklch(57% 0.12 305 / 0.18);
+
+  --duration-fast: 140ms;
+  --duration-base: 220ms;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+
+  --z-header: 30;
+  --z-drawer: 50;
+}

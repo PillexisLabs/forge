@@ -1,0 +1,27 @@
+[
+  {
+    "date": "2026-07-30",
+    "macrostructure": "CRM operations views",
+    "theme": "studied-DNA (ProductLogz Users 2896:2044)",
+    "enrichment": "none",
+    "brief": "Give Today, Leads, Pipeline, Follow ups, Calls, and WhatsApp distinct operational views. Keep workflow documentation out of the front-facing app."
+  },
+  {
+    "date": "2026-07-30",
+    "macrostructure": "Workbench",
+    "theme": "studied-DNA (ProductLogz)",
+    "avoid": [],
+    "notes": "Unified Forge analytics and Sales CRM under one light internal workspace shell based on ProductLogz populated admin dashboard node 2416:1902, with its fixed sidebar, metric row, bordered panels, and neutral nested rows."
+  },
+  {
+    "date": "2026-07-30",
+    "macrostructure": "Workbench user index",
+    "theme": "studied-DNA (ProductLogz Users 2896:2044)",
+    "avoid": [
+      "Permanent recent calls side panel",
+      "Empty stage-only lead filter",
+      "Generic Views sidebar label"
+    ],
+    "notes": "Variation delta: table-first CRM index with toolbar search, stage filter, compact avatar rows, dedicated Calls and WhatsApp views, and a workflow detail drawer. Preserves the fixed ProductLogz sidebar because the user explicitly required source parity."
+  }
+]

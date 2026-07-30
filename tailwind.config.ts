@@ -1,7 +1,7 @@
 import type { Config } from 'tailwindcss';
 import colors from 'tailwindcss/colors';
 
-// Standard Tremor v3 Tailwind config (dark mode enabled to match the Pillexis aesthetic).
+// Standard Tremor v3 Tailwind config. Forge renders the shared light workspace theme.
 const config: Config = {
   darkMode: 'class',
   content: [

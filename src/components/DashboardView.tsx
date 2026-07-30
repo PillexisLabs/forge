@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { format, subDays, parseISO, differenceInCalendarDays } from 'date-fns';
 import {
@@ -21,19 +21,19 @@ import {
 } from '@tremor/react';
 import type { CampaignOption, DailySummaryRow, AdRow, SourceRow, SyncRunRow, PeriodTotals } from '@/lib/types';
 import { buildInsights, type Severity } from '@/lib/insights';
-import ThemeToggle from './ThemeToggle';
+import ForgeShell from './ForgeShell';
 
 function DeltaBadge({ curr, prev, mode }: { curr: number | null; prev: number; mode: 'higher' | 'lower' | 'neutral' }) {
   if (curr == null || prev === 0) return null;
   const change = ((curr - prev) / prev) * 100;
   if (!isFinite(change) || Math.abs(change) < 0.5) {
-    return <span className="text-xs font-medium text-gray-400 dark:text-gray-600">~0%</span>;
+    return <span className="text-xs font-medium text-[var(--color-faint)]">~0%</span>;
   }
   const up = change > 0;
-  let color = 'text-gray-500';
+  let color = 'text-[var(--color-muted)]';
   if (mode !== 'neutral') {
     const good = mode === 'higher' ? up : !up;
-    color = good ? 'text-emerald-500' : 'text-rose-500';
+    color = good ? 'text-[var(--color-positive)]' : 'text-[var(--color-critical)]';
   }
   return (
     <span className={`text-xs font-medium ${color}`}>
@@ -43,10 +43,10 @@ function DeltaBadge({ curr, prev, mode }: { curr: number | null; prev: number; m
   );
 }
 
-const CARD = '!bg-white dark:!bg-[#141417] !border-gray-200 dark:!border-white/10';
-const titleCls = '!text-gray-900 dark:!text-white';
-const labelCls = '!text-gray-500 dark:!text-gray-400';
-const cellCls = '!text-gray-700 dark:!text-gray-200';
+const CARD = '!rounded-[var(--radius-card)] !border-[var(--color-rule)] !bg-[var(--color-surface-raised)] !shadow-[var(--shadow-card)]';
+const titleCls = '!text-[var(--color-ink)]';
+const labelCls = '!text-[var(--color-muted)]';
+const cellCls = '!text-[var(--color-ink-2)]';
 
 const inr = (v: number | null | undefined) =>
   v == null
@@ -56,10 +56,10 @@ const num = (v: number | null | undefined) =>
   v == null ? '—' : new Intl.NumberFormat('en-IN').format(Math.round(v));
 const pct = (v: number) => `${v.toFixed(1)}%`;
 const SEV_DOT: Record<Severity, string> = {
-  critical: 'bg-rose-500',
-  warning: 'bg-amber-500',
-  good: 'bg-emerald-500',
-  info: 'bg-sky-500',
+  critical: 'bg-[var(--color-critical)]',
+  warning: 'bg-[var(--color-warning)]',
+  good: 'bg-[var(--color-positive)]',
+  info: 'bg-[var(--color-info)]',
 };
 
 function timeAgo(iso: string | null) {
@@ -74,108 +74,15 @@ function timeAgo(iso: string | null) {
 const statusColor = (s: string): 'emerald' | 'amber' | 'rose' =>
   s === 'ok' ? 'emerald' : s === 'partial' ? 'amber' : 'rose';
 
-// ── Navigation ────────────────────────────────────────────────
 type ViewId = 'overview' | 'funnel' | 'ads' | 'traffic' | 'sync';
 
-function NavIcon({ id }: { id: ViewId }) {
-  const p: Record<ViewId, ReactNode> = {
-    overview: <path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z" />,
-    funnel: <path d="M3 4h18l-7 8v7l-4 2v-9z" />,
-    ads: <path d="M3 11l18-5v12L3 13v-2zM7 13v4a2 2 0 0 0 4 0" />,
-    traffic: <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM2 12h20M12 2a15 15 0 0 1 0 20 15 15 0 0 1 0-20z" />,
-    sync: <path d="M21 12a9 9 0 1 1-3-6.7L21 8M21 3v5h-5" />,
-  };
-  return (
-    <svg className="h-[17px] w-[17px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      {p[id]}
-    </svg>
-  );
-}
-
-const NAV_SECTIONS: { section: string; items: { id: ViewId; label: string }[] }[] = [
-  {
-    section: 'Analyze',
-    items: [
-      { id: 'overview', label: 'Overview' },
-      { id: 'funnel', label: 'Funnel' },
-      { id: 'ads', label: 'Ads' },
-      { id: 'traffic', label: 'Traffic' },
-    ],
-  },
-  {
-    section: 'System',
-    items: [{ id: 'sync', label: 'Sync' }],
-  },
+const ANALYTICS_TABS: { id: ViewId; label: string; icon: string }[] = [
+  { id: 'overview', label: 'Overview', icon: '/icons/dashboard.svg' },
+  { id: 'funnel', label: 'Funnel', icon: '/icons/roadmap.svg' },
+  { id: 'ads', label: 'Ads', icon: '/icons/rewards.svg' },
+  { id: 'traffic', label: 'Traffic', icon: '/icons/categories.svg' },
+  { id: 'sync', label: 'Sync', icon: '/icons/settings.svg' },
 ];
-
-function Sidebar({ view, onSelect, lastStatus }: { view: ViewId; onSelect: (v: ViewId) => void; lastStatus?: string }) {
-  return (
-    <aside className="hidden min-h-screen w-56 shrink-0 border-r border-gray-200 px-3 py-6 dark:border-white/10 md:block">
-      <div className="mb-5 flex items-center gap-2 px-2">
-        <span className="h-2.5 w-2.5 rounded-sm bg-[#FF6363] shadow-[0_0_12px_rgba(255,99,99,0.5)]" />
-        <span className="text-sm font-semibold text-gray-900 dark:text-white">Pillexis Analytics</span>
-      </div>
-      <nav className="space-y-4">
-        {NAV_SECTIONS.map((sec) => (
-          <div key={sec.section}>
-            <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-600">
-              {sec.section}
-            </p>
-            {sec.items.map((item) => {
-              const active = view === item.id;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => onSelect(item.id)}
-                  className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition ${
-                    active
-                      ? 'bg-gray-100 font-medium text-gray-900 dark:bg-white/10 dark:text-white'
-                      : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-white'
-                  }`}
-                >
-                  <NavIcon id={item.id} />
-                  {item.label}
-                  {item.id === 'sync' && lastStatus && lastStatus !== 'ok' && (
-                    <span className={`ml-auto h-1.5 w-1.5 rounded-full ${lastStatus === 'partial' ? 'bg-amber-500' : 'bg-rose-500'}`} />
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        ))}
-      </nav>
-    </aside>
-  );
-}
-
-function MobileNav({ view, onSelect, lastStatus }: { view: ViewId; onSelect: (v: ViewId) => void; lastStatus?: string }) {
-  const items = NAV_SECTIONS.flatMap((section) => section.items);
-  return (
-    <nav aria-label="Dashboard views" className="fixed inset-x-0 bottom-0 z-50 grid grid-cols-5 border-t border-gray-200 bg-white/95 px-2 pb-[calc(env(safe-area-inset-bottom)+0.375rem)] pt-1.5 backdrop-blur dark:border-white/10 dark:bg-[#0a0a0a]/95 md:hidden">
-      {items.map((item) => {
-        const active = view === item.id;
-        return (
-          <button
-            key={item.id}
-            type="button"
-            onClick={() => onSelect(item.id)}
-            className={`relative flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-1 py-1 text-[11px] font-medium leading-none transition ${
-              active
-                ? 'bg-gray-100 text-gray-900 dark:bg-white/10 dark:text-white'
-                : 'text-gray-400 dark:text-gray-500'
-            }`}
-          >
-            <NavIcon id={item.id} />
-            <span className="whitespace-nowrap">{item.label}</span>
-            {item.id === 'sync' && lastStatus && lastStatus !== 'ok' && (
-              <span className={`absolute right-3 top-1.5 h-1.5 w-1.5 rounded-full ${lastStatus === 'partial' ? 'bg-amber-500' : 'bg-rose-500'}`} />
-            )}
-          </button>
-        );
-      })}
-    </nav>
-  );
-}
 
 // ── Pieces ────────────────────────────────────────────────────
 function RefreshButton({ from, to }: { from: string; to: string }) {
@@ -201,15 +108,34 @@ function RefreshButton({ from, to }: { from: string; to: string }) {
   }
   return (
     <div className="flex items-center gap-2">
-      {msg && <span className="hidden text-xs text-gray-500 sm:inline">{msg}</span>}
+      {msg && <span className="sync-message hidden text-xs text-[var(--color-muted)] sm:inline">{msg}</span>}
       <button
         type="button"
         onClick={refresh}
         disabled={loading}
-        className="inline-flex min-h-10 items-center gap-1.5 whitespace-nowrap rounded-lg bg-[#FF6363] px-3 py-2 text-[13px] font-semibold text-white transition hover:bg-[#FF4D4D] disabled:opacity-60 sm:text-sm"
+        aria-busy={loading}
+        className="forge-primary gap-1.5 whitespace-nowrap px-3 py-2 text-[13px] disabled:opacity-60 sm:text-sm"
       >
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <path d="M20 11a8 8 0 1 0 2 5M20 4v7h-7" />
+        <svg
+          className={loading ? 'animate-spin' : undefined}
+          width="15"
+          height="15"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          {loading ? (
+            <>
+              <circle cx="12" cy="12" r="9" className="opacity-30" />
+              <path d="M12 3a9 9 0 0 1 9 9" />
+            </>
+          ) : (
+            <path d="M20 11a8 8 0 1 0 2 5M20 4v7h-7" />
+          )}
         </svg>
         {loading ? 'Syncing' : 'Sync data'}
       </button>
@@ -240,7 +166,7 @@ function RangeControls({
 
   return (
     <div className="w-full min-w-0 md:w-auto">
-      <div className="flex w-full rounded-lg border border-gray-200 bg-white p-1 dark:border-white/10 dark:bg-[#141417] md:w-auto">
+      <div className="forge-control flex w-full p-1 md:w-auto">
         {[7, 30, 90].map((days) => (
           <button
             key={days}
@@ -248,8 +174,8 @@ function RangeControls({
             onClick={() => selectPreset(days)}
             className={`min-h-10 flex-1 whitespace-nowrap rounded-md px-2 py-2 text-[13px] font-medium transition sm:px-3 md:flex-none ${
               selectedDays === days
-                ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900'
-                : 'text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/10'
+                ? 'bg-[var(--color-accent-soft)] text-[var(--color-accent-strong)]'
+                : 'text-[var(--color-muted)] hover:bg-[var(--color-surface)]'
             }`}
           >
             {days} days
@@ -261,26 +187,26 @@ function RangeControls({
           onClick={() => setCustomOpen((open) => !open)}
           className={`min-h-10 flex-1 whitespace-nowrap rounded-md px-2 py-2 text-[13px] font-medium transition sm:px-3 md:flex-none ${
             customOpen || ![7, 30, 90].includes(selectedDays)
-              ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900'
-              : 'text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/10'
+              ? 'bg-[var(--color-accent-soft)] text-[var(--color-accent-strong)]'
+              : 'text-[var(--color-muted)] hover:bg-[var(--color-surface)]'
           }`}
         >
           Custom
         </button>
       </div>
       {customOpen && (
-        <div className="mt-2 grid grid-cols-2 gap-2 rounded-lg border border-gray-200 bg-white p-3 dark:border-white/10 dark:bg-[#141417] md:flex md:items-end">
-          <label className="grid min-w-0 gap-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+        <div className="forge-card mt-2 grid grid-cols-2 gap-2 p-3 md:flex md:items-end">
+          <label className="grid min-w-0 gap-1 text-xs font-medium text-[var(--color-muted)]">
             From
             <input
               type="date"
               value={draftFrom}
               max={draftTo}
               onChange={(event) => setDraftFrom(event.target.value)}
-              className="min-w-0 rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-2 text-sm font-normal normal-case tracking-normal text-gray-700 dark:border-white/10 dark:bg-[#0a0a0a] dark:text-gray-200"
+              className="forge-control min-w-0 px-2.5 py-2 text-sm font-normal"
             />
           </label>
-          <label className="grid min-w-0 gap-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+          <label className="grid min-w-0 gap-1 text-xs font-medium text-[var(--color-muted)]">
             To
             <input
               type="date"
@@ -288,7 +214,7 @@ function RangeControls({
               min={draftFrom}
               max={maxDate}
               onChange={(event) => setDraftTo(event.target.value)}
-              className="min-w-0 rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-2 text-sm font-normal normal-case tracking-normal text-gray-700 dark:border-white/10 dark:bg-[#0a0a0a] dark:text-gray-200"
+              className="forge-control min-w-0 px-2.5 py-2 text-sm font-normal"
             />
           </label>
           <button
@@ -298,7 +224,7 @@ function RangeControls({
               onRange(draftFrom, draftTo);
               setCustomOpen(false);
             }}
-            className="col-span-2 rounded-lg bg-gray-900 px-3 py-2 text-sm font-medium text-white transition disabled:cursor-not-allowed disabled:opacity-40 dark:bg-white dark:text-gray-900 md:col-span-1"
+            className="forge-primary col-span-2 px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-40 md:col-span-1"
           >
             Apply range
           </button>
@@ -311,10 +237,10 @@ function RangeControls({
 function SyncStatus({ run }: { run: SyncRunRow | null }) {
   if (!run) return null;
   return (
-    <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] leading-5 text-gray-500 dark:text-gray-400">
-      <span className={`h-2 w-2 rounded-full ${run.status === 'ok' ? 'bg-emerald-500' : run.status === 'partial' ? 'bg-amber-500' : 'bg-rose-500'}`} />
+    <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] leading-5 text-[var(--color-muted)]">
+      <span className={`h-2 w-2 rounded-full ${run.status === 'ok' ? 'bg-[var(--color-positive)]' : run.status === 'partial' ? 'bg-[var(--color-warning)]' : 'bg-[var(--color-critical)]'}`} />
       <span>Updated {timeAgo(run.finished_at)}</span>
-      <span className="text-gray-300 dark:text-gray-700">·</span>
+      <span className="text-[var(--color-rule-strong)]">·</span>
       <span>{run.status === 'ok' ? 'All sources synced' : `${run.error_count} issue${run.error_count === 1 ? '' : 's'}`}</span>
     </div>
   );
@@ -322,21 +248,21 @@ function SyncStatus({ run }: { run: SyncRunRow | null }) {
 
 function InsightsPanel({ insights }: { insights: ReturnType<typeof buildInsights> }) {
   return (
-    <Card className={`${CARD} !p-4 sm:!p-6`}>
+    <Card className={`${CARD} !h-full !p-4 sm:!p-6`}>
       <Flex alignItems="baseline">
         <Title className={`${titleCls} !text-lg sm:!text-xl`}>What&apos;s happening</Title>
-        <Text className="!text-xs !text-gray-500 sm:!text-sm">This range</Text>
+        <Text className="!text-xs !text-[var(--color-muted)] sm:!text-sm">This range</Text>
       </Flex>
       <div className="mt-4 space-y-4">
         {insights.map((ins, i) => (
           <div key={i} className={`${i >= 3 ? 'hidden md:flex' : 'flex'} gap-2.5`}>
             <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${SEV_DOT[ins.severity]}`} />
             <div className="min-w-0">
-              <p className="text-sm font-semibold leading-5 text-gray-900 dark:text-white">{ins.title}</p>
-              <p className="mt-0.5 text-[13px] leading-[1.45] text-gray-600 dark:text-gray-400 sm:text-sm">{ins.detail}</p>
+              <p className="text-sm font-semibold leading-5 text-[var(--color-ink)]">{ins.title}</p>
+              <p className="mt-0.5 text-[13px] leading-[1.45] text-[var(--color-muted)] sm:text-sm">{ins.detail}</p>
               {ins.action && (
-                <p className="mt-1 text-xs leading-4 text-gray-500 sm:text-[13px]">
-                  <span className="font-semibold text-gray-600 dark:text-gray-400">→ Do: </span>
+                <p className="mt-1 text-xs leading-4 text-[var(--color-muted)] sm:text-[13px]">
+                  <span className="font-semibold text-[var(--color-ink-2)]">→ Do: </span>
                   {ins.action}
                 </p>
               )}
@@ -385,7 +311,7 @@ function ConversionFunnel({
   }
   return (
     <div>
-      <Text className="!text-[13px] !leading-5 !text-gray-500 sm:!text-sm">
+      <Text className="!text-[13px] !leading-5 !text-[var(--color-muted)] sm:!text-sm">
         {num(impressions)} impressions · {ctr.toFixed(2)}% CTR → {num(clicks)} clicks
       </Text>
       <div className="mt-3">
@@ -395,18 +321,18 @@ function ConversionFunnel({
           return (
             <div key={idx} className="py-1.5">
               <Flex>
-                <Text className={`${isLeak ? '!text-rose-500 !font-medium' : '!text-gray-700 dark:!text-gray-300'} !text-[13px] sm:!text-sm`}>
+                <Text className={`${isLeak ? '!text-[var(--color-critical)] !font-medium' : '!text-[var(--color-ink-2)]'} !text-[13px] sm:!text-sm`}>
                   {s.label}
                   {isLeak ? ' · leak' : ''}
                 </Text>
-                <Text className="!text-[13px] !text-gray-500 dark:!text-gray-400 sm:!text-sm">
+                <Text className="!text-[13px] !text-[var(--color-muted)] sm:!text-sm">
                   {num(s.value)}
                   {idx > 0 ? ` · ${conv[idx].toFixed(0)}%` : ''}
                 </Text>
               </Flex>
-              <div className="mt-1 h-2 w-full rounded-full bg-gray-200 dark:bg-white/5">
+              <div className="mt-1 h-2 w-full rounded-[var(--radius-small)] bg-[var(--color-surface)]">
                 <div
-                  className={`h-2 rounded-full ${isLeak ? 'bg-rose-500' : 'bg-gradient-to-r from-[#FFA48A] to-[#FF6363]'}`}
+                  className={`h-2 rounded-[var(--radius-small)] ${isLeak ? 'bg-[var(--color-critical)]' : 'bg-[var(--color-accent)]'}`}
                   style={{ width: `${width}%` }}
                 />
               </div>
@@ -419,7 +345,7 @@ function ConversionFunnel({
 }
 
 function AdsTable({ ads, rangeTo }: { ads: AdRow[]; rangeTo: string }) {
-  if (ads.length === 0) return <Text className="!text-gray-500 mt-2">No ad data in this range.</Text>;
+  if (ads.length === 0) return <Text className="mt-2 !text-[var(--color-muted)]">No ad data in this range.</Text>;
   // An ad counts as "ended" if its last delivery was 2+ days before the range
   // end — enough buffer for today's partial day + Meta reporting lag, so a
   // still-running ad that just hasn't spent yet today is not mislabelled. Ended
@@ -433,18 +359,18 @@ function AdsTable({ ads, rangeTo }: { ads: AdRow[]; rangeTo: string }) {
         {ads.map((ad, index) => {
           const ended = endedBefore(ad.last_active);
           return (
-            <div key={index} className={`rounded-lg bg-gray-50 p-3.5 dark:bg-white/5 ${ended ? 'opacity-70' : ''}`}>
+            <div key={index} className={`forge-subtle-card p-3.5 ${ended ? 'opacity-70' : ''}`}>
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold leading-5 text-gray-900 dark:text-white">{ad.ad_name ?? 'Unnamed ad'}</p>
-                  <p className="truncate text-xs leading-4 text-gray-500">{ad.campaign_name ?? 'No campaign'}</p>
+                  <p className="truncate text-sm font-semibold leading-5 text-[var(--color-ink)]">{ad.ad_name ?? 'Unnamed ad'}</p>
+                  <p className="truncate text-xs leading-4 text-[var(--color-muted)]">{ad.campaign_name ?? 'No campaign'}</p>
                 </div>
-                <p className="shrink-0 text-sm font-semibold text-gray-900 dark:text-white">{inr(ad.spend)}</p>
+                <p className="shrink-0 text-sm font-semibold text-[var(--color-ink)]">{inr(ad.spend)}</p>
               </div>
               <div className="mt-3 grid grid-cols-3 gap-2 text-xs leading-4">
-                <div className="min-w-0"><span className="block text-gray-400">CTR</span><span className="font-medium text-gray-700 dark:text-gray-200">{pct(ad.ctr)}</span></div>
-                <div className="min-w-0"><span className="block text-gray-400">Bookings</span><span className="font-medium text-gray-700 dark:text-gray-200">{ad.schedules}</span></div>
-                <div className="min-w-0"><span className="block whitespace-nowrap text-gray-400">Cost / booking</span><span className="font-medium text-gray-700 dark:text-gray-200">{inr(ad.cost_per_schedule)}</span></div>
+                <div className="min-w-0"><span className="block text-[var(--color-faint)]">CTR</span><span className="font-medium text-[var(--color-ink-2)]">{pct(ad.ctr)}</span></div>
+                <div className="min-w-0"><span className="block text-[var(--color-faint)]">Bookings</span><span className="font-medium text-[var(--color-ink-2)]">{ad.schedules}</span></div>
+                <div className="min-w-0"><span className="block whitespace-nowrap text-[var(--color-faint)]">Cost / booking</span><span className="font-medium text-[var(--color-ink-2)]">{inr(ad.cost_per_schedule)}</span></div>
               </div>
             </div>
           );
@@ -469,16 +395,16 @@ function AdsTable({ ads, rangeTo }: { ads: AdRow[]; rangeTo: string }) {
             <TableCell className={`${cellCls} max-w-[220px] truncate`}>
               {a.ad_name ?? '—'}
               {ended && (
-                <span className="ml-2 text-xs font-normal text-gray-400 dark:text-gray-500 whitespace-nowrap">
+                <span className="ml-2 whitespace-nowrap text-xs font-normal text-[var(--color-faint)]">
                   · ended {format(parseISO(ended), 'MMM d')}
                 </span>
               )}
             </TableCell>
-            <TableCell className="!text-gray-500 max-w-[180px] truncate">{a.campaign_name ?? '—'}</TableCell>
+            <TableCell className="max-w-[180px] truncate !text-[var(--color-muted)]">{a.campaign_name ?? '—'}</TableCell>
             <TableCell className={`${cellCls} text-right`}>{inr(a.spend)}</TableCell>
             <TableCell className={`${labelCls} text-right`}>{pct(a.ctr)}</TableCell>
             <TableCell className="text-right">
-              {a.schedules > 0 ? <Badge color="emerald">{a.schedules}</Badge> : <span className="text-gray-400 dark:text-gray-600">0</span>}
+              {a.schedules > 0 ? <Badge color="emerald">{a.schedules}</Badge> : <span className="text-[var(--color-faint)]">0</span>}
             </TableCell>
             <TableCell className={`${cellCls} text-right`}>{inr(a.cost_per_schedule)}</TableCell>
           </TableRow>
@@ -491,21 +417,21 @@ function AdsTable({ ads, rangeTo }: { ads: AdRow[]; rangeTo: string }) {
 }
 
 function SourcesTable({ sources }: { sources: SourceRow[] }) {
-  if (sources.length === 0) return <Text className="!text-gray-500 mt-2">No source data in this range.</Text>;
+  if (sources.length === 0) return <Text className="mt-2 !text-[var(--color-muted)]">No source data in this range.</Text>;
   return (
     <>
       <div className="mt-4 space-y-2 md:hidden">
         {sources.map((source, index) => {
           const rate = source.sessions > 0 ? (source.leads / source.sessions) * 100 : 0;
           return (
-            <div key={index} className="rounded-lg bg-gray-50 p-3 dark:bg-white/5">
-              <p className="truncate text-sm font-semibold text-gray-900 dark:text-white">
-                {source.source} <span className="font-normal text-gray-400">/ {source.medium}</span>
+            <div key={index} className="forge-subtle-card p-3">
+              <p className="truncate text-sm font-semibold text-[var(--color-ink)]">
+                {source.source} <span className="font-normal text-[var(--color-faint)]">/ {source.medium}</span>
               </p>
               <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
-                <div><span className="block text-gray-400">Sessions</span><span className="font-medium text-gray-700 dark:text-gray-200">{num(source.sessions)}</span></div>
-                <div><span className="block text-gray-400">Bookings</span><span className="font-medium text-gray-700 dark:text-gray-200">{num(source.leads)}</span></div>
-                <div><span className="block text-gray-400">Conversion</span><span className="font-medium text-gray-700 dark:text-gray-200">{rate > 0 ? pct(rate) : '—'}</span></div>
+                <div><span className="block text-[var(--color-faint)]">Sessions</span><span className="font-medium text-[var(--color-ink-2)]">{num(source.sessions)}</span></div>
+                <div><span className="block text-[var(--color-faint)]">Bookings</span><span className="font-medium text-[var(--color-ink-2)]">{num(source.leads)}</span></div>
+                <div><span className="block text-[var(--color-faint)]">Conversion</span><span className="font-medium text-[var(--color-ink-2)]">{rate > 0 ? pct(rate) : '—'}</span></div>
               </div>
             </div>
           );
@@ -527,12 +453,12 @@ function SourcesTable({ sources }: { sources: SourceRow[] }) {
           return (
             <TableRow key={i}>
               <TableCell className={cellCls}>
-                {s.source} <span className="text-gray-400 dark:text-gray-600">/ {s.medium}</span>
+                {s.source} <span className="text-[var(--color-faint)]">/ {s.medium}</span>
               </TableCell>
               <TableCell className={`${cellCls} text-right`}>{num(s.sessions)}</TableCell>
               <TableCell className={`${labelCls} text-right`}>{num(s.book_call_clicks)}</TableCell>
               <TableCell className="text-right">
-                {s.leads > 0 ? <Badge color="emerald">{s.leads}</Badge> : <span className="text-gray-400 dark:text-gray-600">0</span>}
+                {s.leads > 0 ? <Badge color="emerald">{s.leads}</Badge> : <span className="text-[var(--color-faint)]">0</span>}
               </TableCell>
               <TableCell className={`${labelCls} text-right`}>{rate > 0 ? pct(rate) : '—'}</TableCell>
             </TableRow>
@@ -546,9 +472,9 @@ function SourcesTable({ sources }: { sources: SourceRow[] }) {
 
 function SyncLog({ runs }: { runs: SyncRunRow[] }) {
   const [open, setOpen] = useState<number | null>(null);
-  if (runs.length === 0) return <Text className="!text-gray-500 mt-2">No sync runs recorded yet.</Text>;
+  if (runs.length === 0) return <Text className="mt-2 !text-[var(--color-muted)]">No sync runs recorded yet.</Text>;
   return (
-    <div className="mt-4 divide-y divide-gray-100 dark:divide-white/5">
+    <div className="mt-4 divide-y divide-[var(--color-rule)]">
       {runs.map((r, i) => (
         <div key={i} className="py-2.5">
           <button
@@ -558,16 +484,16 @@ function SyncLog({ runs }: { runs: SyncRunRow[] }) {
           >
             <Badge color={statusColor(r.status)}>{r.status}</Badge>
             <span className={cellCls.replace(/!/g, '')}>{timeAgo(r.finished_at)}</span>
-            <span className="text-gray-500">via {r.trigger}</span>
-            <span className="text-gray-500">{r.duration_ms != null ? `${r.duration_ms}ms` : ''}</span>
+            <span className="text-[var(--color-muted)]">via {r.trigger}</span>
+            <span className="text-[var(--color-muted)]">{r.duration_ms != null ? `${r.duration_ms}ms` : ''}</span>
             {r.error_count > 0 && (
-              <span className="ml-auto font-medium text-rose-500">
+              <span className="ml-auto font-medium text-[var(--color-critical)]">
                 {r.error_count} issue{r.error_count === 1 ? '' : 's'} {open === i ? '▲' : '▼'}
               </span>
             )}
           </button>
           {open === i && r.errors.length > 0 && (
-            <ul className="mt-2 space-y-1 pl-2 text-xs text-rose-500/90">
+            <ul className="mt-2 space-y-1 pl-2 text-xs text-[var(--color-critical)]">
               {r.errors.map((e, j) => (
                 <li key={j} className="font-mono">
                   {e}
@@ -680,7 +606,7 @@ export default function DashboardView({
           {hasPrev && <DeltaBadge curr={costPerBooking} prev={pCostPerBooking} mode="lower" />}
         </Flex>
         <Metric className={`${titleCls} !mt-1 !text-2xl !leading-tight sm:!text-[1.75rem]`}>{inr(costPerBooking)}</Metric>
-        <Text className="!mt-1 !text-[13px] !leading-[1.4] !text-gray-500 sm:!text-sm">{bookings > 0 ? `${num(bookings)} bookings · ${vsLabel}` : 'no bookings yet'}</Text>
+        <Text className="!mt-1 !text-[13px] !leading-[1.4] !text-[var(--color-muted)] sm:!text-sm">{bookings > 0 ? `${num(bookings)} bookings · ${vsLabel}` : 'No bookings yet'}</Text>
       </Card>
       <Card className={`${CARD} !p-3.5 sm:!p-5`}>
         <Flex alignItems="start">
@@ -688,7 +614,7 @@ export default function DashboardView({
           {hasPrev && <DeltaBadge curr={sessionToBooking} prev={pSessionToBooking} mode="higher" />}
         </Flex>
         <Metric className={`${titleCls} !mt-1 !text-2xl !leading-tight sm:!text-[1.75rem]`}>{pct(sessionToBooking)}</Metric>
-        <Text className="!mt-1 !text-[13px] !leading-[1.4] !text-gray-500 sm:!text-sm">{num(t.sessions)} sessions · {num(bookings)} booked</Text>
+        <Text className="!mt-1 !text-[13px] !leading-[1.4] !text-[var(--color-muted)] sm:!text-sm">{num(t.sessions)} sessions · {num(bookings)} booked</Text>
       </Card>
       <Card className={`${CARD} !p-3.5 sm:!p-5`}>
         <Flex alignItems="start">
@@ -696,7 +622,7 @@ export default function DashboardView({
           {hasPrev && <DeltaBadge curr={t.spend} prev={prev.spend} mode="neutral" />}
         </Flex>
         <Metric className={`${titleCls} !mt-1 !text-2xl !leading-tight sm:!text-[1.75rem]`}>{inr(t.spend)}</Metric>
-        <Text className="!mt-1 !text-[13px] !leading-[1.4] !text-gray-500 sm:!text-sm">{ctr.toFixed(2)}% CTR · {num(t.clicks)} clicks</Text>
+        <Text className="!mt-1 !text-[13px] !leading-[1.4] !text-[var(--color-muted)] sm:!text-sm">{ctr.toFixed(2)}% CTR · {num(t.clicks)} clicks</Text>
       </Card>
       <Card className={`${CARD} !p-3.5 sm:!p-5`}>
         <Flex alignItems="start">
@@ -704,15 +630,15 @@ export default function DashboardView({
           {hasPrev && <DeltaBadge curr={bookRate} prev={pBookRate} mode="higher" />}
         </Flex>
         <Metric className={`${titleCls} !mt-1 !text-2xl !leading-tight sm:!text-[1.75rem]`}>{pct(bookRate)}</Metric>
-        <Text className="!mt-1 !text-[13px] !leading-[1.4] !text-gray-500 sm:!text-sm">{num(t.bookCallClicks)} of {num(t.sessions)} sessions</Text>
+        <Text className="!mt-1 !text-[13px] !leading-[1.4] !text-[var(--color-muted)] sm:!text-sm">{num(t.bookCallClicks)} of {num(t.sessions)} sessions</Text>
       </Card>
     </div>
   );
 
   const FunnelCard = (
-    <Card className={`${CARD} !p-4 sm:!p-6`}>
+    <Card className={`${CARD} !h-full !p-4 sm:!p-6`}>
       <Title className={`${titleCls} !text-lg sm:!text-xl`}>Conversion funnel</Title>
-      <Text className="!text-[13px] !text-gray-500 sm:!text-sm">Where the range leaks</Text>
+      <Text className="!text-[13px] !text-[var(--color-muted)] sm:!text-sm">Where the range leaks</Text>
       <div className="mt-3">
         <ConversionFunnel
           clicks={t.clicks}
@@ -730,7 +656,7 @@ export default function DashboardView({
   const TrendCard = (
     <Card className={`${CARD} !p-4 sm:!p-6`}>
       <Title className={`${titleCls} !text-lg sm:!text-xl`}>Cost per booking & spend</Title>
-      <Text className="!text-[13px] !leading-5 !text-gray-500 sm:!text-sm">{rangeLabel}</Text>
+      <Text className="!text-[13px] !leading-5 !text-[var(--color-muted)] sm:!text-sm">{rangeLabel}</Text>
       <AreaChart
         className="mt-4 h-72"
         data={chartData}
@@ -744,20 +670,12 @@ export default function DashboardView({
     </Card>
   );
 
-  const VIEW_TITLE: Record<ViewId, string> = {
-    overview: 'Overview',
-    funnel: 'Conversion funnel',
-    ads: 'Meta ads',
-    traffic: 'Traffic sources',
-    sync: 'Sync log',
-  };
-
   function renderView() {
     if (summary.length === 0 && view !== 'sync') {
       return (
         <Card className={CARD}>
           <Title className={titleCls}>No data in this range</Title>
-          <Text className="!text-gray-500">Pick a different range, or hit Refresh to pull recent days.</Text>
+          <Text className="!text-[var(--color-muted)]">Pick a different range, or sync recent days.</Text>
         </Card>
       );
     }
@@ -766,11 +684,11 @@ export default function DashboardView({
         return (
           <div className="space-y-4 md:space-y-6">
             {KpiCards}
-            <InsightsPanel insights={insights} />
-            <Grid numItemsLg={3} className="gap-4">
-              <div className="lg:col-span-1">{FunnelCard}</div>
-              <div className="lg:col-span-2">{TrendCard}</div>
-            </Grid>
+            <div className="grid gap-4 lg:grid-cols-2">
+              <InsightsPanel insights={insights} />
+              {FunnelCard}
+            </div>
+            {TrendCard}
           </div>
         );
       case 'funnel':
@@ -782,7 +700,7 @@ export default function DashboardView({
         );
       case 'ads':
         return (
-          <Card className={`${CARD} !p-4 sm:!p-6`}>
+          <Card className={`${CARD} !p-3 sm:!p-4`}>
             <Title className={`${titleCls} !text-lg sm:!text-xl`}>Meta ads · range total</Title>
             <AdsTable ads={ads} rangeTo={to} />
           </Card>
@@ -798,7 +716,7 @@ export default function DashboardView({
         return (
           <Card className={CARD}>
             <Title className={titleCls}>Sync log</Title>
-            <Text className="!text-gray-500">Last {syncRuns.length} runs · tap a failed run to see errors</Text>
+            <Text className="!text-[var(--color-muted)]">Last {syncRuns.length} runs · tap a failed run to see errors</Text>
             <SyncLog runs={syncRuns} />
           </Card>
         );
@@ -806,48 +724,44 @@ export default function DashboardView({
   }
 
   return (
-    <div className="md:flex">
-      <Sidebar view={view} onSelect={setView} lastStatus={lastSync?.status} />
-      <div className="min-w-0 flex-1">
-        <main className="mx-auto max-w-6xl px-4 pb-24 pt-4 sm:px-6 md:py-8 md:pb-12">
-          {/* Top bar */}
-          <div className="mb-5 md:mb-6">
-            <div className="flex items-start justify-between gap-2.5 sm:gap-4">
-              <div className="min-w-0">
-                <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#FF6363] md:hidden">Pillexis Analytics</p>
-                <h1 className="text-xl font-bold leading-tight tracking-[-0.025em] text-gray-900 dark:text-white md:text-xl">{VIEW_TITLE[view]}</h1>
-                <Text className="mt-1 !text-[13px] !leading-5 !text-gray-500 sm:!text-sm">
-                  {format(parseISO(from), 'MMM d')} – {format(parseISO(to), 'MMM d')} · {summary.length} synced days
-                </Text>
-                <SyncStatus run={lastSync} />
-              </div>
-              <div className="flex shrink-0 items-center gap-2">
-                <ThemeToggle />
-                <RefreshButton from={from} to={to} />
-              </div>
-            </div>
-            <div className="mt-4 flex w-full min-w-0 flex-col items-stretch gap-2.5 sm:flex-row md:mt-5 md:w-auto md:items-center">
-              <RangeControls key={`${from}:${to}`} from={from} to={to} onRange={onRange} />
-              <label className="min-w-0">
-                <span className="sr-only">Campaign</span>
-                <select
-                  value={campaignId ?? ''}
-                  onChange={(event) => onCampaign(event.target.value)}
-                  className="min-h-11 w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-[13px] font-medium text-gray-700 dark:border-white/10 dark:bg-[#141417] dark:text-gray-200 sm:w-64"
-                >
-                  <option value="">All campaigns</option>
-                  {campaigns.map((campaign) => (
-                    <option key={campaign.id} value={campaign.id}>{campaign.name}</option>
-                  ))}
-                </select>
-              </label>
-            </div>
-          </div>
-
-          <div>{renderView()}</div>
-        </main>
+    <ForgeShell
+      activeArea="analytics"
+      title="Marketing analytics"
+      description="GA4 and Meta Ads joined around the cost of every booked call."
+      tabs={ANALYTICS_TABS.map((tab) => ({
+        ...tab,
+        attention: tab.id === 'sync' && Boolean(lastSync && lastSync.status !== 'ok'),
+      }))}
+      activeTab={view}
+      onTabChange={setView}
+      actions={<RefreshButton from={from} to={to} />}
+      status={
+        <div>
+          <p className="mt-2 text-sm text-[var(--color-muted)]">
+            {format(parseISO(from), 'MMM d')} to {format(parseISO(to), 'MMM d')} · {summary.length} synced days
+          </p>
+          <SyncStatus run={lastSync} />
+        </div>
+      }
+    >
+      <div className="mb-5 flex w-full min-w-0 flex-col items-stretch gap-2.5 sm:flex-row sm:items-start">
+        <RangeControls key={`${from}:${to}`} from={from} to={to} onRange={onRange} />
+        <label className="min-w-0">
+          <span className="sr-only">Campaign</span>
+          <select
+            value={campaignId ?? ''}
+            onChange={(event) => onCampaign(event.target.value)}
+            className="forge-control w-full px-3 py-2.5 text-[13px] font-medium sm:w-64"
+          >
+            <option value="">All campaigns</option>
+            {campaigns.map((campaign) => (
+              <option key={campaign.id} value={campaign.id}>{campaign.name}</option>
+            ))}
+          </select>
+        </label>
       </div>
-      <MobileNav view={view} onSelect={setView} lastStatus={lastSync?.status} />
-    </div>
+
+      {renderView()}
+    </ForgeShell>
   );
 }

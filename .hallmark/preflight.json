@@ -1,0 +1,15 @@
+{
+  "date": "2026-07-30",
+  "framework": "Next.js 14 App Router",
+  "font_stack": "Inter body, Inter Display headings, JetBrains Mono utility",
+  "palette": "Existing light ProductLogz-derived OKLCH tokens in src/styles/tokens.css",
+  "motion": "Motion-cut, CSS state transitions only",
+  "spacing": "Existing 4px token scale",
+  "preserve": [
+    "light-only interface",
+    "violet accent",
+    "compact ProductLogz hierarchy",
+    "hairline borders",
+    "8 to 12px radii"
+  ]
+}

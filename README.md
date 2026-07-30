@@ -1,4 +1,4 @@
-# Pillexis · Marketing Analytics
+# Forge
 
 An internal dashboard that pulls **Google Analytics 4** and **Meta Ads** daily and joins
 them on the one metric that matters: **cost per booked call** (the `Schedule` conversion).
@@ -12,7 +12,8 @@ Meta impressions → clicks → GA sessions → book-call clicks → Schedule (b
 ```
 
 Stack: **Next.js 14** (App Router) · **Postgres** · **Tremor** charts. Separate from the
-public marketing site so ad-spend data and API secrets stay private.
+public marketing site so ad-spend data and API secrets stay private. Forge also includes
+a focused internal sales CRM for the two founders.
 
 ## Git repository boundary
 
@@ -50,7 +51,7 @@ Both environments contain `forge`, `forge-sync`, and Postgres services. Their de
 
 ## Features
 
-**Navigation:** desktop uses an `Analyze` / `System` sidebar, while mobile uses a fixed five-item bottom navigation.
+**Navigation:** desktop uses one ProductLogz-style workspace sidebar for analytics and the sales CRM. Mobile uses a compact top bar and scrollable view tabs.
 
 | View | What it answers |
 |------|-----------------|
@@ -66,7 +67,27 @@ Both environments contain `forge`, `forge-sync`, and Postgres services. Their de
 - **Date range** — Last 7 / 30 / 90 days + custom; everything (KPIs, funnel, tables, insights) recomputes for the range. State lives in the URL (`?from=&to=`).
 - **Responsive dashboard** — mobile uses a 2 by 2 KPI grid, compact insights, and stacked Ads and Traffic metric cards instead of compressed tables. Custom date inputs stay collapsed until requested.
 - **Installable PWA** — manifest, favicon, iOS home-screen icon, standalone display, and a network-only service worker that never caches authenticated analytics data.
-- **Light / dark theme** toggle (persisted, no flash on load).
+- **Light workspace theme** shared by analytics, the sales CRM, login, and setup states.
+
+### CRM
+
+Open `/crm` to manage client conversations in the same authenticated Forge app. Each working
+view has its own nested URL: `/crm/whatsapp`, `/crm/leads`, `/crm/pipeline`,
+`/crm/follow-ups`, and `/crm/calls`. The CRM is light only and includes:
+
+- Today, Leads, Pipeline, Follow ups, Calls, and WhatsApp views.
+- Clear owner, stage, next action, and due date for every active opportunity.
+- Fireflies call summaries and transcript links in the client record.
+- A focused client dialog with separate Overview, WhatsApp, and Activity sections. It opens to the section that matches the current view.
+- A suggested WhatsApp follow-up that can be copied and recorded as sent.
+- A WhatsApp confirmation and reminder workflow with consent, scheduling, opt out, reschedule, pause, attendance, and human handoff states.
+- An activity trail for owner, stage, next-action, meeting, and outbound-message changes.
+
+The WhatsApp workflow queue is implemented. A WhatsApp Business provider is not configured yet, so Forge does not claim queued messages were delivered.
+
+The API sync reads meetings directly from Fireflies GraphQL using `FIREFLIES_API_KEY`.
+The initial backfill importer can also read `../clients/client-database.csv`. Both paths
+are idempotent, so an existing transcript is updated instead of duplicated.
 
 ---
 
@@ -179,6 +200,8 @@ cd forge
 npm run sync            # manual sync, last 8 days
 npm run sync -- 30      # backfill 30 days
 npm run db:migrate      # apply db/schema.sql to the current DATABASE_URL
+npm run crm:import      # import ../clients/client-database.csv into the CRM
+npm run crm:sync-fireflies -- 90  # sync the last 90 days through the Fireflies API
 npm run build           # verify a production build
 
 # watch logs (structured JSON, one line per event)
@@ -210,6 +233,13 @@ Nothing fails silently:
 | `ga_campaign_sources_daily` | one row per campaign/source/medium/day | Campaign-filtered traffic view |
 | `sync_runs` | one row per sync run | Sync view + status strip |
 | `api_request_log` | one row per machine API request | client audit and access review |
+| `crm_companies` | one row per client company | client identity and billing details |
+| `crm_contacts` | one row per person | contact details |
+| `crm_deals` | one row per sales opportunity | owner, stage, next action |
+| `crm_activities` | one row per interaction or change | client timeline |
+| `crm_tasks` | one row per follow-up task | due work |
+| `crm_meetings` | one row per Fireflies transcript | call context |
+| `crm_bookings` | one row per Cal.com booking | meeting status and qualification |
 
 Full DDL in [`db/schema.sql`](db/schema.sql).
 

@@ -23,4 +23,5 @@ export const env = {
   metaToken: () => req('META_ACCESS_TOKEN'),
   metaAccountId: () => process.env.META_AD_ACCOUNT_ID ?? 'act_1705074640527431',
   metaGraphVersion: () => process.env.META_GRAPH_VERSION ?? 'v23.0',
+  firefliesApiKey: () => req('FIREFLIES_API_KEY'),
 };

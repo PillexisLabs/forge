@@ -123,3 +123,141 @@ create table if not exists api_request_log (
 );
 create index if not exists idx_api_request_log_requested on api_request_log (requested_at desc);
 create index if not exists idx_api_request_log_client on api_request_log (client_id, requested_at desc);
+
+-- Pillexis sales CRM. Kept separate from analytics facts so sales mutations
+-- cannot alter provider data or attribution calculations.
+create table if not exists crm_companies (
+  id                  bigserial primary key,
+  display_name        text not null,
+  legal_name          text,
+  domain              text,
+  website_url         text,
+  gst_number          text,
+  registered_address  text,
+  notes               text,
+  created_at          timestamptz not null default now(),
+  updated_at          timestamptz not null default now()
+);
+create unique index if not exists idx_crm_companies_domain
+  on crm_companies (lower(domain)) where domain is not null and domain <> '';
+
+create table if not exists crm_contacts (
+  id             bigserial primary key,
+  company_id     bigint references crm_companies(id) on delete set null,
+  name           text not null,
+  primary_email  text,
+  primary_phone  text,
+  job_title      text,
+  notes          text,
+  created_at     timestamptz not null default now(),
+  updated_at     timestamptz not null default now()
+);
+create unique index if not exists idx_crm_contacts_email
+  on crm_contacts (lower(primary_email)) where primary_email is not null and primary_email <> '';
+
+create table if not exists crm_deals (
+  id                    bigserial primary key,
+  contact_id            bigint not null references crm_contacts(id) on delete restrict,
+  company_id            bigint references crm_companies(id) on delete set null,
+  title                 text not null,
+  problem_statement     text,
+  lead_source           text not null default 'manual',
+  source_detail         text,
+  stage                 text not null default 'new_lead'
+    check (stage in ('new_lead','contacted','intro_call_booked','qualified','discovery_proposed','discovery_won','implementation_proposed','won','nurture','lost')),
+  owner                 text not null default 'unassigned'
+    check (owner in ('unassigned','anurag','priyanka')),
+  estimated_value       numeric,
+  last_interaction_at   timestamptz,
+  next_action           text,
+  next_action_due_at    timestamptz,
+  lost_reason           text,
+  created_at            timestamptz not null default now(),
+  updated_at            timestamptz not null default now()
+);
+create index if not exists idx_crm_deals_stage on crm_deals (stage);
+create index if not exists idx_crm_deals_owner_due on crm_deals (owner, next_action_due_at);
+
+create table if not exists crm_activities (
+  id           bigserial primary key,
+  deal_id      bigint not null references crm_deals(id) on delete cascade,
+  contact_id   bigint references crm_contacts(id) on delete set null,
+  actor        text not null default 'system',
+  type         text not null,
+  direction    text check (direction is null or direction in ('inbound','outbound')),
+  occurred_at  timestamptz not null default now(),
+  subject      text not null,
+  body         text,
+  source       text not null default 'manual',
+  source_id    text,
+  metadata     jsonb not null default '{}'::jsonb,
+  created_at   timestamptz not null default now()
+);
+create index if not exists idx_crm_activities_deal on crm_activities (deal_id, occurred_at desc);
+create unique index if not exists idx_crm_activities_source
+  on crm_activities (source, source_id) where source_id is not null and source_id <> '';
+
+create table if not exists crm_tasks (
+  id            bigserial primary key,
+  deal_id       bigint not null references crm_deals(id) on delete cascade,
+  owner         text not null default 'unassigned'
+    check (owner in ('unassigned','anurag','priyanka')),
+  title         text not null,
+  due_at        timestamptz not null,
+  priority      text not null default 'normal'
+    check (priority in ('low','normal','high')),
+  status        text not null default 'open'
+    check (status in ('open','completed','cancelled')),
+  completed_at  timestamptz,
+  created_at    timestamptz not null default now(),
+  updated_at    timestamptz not null default now()
+);
+create index if not exists idx_crm_tasks_status_due on crm_tasks (status, due_at);
+
+create table if not exists crm_meetings (
+  id                       bigserial primary key,
+  deal_id                  bigint not null references crm_deals(id) on delete cascade,
+  fireflies_transcript_id  text not null unique,
+  title                    text not null,
+  meeting_at               timestamptz not null,
+  duration_minutes         numeric,
+  transcript_url           text,
+  summary_status           text not null default 'unavailable'
+    check (summary_status in ('available','unavailable')),
+  short_summary            text,
+  overview                 text,
+  action_items             text,
+  analysis                 jsonb not null default '{}'::jsonb,
+  synced_at                timestamptz not null default now()
+);
+create index if not exists idx_crm_meetings_deal on crm_meetings (deal_id, meeting_at desc);
+
+create table if not exists crm_bookings (
+  id               bigserial primary key,
+  deal_id          bigint not null references crm_deals(id) on delete cascade,
+  cal_booking_uid  text not null unique,
+  starts_at        timestamptz not null,
+  status           text not null,
+  qualification    jsonb not null default '{}'::jsonb,
+  created_at       timestamptz not null default now(),
+  updated_at       timestamptz not null default now()
+);
+
+create table if not exists crm_whatsapp_workflows (
+  id                bigserial primary key,
+  deal_id           bigint not null unique references crm_deals(id) on delete cascade,
+  state             text not null default 'booked'
+    check (state in ('booked','awaiting_confirmation','confirmed','attending','attended','rescheduled','cancelled','no_response','nurture','no_show','human_handoff','opted_out','paused')),
+  consent_status    text not null default 'unknown'
+    check (consent_status in ('unknown','granted','opted_out')),
+  enabled           boolean not null default false,
+  appointment_at    timestamptz,
+  next_message_at   timestamptz,
+  last_intent       text,
+  handoff_reason    text,
+  created_at        timestamptz not null default now(),
+  updated_at        timestamptz not null default now()
+);
+create index if not exists idx_crm_whatsapp_next_message
+  on crm_whatsapp_workflows (next_message_at)
+  where enabled = true and next_message_at is not null;

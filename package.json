@@ -11,6 +11,8 @@
     "test": "node --import tsx --test tests/*.test.ts",
     "lint": "next lint",
     "sync": "node --import ./scripts/load-env-if-present.mjs --import tsx scripts/sync-cli.ts",
+    "crm:import": "node --import ./scripts/load-env-if-present.mjs --import tsx scripts/import-crm.ts",
+    "crm:sync-fireflies": "node --import ./scripts/load-env-if-present.mjs --import tsx scripts/sync-crm-fireflies.ts",
     "db:migrate": "node --import ./scripts/load-env-if-present.mjs --import tsx scripts/migrate.ts"
   },
   "engines": {

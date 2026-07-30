@@ -2,7 +2,21 @@
 
 Canonical implementation roadmap for Forge marketing analytics.
 
-**Last updated:** 2026-07-19
+**Last updated:** 2026-07-30
+
+## Sales CRM release
+
+The focused two-founder CRM described in [`CRM_PRD.md`](CRM_PRD.md) is implemented in
+the Forge app at `/crm`. The first release covers the shared client database, ownership,
+pipeline stage, next actions, Fireflies meeting context, manual WhatsApp follow-up
+recording, the WhatsApp workflow queue, and the client activity trail.
+
+Remaining integration work:
+
+1. Schedule the implemented Fireflies API ingestion in production.
+2. Add Cal.com booking ingestion and deal matching.
+3. Connect a controlled WhatsApp provider to the implemented queue.
+4. Add deterministic CRM fixtures before testing the interface on staging.
 
 ## Priority 0: Isolate staging from production data
 

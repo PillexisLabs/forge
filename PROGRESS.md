@@ -1,7 +1,7 @@
 # Progress & Changelog
 
 Running log of what's built, what's known-broken, and what's next.
-_Last updated: 2026-07-19._
+_Last updated: 2026-07-30._
 
 ## Current state
 
@@ -30,10 +30,10 @@ _Last updated: 2026-07-19._
 - KPI cards: Cost per booked call, Session→booking rate, Ad spend, Book-call intent.
 
 **Dashboard UX**
-- Sidebar nav (`Analyze`: Overview/Funnel/Ads/Traffic · `System`: Sync), per IA decision from the PM copilot.
+- Shared ProductLogz-style workspace sidebar for Marketing analytics and CRM, with contextual view navigation inside the same shell.
 - Date range (7/30/90 + custom), URL-encoded.
-- Light/dark theme toggle (persisted, no flash).
-- Mobile redesign: fixed bottom navigation, 2 by 2 KPI grid, compact sync state, collapsed custom dates, and stacked Ads and Traffic cards.
+- Light-only interface across the dashboard, login, setup, and CRM.
+- Mobile redesign: compact top navigation, scrollable view tabs, 2 by 2 KPI grid, compact sync state, collapsed custom dates, and stacked Ads and Traffic cards.
 - Desktop header redesign: compact status and date summary, clear presets, and custom fields shown only on demand.
 - Installable mobile PWA with Forge favicon, iOS home-screen icon, standalone metadata, and network-only service worker.
 
@@ -43,6 +43,14 @@ _Last updated: 2026-07-19._
 - No-clobber rule: a failed source preserves prior data instead of zeroing it; run flagged `partial`.
 
 **Recent additions**
+- Added real nested URLs for every CRM view and kept them visually nested below CRM in the desktop sidebar. The client record now uses a native modal dialog with focused Overview, WhatsApp, and Activity sections instead of one long form. WhatsApp rows open directly to WhatsApp, Calls opens to Activity, and other views open to Overview.
+- Added a reusable ProductLogz-style core UI system for panels, headers, buttons, fields, badges, avatars, alerts, and dialogs. The CRM now consumes these shared components across desktop and mobile.
+- Configured the local CRM data for end-to-end WhatsApp testing. Twenty two non-opted-out leads have test phone numbers, granted consent, and future call times. Ajay remains the explicit opted-out fixture so the stop branch stays testable.
+- Split every CRM navigation item into a purpose-built view. Today is an urgency queue with health gaps, Pipeline groups populated deals by stage with a complete stage summary, Follow ups is grouped by due state, Leads remains the searchable master list, Calls remains the Fireflies view, and WhatsApp is the automation execution queue.
+- Reworked `/crm` around the ProductLogz Users table pattern. Leads now includes every imported deal, including Qualified records, Calls is a dedicated view instead of a permanent side panel, the sidebar context is labelled CRM, and the desktop and mobile layouts use the shared Forge shell.
+- Added the WhatsApp workflow queue. Each lead can store phone, consent, and call time, then move through confirmation, reminder, reschedule, pause, attendance, opt out, and human handoff states. Transitions are audited in CRM activity. Local schema migration and desktop plus 390 pixel browser verification passed. Provider delivery remains pending.
+- Kept the WhatsApp operating screen focused on its actionable lead queue. The underlying booking, reply, reminder, exception, and stop rules remain documented in the CRM PRD rather than appearing as front-facing app content.
+- Added the first Forge sales CRM release at `/crm`. It has Today, Pipeline, Follow ups, Leads, Calls, and WhatsApp views, explicit founder ownership, stages, next actions, Fireflies meeting context, follow up drafting, and an activity trail. The schema, direct Fireflies GraphQL sync, and idempotent CSV backfill importer are included.
 - Added product-grade campaign filtering. Sync retains every Meta and GA campaign, `All campaigns` is the default, and users can select a campaign without changing deployment configuration. Hostname filtering keeps Cal.com and unrelated domains out of website metrics. The funnel now shows engaged sessions between sessions and booking intent.
 - Period-over-period **delta badges** on KPIs (vs previous equal-length range).
 - **Per-source conversions** — `ga_sources_daily` now captures `book_call_clicks` + `leads`; Traffic view shows conv. rate per source.
