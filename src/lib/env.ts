@@ -24,4 +24,14 @@ export const env = {
   metaAccountId: () => process.env.META_AD_ACCOUNT_ID ?? 'act_1705074640527431',
   metaGraphVersion: () => process.env.META_GRAPH_VERSION ?? 'v23.0',
   firefliesApiKey: () => req('FIREFLIES_API_KEY'),
+
+  // WhatsApp Cloud API (separate token from the Marketing API one above).
+  whatsappToken: () => req('WHATSAPP_ACCESS_TOKEN'),
+  whatsappPhoneNumberId: () => req('WHATSAPP_PHONE_NUMBER_ID'),
+  whatsappGraphVersion: () => process.env.WHATSAPP_GRAPH_VERSION ?? 'v25.0',
+  whatsappDryRun: () => process.env.WHATSAPP_DRY_RUN === '1',
+  whatsappVerifyToken: () => req('WHATSAPP_WEBHOOK_VERIFY_TOKEN'),
+  whatsappAppSecret: () => process.env.WHATSAPP_APP_SECRET ?? '',
+  whatsappRescheduleLink: () =>
+    process.env.WHATSAPP_RESCHEDULE_LINK ?? 'https://cal.com/pillexislabs/pillexis-labs-intro-call',
 };

@@ -36,6 +36,7 @@ function workflowError(error: unknown) {
     phone_required: { status: 400, message: 'Add a WhatsApp phone number first' },
     consent_required: { status: 400, message: 'Record consent before starting automation' },
     appointment_required: { status: 400, message: 'Add the call date and time first' },
+    opted_out_locked: { status: 409, message: 'This lead opted out. Automation cannot be re-enabled.' },
   };
   return errors[code] ?? { status: 500, message: 'WhatsApp workflow update failed' };
 }
@@ -49,8 +50,8 @@ export async function PATCH(
   }
 
   const dealId = validDealId(params.id);
-  const body = await request.json();
-  if (!dealId || !isWhatsAppConsentStatus(body.consentStatus)) {
+  const body = await request.json().catch(() => null);
+  if (!dealId || !body || !isWhatsAppConsentStatus(body.consentStatus)) {
     return NextResponse.json({ error: 'A valid deal and consent status are required' }, { status: 400 });
   }
 
@@ -59,9 +60,12 @@ export async function PATCH(
     return NextResponse.json({ error: 'Enter a valid call date and time' }, { status: 400 });
   }
   const appointmentAt = appointmentDate?.toISOString() ?? null;
-  const primaryPhone = typeof body.primaryPhone === 'string'
-    ? body.primaryPhone.trim() || null
-    : null;
+  // An absent field means "leave the stored phone alone" — never wipe it.
+  const primaryPhone = body.primaryPhone === undefined
+    ? undefined
+    : typeof body.primaryPhone === 'string'
+      ? body.primaryPhone.trim() || null
+      : null;
   const actor = typeof body.actor === 'string' ? body.actor : 'Founder';
 
   try {
@@ -88,8 +92,8 @@ export async function POST(
   }
 
   const dealId = validDealId(params.id);
-  const body = await request.json();
-  if (!dealId || !ACTIONS.includes(body.action)) {
+  const body = await request.json().catch(() => null);
+  if (!dealId || !body || !ACTIONS.includes(body.action)) {
     return NextResponse.json({ error: 'A valid workflow action is required' }, { status: 400 });
   }
 

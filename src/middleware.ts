@@ -13,6 +13,7 @@ export async function middleware(req: NextRequest) {
     pathname.startsWith('/api/sync') ||
     pathname.startsWith('/api/v1/') ||
     pathname.startsWith('/api/health') ||
+    pathname.startsWith('/api/whatsapp/webhook') ||
     pathname.startsWith('/icons/') ||
     pathname === '/manifest.webmanifest' ||
     pathname === '/forge-logo.png' ||

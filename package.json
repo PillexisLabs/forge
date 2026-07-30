@@ -13,6 +13,8 @@
     "sync": "node --import ./scripts/load-env-if-present.mjs --import tsx scripts/sync-cli.ts",
     "crm:import": "node --import ./scripts/load-env-if-present.mjs --import tsx scripts/import-crm.ts",
     "crm:sync-fireflies": "node --import ./scripts/load-env-if-present.mjs --import tsx scripts/sync-crm-fireflies.ts",
+    "crm:seed-demo": "node --import ./scripts/load-env-if-present.mjs --import tsx scripts/seed-crm-demo.ts",
+    "crm:whatsapp-worker": "node --import ./scripts/load-env-if-present.mjs --import tsx scripts/whatsapp-worker.ts",
     "db:migrate": "node --import ./scripts/load-env-if-present.mjs --import tsx scripts/migrate.ts"
   },
   "engines": {

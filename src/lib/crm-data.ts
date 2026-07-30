@@ -23,6 +23,12 @@ type DealRow = Omit<CrmDeal, 'activities' | 'estimated_value' | 'whatsapp'> & {
   whatsapp_updated_at: string | null;
 };
 
+// The postgres client returns timestamptz columns as Date objects; the CRM
+// types promise ISO strings. Normalize here so client code can rely on them.
+function iso(value: string | Date | null): string | null {
+  return value == null ? null : new Date(value).toISOString();
+}
+
 export async function getCrmWorkspace(): Promise<CrmWorkspace> {
   const sql = getSql();
   const [dealRows, activityRows] = await Promise.all([
@@ -65,7 +71,7 @@ export async function getCrmWorkspace(): Promise<CrmWorkspace> {
   const activityMap = new Map<number, CrmActivity[]>();
   for (const activity of activityRows) {
     const list = activityMap.get(activity.deal_id) ?? [];
-    if (list.length < 20) list.push(activity);
+    if (list.length < 20) list.push({ ...activity, occurred_at: iso(activity.occurred_at)! });
     activityMap.set(activity.deal_id, list);
   }
 
@@ -87,17 +93,19 @@ export async function getCrmWorkspace(): Promise<CrmWorkspace> {
       return {
         ...deal,
         estimated_value: row.estimated_value == null ? null : Number(row.estimated_value),
+        last_interaction_at: iso(deal.last_interaction_at),
+        next_action_due_at: iso(deal.next_action_due_at),
         whatsapp: workflowId && state && consentStatus && workflowUpdatedAt
           ? {
               id: workflowId,
               state,
               consent_status: consentStatus,
               enabled: Boolean(enabled),
-              appointment_at: appointmentAt,
-              next_message_at: nextMessageAt,
+              appointment_at: iso(appointmentAt),
+              next_message_at: iso(nextMessageAt),
               last_intent: lastIntent,
               handoff_reason: handoffReason,
-              updated_at: workflowUpdatedAt,
+              updated_at: iso(workflowUpdatedAt)!,
             }
           : null,
         activities: activityMap.get(row.id) ?? [],
@@ -171,6 +179,21 @@ export async function updateCrmDeal(input: {
     }
     if (stage !== current[0].stage) {
       await tx`insert into crm_activities (deal_id, actor, type, subject) values (${input.id}, ${input.actor}, 'stage_change', ${`Stage changed to ${stage}`})`;
+      // A closed deal must never keep messages queued.
+      if (stage === 'won' || stage === 'lost') {
+        const stopped = await tx`
+          update crm_whatsapp_workflows
+          set enabled = false, next_message_at = null, updated_at = now()
+          where deal_id = ${input.id} and (enabled = true or next_message_at is not null)
+          returning id
+        `;
+        if (stopped.length > 0) {
+          await tx`
+            insert into crm_activities (deal_id, actor, type, subject, source)
+            values (${input.id}, 'system', 'whatsapp_workflow', ${`WhatsApp automation stopped: deal ${stage}`}, 'automation')
+          `;
+        }
+      }
     }
     if (nextAction !== current[0].next_action || nextActionDueAt !== current[0].next_action_due_at) {
       await tx`insert into crm_activities (deal_id, actor, type, subject, body) values (${input.id}, ${input.actor}, 'next_action', 'Next action updated', ${nextAction})`;

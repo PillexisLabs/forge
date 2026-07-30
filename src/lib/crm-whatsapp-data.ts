@@ -6,6 +6,7 @@ import {
 import {
   confirmationMessage,
   resolveWhatsAppTransition,
+  whatsAppTransitionError,
   type WhatsAppWorkflowAction,
 } from './crm-whatsapp-rules';
 
@@ -22,10 +23,18 @@ export async function configureCrmWhatsApp(input: {
 }) {
   const sql = getSql();
   await sql.begin(async (tx) => {
-    const deals = await tx<{ id: number }[]>`
-      select id from crm_deals where id = ${input.dealId} for update
+    const deals = await tx<{ id: number; consent_status: string | null }[]>`
+      select d.id, w.consent_status
+      from crm_deals d
+      left join crm_whatsapp_workflows w on w.deal_id = d.id
+      where d.id = ${input.dealId}
+      for update of d
     `;
     if (!deals[0]) throw new Error('deal_not_found');
+    // Opt-out is a one-way latch: a reconfigure can never silently clear it.
+    if (deals[0].consent_status === 'opted_out' && input.consentStatus !== 'opted_out') {
+      throw new Error('opted_out_locked');
+    }
 
     const optedOut = input.consentStatus === 'opted_out';
     await tx`
@@ -93,12 +102,12 @@ export async function transitionCrmWhatsApp(input: {
     `;
     const current = rows[0];
     if (!current) throw new Error('deal_not_found');
-    if (current.consent_status === null) throw new Error('workflow_not_configured');
-    if (input.action === 'start') {
-      if (!current.primary_phone) throw new Error('phone_required');
-      if (current.consent_status !== 'granted') throw new Error('consent_required');
-      if (!current.appointment_at) throw new Error('appointment_required');
-    }
+    const guardError = whatsAppTransitionError(input.action, {
+      consentStatus: current.consent_status,
+      primaryPhone: current.primary_phone,
+      appointmentAt: current.appointment_at,
+    });
+    if (guardError) throw new Error(guardError);
 
     const transition = resolveWhatsAppTransition(
       input.action,
