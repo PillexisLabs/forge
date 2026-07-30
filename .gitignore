@@ -10,3 +10,4 @@ out
 next-env.d.ts
 .playwright-cli
 output
+tsconfig.tsbuildinfo
