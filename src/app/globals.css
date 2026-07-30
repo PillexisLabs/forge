@@ -2272,3 +2272,8 @@ textarea:disabled {
 .crm-setup-line .crm-view-link {
   margin-left: auto;
 }
+
+.crm-send-now {
+  margin-left: var(--space-3);
+  font-size: 0.8125rem;
+}

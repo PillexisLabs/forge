@@ -75,6 +75,22 @@ export async function configureCrmWhatsApp(input: {
   });
 }
 
+// Pulls a queued message forward to "due now". Returns false when nothing
+// is queued (not enabled, no consent, or an empty queue).
+export async function markWhatsAppDueNow(dealId: number): Promise<boolean> {
+  const sql = getSql();
+  const updated = await sql`
+    update crm_whatsapp_workflows
+    set next_message_at = now(), updated_at = now()
+    where deal_id = ${dealId}
+      and enabled = true
+      and consent_status = 'granted'
+      and next_message_at is not null
+    returning id
+  `;
+  return updated.length > 0;
+}
+
 export async function transitionCrmWhatsApp(input: {
   dealId: number;
   action: WhatsAppWorkflowAction;

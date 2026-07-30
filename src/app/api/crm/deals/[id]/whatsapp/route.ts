@@ -3,8 +3,12 @@ import { SESSION_COOKIE, verifyToken } from '@/lib/auth';
 import {
   configureCrmWhatsApp,
   isWhatsAppConsentStatus,
+  markWhatsAppDueNow,
   transitionCrmWhatsApp,
 } from '@/lib/crm-whatsapp-data';
+import { processDueRows } from '@/lib/whatsapp-worker-core';
+
+export const runtime = 'nodejs';
 import type { WhatsAppWorkflowAction } from '@/lib/crm-whatsapp-rules';
 import { updateCrmDeal } from '@/lib/crm-data';
 import { env } from '@/lib/env';
@@ -93,7 +97,22 @@ export async function POST(
 
   const dealId = validDealId(params.id);
   const body = await request.json().catch(() => null);
-  if (!dealId || !body || !ACTIONS.includes(body.action)) {
+  if (!dealId || !body) {
+    return NextResponse.json({ error: 'A valid workflow action is required' }, { status: 400 });
+  }
+
+  // Demo/testing helper: pull the queued message forward and send immediately
+  // instead of waiting for the worker's next minute tick.
+  if (body.action === 'send_now') {
+    const queued = await markWhatsAppDueNow(dealId);
+    if (!queued) {
+      return NextResponse.json({ error: 'Nothing is queued for this lead' }, { status: 400 });
+    }
+    const sent = await processDueRows();
+    return NextResponse.json({ ok: true, sent });
+  }
+
+  if (!ACTIONS.includes(body.action)) {
     return NextResponse.json({ error: 'A valid workflow action is required' }, { status: 400 });
   }
 

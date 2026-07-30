@@ -641,6 +641,22 @@ export default function CrmDashboard({
     refreshWorkspace();
   }
 
+  async function sendQueuedNow() {
+    if (!selected) return;
+    setWorkflowError('');
+    const response = await fetch(`/api/crm/deals/${selected.id}/whatsapp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'send_now', actor: 'Founder' }),
+    });
+    const result = await response.json().catch(() => null);
+    if (!response.ok) {
+      setWorkflowError(result?.error || 'Could not send the queued message');
+      return;
+    }
+    refreshWorkspace();
+  }
+
   async function runWhatsAppAction(action: WhatsAppWorkflowAction) {
     if (!selected) return;
     if (action === 'start' && !workflowConfigured) return;
@@ -760,6 +776,15 @@ export default function CrmDashboard({
                   className="forge-control"
                 />
               </label>
+              <UiButton
+                type="button"
+                variant="ghost"
+                size="small"
+                aria-busy={isPending}
+                onClick={refreshWorkspace}
+              >
+                {isPending ? 'Refreshing…' : 'Refresh'}
+              </UiButton>
             </div>
 
             <div className="crm-table-desktop">
@@ -895,6 +920,15 @@ export default function CrmDashboard({
                 <span>{selected.primary_email || 'No email added'}</span>
               </div>
             </div>
+            <UiButton
+              type="button"
+              variant="ghost"
+              size="small"
+              aria-busy={isPending}
+              onClick={refreshWorkspace}
+            >
+              {isPending ? 'Refreshing…' : 'Refresh'}
+            </UiButton>
             <UiButton
               type="button"
               variant="ghost"
@@ -1084,6 +1118,11 @@ export default function CrmDashboard({
                         <dt>Next message</dt>
                         <dd title={friendlyDateTime(selected.whatsapp?.next_message_at ?? null)}>
                           {relativeTime(selected.whatsapp?.next_message_at ?? null)}
+                          {selected.whatsapp?.enabled && selected.whatsapp.next_message_at && (
+                            <button type="button" className="crm-view-link crm-send-now" onClick={sendQueuedNow}>
+                              Send now
+                            </button>
+                          )}
                         </dd>
                       </div>
                     </dl>
@@ -1143,7 +1182,7 @@ export default function CrmDashboard({
                       <strong>{activity.subject}</strong>
                       {activity.body && <p>{activity.body}</p>}
                     </div>
-                    <time>{friendlyDate(activity.occurred_at)}</time>
+                    <time>{friendlyDateTime(activity.occurred_at)}</time>
                   </div>
                 ))}
                 {!selected.activities.length && <p>No activity recorded yet.</p>}
