@@ -2277,3 +2277,66 @@ textarea:disabled {
   margin-left: var(--space-3);
   font-size: 0.8125rem;
 }
+
+.crm-send-now-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+
+.crm-send-now-row > span {
+  color: var(--color-faint);
+  font-size: 0.75rem;
+}
+
+.crm-action-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+.crm-action-card {
+  display: grid;
+  gap: 2px;
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-small);
+  background: var(--color-surface-raised);
+  padding: var(--space-3);
+  text-align: left;
+  transition:
+    background var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out);
+}
+
+.crm-action-card:hover:not(:disabled) {
+  border-color: var(--color-rule-strong);
+  background: var(--color-surface-hover);
+}
+
+.crm-action-card strong {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-ink);
+}
+
+.crm-action-card span {
+  color: var(--color-muted);
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+.crm-action-card[data-variant='primary'] {
+  border-color: transparent;
+  background: var(--color-accent-soft);
+}
+
+.crm-action-card[data-variant='primary'] strong {
+  color: var(--color-accent-strong);
+}
+
+.crm-action-card[data-variant='danger'] strong {
+  color: var(--color-critical);
+}

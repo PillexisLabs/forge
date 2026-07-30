@@ -55,6 +55,22 @@ const WHATSAPP_ACTION_LABELS: Record<WhatsAppWorkflowAction, string> = {
   opt_out: 'Opt out',
 };
 
+const WHATSAPP_ACTION_DESCRIPTIONS: Record<WhatsAppWorkflowAction, string> = {
+  start: 'Sends the first WhatsApp confirmation for the booked call.',
+  confirm: 'The client said yes outside WhatsApp. Schedules the reminders.',
+  attended: 'The call happened. Ends messaging for this lead.',
+  reschedule: 'The client wants a new time. Pauses reminders until you set it.',
+  handoff: 'You take over the chat personally. Automation steps back.',
+  pause: 'Hold all messages for now. You can restart later.',
+  opt_out: 'The client said stop. Permanent and cannot be undone.',
+};
+
+function sendNowLabel(state: WhatsAppWorkflowState | null) {
+  if (state === 'awaiting_confirmation') return 'Send confirmation now';
+  if (state === 'confirmed') return 'Send reminder now';
+  return 'Send queued message now';
+}
+
 // Only the actions that make sense for the lead's current state are shown.
 function whatsAppActionsFor(state: WhatsAppWorkflowState | null): {
   primary: WhatsAppWorkflowAction | null;
@@ -1111,46 +1127,55 @@ export default function CrmDashboard({
                 {workflowError && <UiAlert>{workflowError}</UiAlert>}
 
                 {!optedOut && setupComplete && (
-                  <div className="crm-workflow-state">
-                    <dl>
-                      <div><dt>State</dt><dd>{workflowState ? WHATSAPP_STATE_LABELS[workflowState] : 'Not started'}</dd></div>
-                      <div>
-                        <dt>Next message</dt>
-                        <dd title={friendlyDateTime(selected.whatsapp?.next_message_at ?? null)}>
-                          {relativeTime(selected.whatsapp?.next_message_at ?? null)}
-                          {selected.whatsapp?.enabled && selected.whatsapp.next_message_at && (
-                            <button type="button" className="crm-view-link crm-send-now" onClick={sendQueuedNow}>
-                              Send now
-                            </button>
-                          )}
-                        </dd>
+                  <>
+                    <div className="crm-workflow-state">
+                      <dl>
+                        <div><dt>State</dt><dd>{workflowState ? WHATSAPP_STATE_LABELS[workflowState] : 'Not started'}</dd></div>
+                        <div>
+                          <dt>Next message</dt>
+                          <dd title={friendlyDateTime(selected.whatsapp?.next_message_at ?? null)}>
+                            {relativeTime(selected.whatsapp?.next_message_at ?? null)}
+                          </dd>
+                        </div>
+                      </dl>
+                    </div>
+
+                    {selected.whatsapp?.enabled && selected.whatsapp.next_message_at && (
+                      <div className="crm-send-now-row">
+                        <UiButton size="small" variant="ghost" type="button" onClick={sendQueuedNow}>
+                          {sendNowLabel(workflowState)}
+                        </UiButton>
+                        <span>Skips the schedule and delivers the queued message immediately.</span>
                       </div>
-                    </dl>
-                    <div className="crm-workflow-secondary-actions">
+                    )}
+
+                    <div className="crm-action-cards">
                       {actions.primary && (
-                        <UiButton
-                          size="small"
-                          variant="primary"
+                        <button
                           type="button"
+                          className="crm-action-card"
+                          data-variant="primary"
                           disabled={actions.primary === 'start' && !workflowConfigured}
                           onClick={() => runWhatsAppAction(actions.primary!)}
                         >
-                          {WHATSAPP_ACTION_LABELS[actions.primary]}
-                        </UiButton>
+                          <strong>{WHATSAPP_ACTION_LABELS[actions.primary]}</strong>
+                          <span>{WHATSAPP_ACTION_DESCRIPTIONS[actions.primary]}</span>
+                        </button>
                       )}
                       {actions.secondary.map((action) => (
-                        <UiButton
+                        <button
                           key={action}
-                          size="small"
-                          variant={action === 'opt_out' ? 'danger' : 'ghost'}
                           type="button"
+                          className="crm-action-card"
+                          data-variant={action === 'opt_out' ? 'danger' : 'default'}
                           onClick={() => runWhatsAppAction(action)}
                         >
-                          {WHATSAPP_ACTION_LABELS[action]}
-                        </UiButton>
+                          <strong>{WHATSAPP_ACTION_LABELS[action]}</strong>
+                          <span>{WHATSAPP_ACTION_DESCRIPTIONS[action]}</span>
+                        </button>
                       ))}
                     </div>
-                  </div>
+                  </>
                 )}
               </form>
             );
