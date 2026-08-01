@@ -90,6 +90,27 @@ export default function WorkspaceChrome({ children }: { children: ReactNode }) {
         </nav>
       </aside>
 
+      {/* Mobile: fixed bottom navigation for the active area's views. */}
+      <nav className="forge-bottom-nav" aria-label="Primary views">
+        {(isCrm ? CRM_NAV : ANALYTICS_NAV).map((item) => {
+          const activeId = isCrm ? crmView : analyticsView;
+          return (
+            <Link
+              key={item.id}
+              href={item.href}
+              aria-current={activeId === item.id ? 'page' : undefined}
+            >
+              <span
+                className="forge-nav-icon"
+                aria-hidden="true"
+                style={{ WebkitMaskImage: `url(${item.icon})`, maskImage: `url(${item.icon})` }}
+              />
+              <span>{item.label}</span>
+            </Link>
+          );
+        })}
+      </nav>
+
       <div className="forge-main">
         <header className="forge-topbar">
           <div className="forge-topbar-inner">

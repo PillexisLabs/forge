@@ -2005,13 +2005,69 @@ textarea:disabled {
   gap: var(--space-2);
 }
 
+/* Hidden on desktop; the sidebar carries navigation there. */
+.forge-bottom-nav {
+  display: none;
+}
+
 @media (max-width: 900px) {
   .forge-sidebar {
     display: none;
   }
 
+  .forge-bottom-nav {
+    position: fixed;
+    inset: auto 0 0 0;
+    z-index: var(--z-header);
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+    gap: 2px;
+    padding: 0.375rem 0.5rem calc(0.375rem + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--color-rule);
+    background: color-mix(in oklch, var(--color-surface-raised) 94%, transparent);
+    backdrop-filter: blur(14px);
+  }
+
+  .forge-bottom-nav a {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.2rem;
+    padding: 0.35rem 0.25rem 0.3rem;
+    border-radius: var(--radius-control);
+    color: var(--color-muted);
+    font-size: 0.6875rem;
+    font-weight: 550;
+    text-decoration: none;
+    transition:
+      background var(--duration-fast) var(--ease-out),
+      color var(--duration-fast) var(--ease-out);
+  }
+
+  .forge-bottom-nav a > span:last-child {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .forge-bottom-nav .forge-nav-icon {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+
+  .forge-bottom-nav a[aria-current='page'] {
+    background: var(--color-sky-soft);
+    color: var(--color-accent-strong);
+    font-weight: 650;
+  }
+
   .forge-main {
     margin-left: 0;
+    /* Keep content clear of the fixed bottom nav. */
+    padding-bottom: calc(4rem + env(safe-area-inset-bottom));
   }
 
   .forge-topbar {
@@ -2057,13 +2113,9 @@ textarea:disabled {
     padding-top: var(--space-1);
   }
 
+  /* The fixed bottom nav replaces the in-page tab strip on mobile. */
   .forge-tabs {
-    display: flex;
-  }
-
-  .forge-tabs button,
-  .forge-tabs a {
-    padding-inline: var(--space-2);
+    display: none;
   }
 
   .crm-stats {

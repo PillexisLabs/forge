@@ -51,6 +51,18 @@ Read `README.md` for operation and deployment, `PROGRESS.md` for current status,
 
 Do not add credentials, screenshots, generated builds, or planning files to the repository root. Add new top-level folders only when they represent a durable code or operational boundary, then document them in this file, `CLAUDE.md`, and `README.md`.
 
+## The Hermes rule (theme)
+
+Forge's canonical theme is **Slate Sky** (adopted 2026-08-01, palette drawn from a sky-blue AirPods Max on Hermes-style woven leather). Every Forge surface follows it:
+
+- All colors come from `src/styles/tokens.css` variables. Never hardcode hex/oklch values in components or `globals.css`; add a token instead.
+- Anchor palette: slate blue accent `#4e7397` (strong `#35566f`, soft `#e8f0f7`), navy-slate ink `#1b2531`, cool blue-grey paper `#f3f5f8`, sky `#a9c6dc` for chart fills/gradients and selected states.
+- `--color-leather` (`#8a6f5b`) is a rare warm support accent (Demo badges, occasional callouts). Never use it for primary UI.
+- Semantic colors (positive/warning/critical/info) mark state only, never decoration.
+- Do not reintroduce the retired violet or Pillexis-red accents anywhere in Forge, including brand icons (`public/forge-logo.png`, `public/icons/*`, `src/app/apple-icon.png`, `src/app/favicon.ico` are slate).
+- Light theme only, no dark mode or theme toggles (Pillexis-wide rule).
+- Mobile (≤900px) always keeps the **fixed bottom navigation** (`.forge-bottom-nav` in `WorkspaceChrome`); the sidebar is desktop-only. Do not remove the bottom nav in redesigns.
+
 ## Verification
 
 Before committing, run `git diff --check` and `npm run build`. For UI changes, verify authenticated desktop and 390px mobile flows with Playwright. Confirm `/api/health` returns 200 after Railway rollout.
