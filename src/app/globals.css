@@ -213,7 +213,7 @@ textarea:disabled {
 
 .forge-sidebar-nav a[aria-current='page'],
 .forge-sidebar-nav button[aria-pressed='true'] {
-  background: oklch(93.6% 0.016 290);
+  background: var(--color-sky-soft);
   color: var(--color-accent-strong);
   font-weight: 600;
 }
