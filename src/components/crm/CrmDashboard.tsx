@@ -1,6 +1,40 @@
 'use client';
 
 import Link from 'next/link';
+
+// Small inline copy-to-clipboard control shown beside emails and phone
+// numbers. Swaps to a check for a moment so the tap has visible feedback.
+function CopyButton({ value, label }: { value: string; label: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      type="button"
+      className="crm-copy-btn"
+      aria-label={copied ? 'Copied' : label}
+      title={copied ? 'Copied' : label}
+      onClick={async () => {
+        try {
+          await navigator.clipboard.writeText(value);
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1500);
+        } catch {
+          /* clipboard unavailable (http/older browser): leave silently */
+        }
+      }}
+    >
+      {copied ? (
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="m3 8.5 3.2 3L13 5" />
+        </svg>
+      ) : (
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden="true">
+          <rect x="5.5" y="5.5" width="8" height="8" rx="1.5" />
+          <path d="M10.5 5.5v-2a1 1 0 0 0-1-1h-6a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2" />
+        </svg>
+      )}
+    </button>
+  );
+}
 import { useRouter } from 'next/navigation';
 import { FormEvent, useMemo, useState, useTransition } from 'react';
 import ForgeShell from '@/components/ForgeShell';
@@ -803,10 +837,25 @@ export default function CrmDashboard({
                 type="button"
                 variant="ghost"
                 size="small"
+                className="crm-icon-btn"
+                aria-label={isPending ? 'Refreshing' : 'Refresh'}
+                title="Refresh"
                 aria-busy={isPending}
                 onClick={refreshWorkspace}
               >
-                {isPending ? 'Refreshing…' : 'Refresh'}
+                <svg
+                  className={isPending ? 'crm-spin' : undefined}
+                  width="15"
+                  height="15"
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                  strokeLinecap="round"
+                  aria-hidden="true"
+                >
+                  <path d="M13 8a5 5 0 1 1-1.5-3.6M13 2.8v2.4h-2.4" />
+                </svg>
               </UiButton>
             </div>
 
@@ -940,7 +989,10 @@ export default function CrmDashboard({
               <UiAvatar name={selected.contact_name} seed={selected.id} size="large" />
               <div>
                 <h2 id="crm-deal-title">{selected.contact_name}</h2>
-                <span>{selected.primary_email || 'No email added'}</span>
+                <span>
+                  {selected.primary_email || 'No email added'}
+                  {selected.primary_email && <CopyButton value={selected.primary_email} label="Copy email" />}
+                </span>
               </div>
             </div>
             <div className="crm-drawer-controls">
@@ -948,6 +1000,7 @@ export default function CrmDashboard({
                 type="button"
                 variant="ghost"
                 size="small"
+                className="crm-icon-btn"
                 aria-label="Refresh this record"
                 title="Refresh this record"
                 aria-busy={isPending}
@@ -957,15 +1010,14 @@ export default function CrmDashboard({
                   className={isPending ? 'crm-spin' : undefined}
                   width="15"
                   height="15"
-                  viewBox="0 0 24 24"
+                  viewBox="0 0 16 16"
                   fill="none"
                   stroke="currentColor"
-                  strokeWidth="2"
+                  strokeWidth="1.6"
                   strokeLinecap="round"
-                  strokeLinejoin="round"
                   aria-hidden="true"
                 >
-                  <path d="M20 11a8 8 0 1 0 2 5M20 4v7h-7" />
+                  <path d="M13 8a5 5 0 1 1-1.5-3.6M13 2.8v2.4h-2.4" />
                 </svg>
               </UiButton>
               <UiButton
@@ -1162,7 +1214,10 @@ export default function CrmDashboard({
                   </>
                 ) : (
                   <div className="crm-setup-line">
-                    <span>{selected.primary_phone}</span>
+                    <span>
+                      {selected.primary_phone}
+                      {selected.primary_phone && <CopyButton value={selected.primary_phone} label="Copy phone number" />}
+                    </span>
                     <span>{WHATSAPP_CONSENT_LABELS[selected.whatsapp!.consent_status]}</span>
                     <span>Call {friendlyDateTime(selected.whatsapp!.appointment_at)}</span>
                     {!optedOut && (

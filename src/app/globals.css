@@ -2489,6 +2489,49 @@ textarea:disabled {
   margin-left: auto;
 }
 
+/* Icon-only buttons: fixed square, glyph centered, nothing clips. */
+.crm-icon-btn {
+  width: 2.125rem;
+  min-width: 2.125rem;
+  height: 2.125rem;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.crm-icon-btn svg {
+  display: block;
+  flex: 0 0 auto;
+}
+
+.crm-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.375rem;
+  height: 1.375rem;
+  margin-left: var(--space-1);
+  border: none;
+  border-radius: var(--radius-small);
+  background: transparent;
+  color: var(--color-faint);
+  vertical-align: middle;
+  cursor: pointer;
+  transition:
+    background var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.crm-copy-btn:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-accent-strong);
+}
+
+.crm-copy-btn svg {
+  display: block;
+}
+
 .crm-spin {
   animation: crm-spin 0.9s linear infinite;
 }
