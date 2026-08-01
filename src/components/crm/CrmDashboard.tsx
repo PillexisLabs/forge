@@ -1,6 +1,36 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { FormEvent, useMemo, useState, useTransition } from 'react';
+import ForgeShell from '@/components/ForgeShell';
+import {
+  UiAlert,
+  UiAvatar,
+  UiBadge,
+  UiButton,
+  UiDialog,
+  UiField,
+  UiPanel,
+  UiPanelHeader,
+  type UiTone,
+} from '@/components/ui/Core';
+import {
+  CRM_OWNERS,
+  CRM_STAGES,
+  OWNER_LABELS,
+  STAGE_LABELS,
+  WHATSAPP_CONSENT_LABELS,
+  WHATSAPP_STATE_LABELS,
+  type CrmDeal,
+  type CrmOwner,
+  type CrmStage,
+  type CrmWorkspace,
+  type WhatsAppConsentStatus,
+  type WhatsAppWorkflowState,
+} from '@/lib/crm-types';
+import { CRM_VIEW_PATHS, type CrmView } from '@/lib/crm-routes';
+import type { WhatsAppWorkflowAction } from '@/lib/crm-whatsapp-rules';
 
 // Small inline copy-to-clipboard control shown beside emails and phone
 // numbers. Swaps to a check for a moment so the tap has visible feedback.
@@ -35,36 +65,6 @@ function CopyButton({ value, label }: { value: string; label: string }) {
     </button>
   );
 }
-import { useRouter } from 'next/navigation';
-import { FormEvent, useMemo, useState, useTransition } from 'react';
-import ForgeShell from '@/components/ForgeShell';
-import {
-  UiAlert,
-  UiAvatar,
-  UiBadge,
-  UiButton,
-  UiDialog,
-  UiField,
-  UiPanel,
-  UiPanelHeader,
-  type UiTone,
-} from '@/components/ui/Core';
-import {
-  CRM_OWNERS,
-  CRM_STAGES,
-  OWNER_LABELS,
-  STAGE_LABELS,
-  WHATSAPP_CONSENT_LABELS,
-  WHATSAPP_STATE_LABELS,
-  type CrmDeal,
-  type CrmOwner,
-  type CrmStage,
-  type CrmWorkspace,
-  type WhatsAppConsentStatus,
-  type WhatsAppWorkflowState,
-} from '@/lib/crm-types';
-import { CRM_VIEW_PATHS, type CrmView } from '@/lib/crm-routes';
-import type { WhatsAppWorkflowAction } from '@/lib/crm-whatsapp-rules';
 
 type DrawerSection = 'overview' | 'whatsapp' | 'activity';
 
