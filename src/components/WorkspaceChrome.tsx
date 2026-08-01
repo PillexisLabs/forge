@@ -105,7 +105,7 @@ export default function WorkspaceChrome({ children }: { children: ReactNode }) {
                 aria-hidden="true"
                 style={{ WebkitMaskImage: `url(${item.icon})`, maskImage: `url(${item.icon})` }}
               />
-              <span>{item.label}</span>
+              <span>{item.shortLabel ?? item.label}</span>
             </Link>
           );
         })}
