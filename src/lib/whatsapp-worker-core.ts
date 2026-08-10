@@ -1,7 +1,7 @@
 import { getSql } from './db';
 import { env } from './env';
 import { resolveDueSend } from './crm-whatsapp-rules';
-import { sendWhatsAppText } from './whatsapp-provider';
+import { sendWhatsAppTemplate, sendWhatsAppText } from './whatsapp-provider';
 
 const RETRY_DELAY_MINUTES = 10;
 
@@ -73,7 +73,11 @@ export async function processDueRows(): Promise<number> {
         return;
       }
 
-      const result = await sendWhatsAppText(current.primary_phone, plan.body);
+      // Queue sends are business-initiated, so production (templates on) must
+      // use approved templates; the test number stays on free-form text.
+      const result = env.whatsappUseTemplates()
+        ? await sendWhatsAppTemplate(current.primary_phone, plan.template.name, plan.template.params)
+        : await sendWhatsAppText(current.primary_phone, plan.body);
       if (!result.ok) {
         await tx`
           update crm_whatsapp_workflows

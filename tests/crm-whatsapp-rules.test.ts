@@ -210,3 +210,47 @@ test('no-show recovery sends the rebooking link once, then goes quiet', () => {
   assert.match(plan!.body, /https:\/\/cal\.test\/rebook/);
   assert.equal(plan!.nextMessageAt, null);
 });
+
+test('every due send carries the approved template for its message', () => {
+  const base = {
+    contactName: 'Riya Sharma',
+    appointmentAt: '2026-08-12T10:00:00.000Z',
+    now: new Date('2026-08-10T10:00:00.000Z'),
+  };
+
+  const confirmation = resolveDueSend({ ...base, state: 'awaiting_confirmation', sendCount: 0 });
+  assert.equal(confirmation!.template.name, 'pillexis_booking_confirmation');
+  assert.equal(confirmation!.template.params.length, 2);
+  assert.equal(confirmation!.template.params[0], 'Riya');
+
+  const nudge = resolveDueSend({ ...base, state: 'awaiting_confirmation', sendCount: 1 });
+  assert.equal(nudge!.template.name, 'pillexis_silence_nudge');
+  assert.equal(nudge!.template.params.length, 2);
+
+  const reminder = resolveDueSend({ ...base, state: 'confirmed', sendCount: 1 });
+  assert.equal(reminder!.template.name, 'pillexis_call_reminder_24h');
+  assert.equal(reminder!.template.params.length, 2);
+
+  const attendance = resolveDueSend({
+    ...base,
+    state: 'confirmed',
+    sendCount: 2,
+    now: new Date('2026-08-12T08:30:00.000Z'),
+  });
+  assert.equal(attendance!.template.name, 'pillexis_attendance_check');
+  assert.equal(attendance!.template.params.length, 2);
+
+  const recovery = resolveDueSend({ ...base, state: 'no_show', sendCount: 3 });
+  assert.equal(recovery!.template.name, 'pillexis_no_show_reschedule');
+  // The rebooking link is static text in the approved template; only the
+  // name is a variable.
+  assert.equal(recovery!.template.params.length, 1);
+
+  // Template body params must never contain an empty string — Meta rejects
+  // the send.
+  for (const plan of [confirmation, nudge, reminder, attendance, recovery]) {
+    for (const param of plan!.template.params) {
+      assert.ok(param.trim().length > 0);
+    }
+  }
+});

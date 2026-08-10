@@ -140,11 +140,20 @@ export function confirmationMessage(contactName: string, appointmentAt: string) 
   return `Hi ${firstNameOf(contactName)}, this is Anurag from Pillexis Labs. Your call is booked for ${istStamp(appointmentAt)}. Please reply confirm to keep the slot, or reschedule if you need another time.`;
 }
 
+// Approved Meta template for a business-initiated message. `params` fill the
+// numbered body variables in order. The template text on Meta's side must stay
+// word-for-word identical to the `body` built here.
+export type DueSendTemplate = {
+  name: string;
+  params: string[];
+};
+
 export type DueSend = {
   body: string;
   subject: string;
   nextState: WhatsAppWorkflowState;
   nextMessageAt: string | null;
+  template: DueSendTemplate;
 };
 
 // Decides what a due queue row should send, and what the queue looks like
@@ -173,6 +182,10 @@ export function resolveDueSend(input: {
         subject: 'WhatsApp confirmation sent',
         nextState: 'awaiting_confirmation',
         nextMessageAt: next ? next.toISOString() : null,
+        template: {
+          name: 'pillexis_booking_confirmation',
+          params: [firstName, istStamp(input.appointmentAt)],
+        },
       };
     }
     // Second touch: one gentle nudge, then the queue goes quiet.
@@ -181,6 +194,10 @@ export function resolveDueSend(input: {
       subject: 'WhatsApp confirmation nudge sent',
       nextState: 'awaiting_confirmation',
       nextMessageAt: null,
+      template: {
+        name: 'pillexis_silence_nudge',
+        params: [firstName, istStamp(input.appointmentAt)],
+      },
     };
   }
 
@@ -194,6 +211,10 @@ export function resolveDueSend(input: {
         subject: 'WhatsApp 24 hour reminder sent',
         nextState: 'confirmed',
         nextMessageAt: beforeAppointment2h(input.appointmentAt).toISOString(),
+        template: {
+          name: 'pillexis_call_reminder_24h',
+          params: [firstName, istStamp(input.appointmentAt)],
+        },
       };
     }
     // The 2-hour attendance check closes the automated sequence.
@@ -202,6 +223,10 @@ export function resolveDueSend(input: {
       subject: 'WhatsApp 2 hour reminder sent',
       nextState: 'attending',
       nextMessageAt: null,
+      template: {
+        name: 'pillexis_attendance_check',
+        params: [firstName, istStamp(input.appointmentAt)],
+      },
     };
   }
 
@@ -212,6 +237,12 @@ export function resolveDueSend(input: {
       subject: 'WhatsApp no-show recovery sent',
       nextState: 'no_show',
       nextMessageAt: null,
+      // The approved template carries the booking link as static text, so the
+      // only variable is the name.
+      template: {
+        name: 'pillexis_no_show_reschedule',
+        params: [firstName],
+      },
     };
   }
 

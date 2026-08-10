@@ -34,4 +34,10 @@ export const env = {
   whatsappAppSecret: () => process.env.WHATSAPP_APP_SECRET ?? '',
   whatsappRescheduleLink: () =>
     process.env.WHATSAPP_RESCHEDULE_LINK ?? 'https://cal.com/pillexislabs/pillexis-labs-intro-call',
+  // Production numbers must open conversations with approved templates; the
+  // test number keeps free-form text so staging works without template review.
+  whatsappUseTemplates: () => process.env.WHATSAPP_USE_TEMPLATES === '1',
+
+  // Cal.com BOOKING_CREATED webhook (CRM intake, not the website CAPI one).
+  calWebhookSecret: () => process.env.CAL_WEBHOOK_SECRET ?? '',
 };
