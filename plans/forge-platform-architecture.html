@@ -619,6 +619,104 @@
 
 </div>
 
+<!-- ============ FULL SYSTEM MAP ============ -->
+<h2 class="headline">The entire Forge on one page</h2>
+<p class="headline-sub">Every box that exists (or is planned) in the whole system: where leads come from, what the outside services do, what core holds, what each module owns, and where it all runs. Use the zoom controls — this one is dense on purpose.</p>
+
+<div class="mermaid-wrap section" style="--i:0; min-height:560px">
+  <div class="zoom-controls">
+    <button onclick="zoomDiagram(this, 1.2)" title="Zoom in">+</button>
+    <button onclick="zoomDiagram(this, 0.8)" title="Zoom out">&minus;</button>
+    <button onclick="resetZoom(this)" title="Reset zoom">&#8634;</button>
+  </div>
+  <pre class="mermaid" style="zoom:3.4" data-zoom="3.4" data-initial="3.4">
+flowchart TD
+  subgraph WORLD ["WHERE LEADS COME FROM"]
+    direction LR
+    ADS["Meta ads<br/>Instagram + Facebook"] --> SITE["pillexislabs.com<br/>Astro site on Netlify"] --> CAL["Cal.com<br/>intro-call booking"]
+    LEADPH["The lead's phone<br/>WhatsApp chats + voice calls"]
+  end
+
+  subgraph CORE ["FORGE CORE — shared foundation"]
+    INTAKE["Intake webhooks<br/>Cal booking · WhatsApp inbound"]
+    SPINE[("Data spine — Postgres<br/>contacts · leads · conversations")]
+    BUS[("Notice board<br/>events table")]
+    AUTH["Auth · config · logging<br/>worker runtime · dashboard shell"]
+  end
+
+  subgraph MODS ["MODULES — read/write the spine, talk only via the board"]
+    direction LR
+    WA["WhatsApp<br/>flows + consent"]
+    LQ["Lead-qual<br/>scoring + routing"]
+    VC["Voice<br/>AI calls"]
+    AN["Analytics<br/>₹ per booked call"]
+  end
+
+  subgraph EXT ["OUTSIDE SERVICES — always behind adapters"]
+    direction LR
+    METAWA["Meta WhatsApp<br/>Cloud API"]
+    TWSRV["Twilio + Sarvam<br/>voice stack"]
+    GA4["GA4 + Meta Ads APIs<br/>daily forge-sync cron"]
+  end
+
+  TEAM["Anurag + team<br/>log into the dashboard"]
+
+  CAL -- "webhook" --> INTAKE
+  LEADPH <--> METAWA
+  INTAKE --> SPINE
+  INTAKE --> BUS
+  BUS <--> WA
+  BUS <--> LQ
+  BUS <--> VC
+  BUS --> AN
+  WA <--> METAWA
+  VC <--> TWSRV
+  TWSRV -. "dials" .-> LEADPH
+  GA4 --> AN
+  TEAM --> AUTH
+
+  classDef world fill:#f9f4f0,stroke:#8a7a74,color:#201a1c
+  classDef core fill:#fbebec,stroke:#d94850,color:#8f2c33
+  classDef mod fill:#e7f2f0,stroke:#0f766e,color:#0b4f4a
+  classDef ext fill:#eef0f4,stroke:#1e3a5f,color:#1e3a5f
+  class ADS,SITE,CAL,LEADPH,TEAM world
+  class INTAKE,SPINE,BUS,AUTH core
+  class WA,LQ,VC,AN mod
+  class METAWA,TWSRV,GA4 ext
+  </pre>
+</div>
+
+<p class="headline-sub" style="margin-top:14px">How to read it: leads arrive at the top (ads → site → Cal.com, or straight into WhatsApp). Core catches everything, stores each lead once in the data spine, and pins notes to the board. Modules react to notes, read and write the spine, and reach the outside world only through adapters. And this whole picture runs in four places:</p>
+
+<div class="section section--soft-amber" style="--i:1">
+  <div class="section-label lbl-amber"><span class="dot"></span> Where this exact system runs</div>
+  <div class="pipeline">
+    <div class="pipeline-step st-red">
+      <div class="step-num">PRODUCTION</div>
+      <div class="step-name">forge.pillexislabs.com</div>
+      <div class="step-detail">Railway · follows master · our own workspace is client #0</div>
+    </div>
+    <div class="pipeline-arrow">·</div>
+    <div class="pipeline-step st-teal">
+      <div class="step-num">STAGING</div>
+      <div class="step-name">forge-staging on Railway</div>
+      <div class="step-detail">follows the staging branch · default for ongoing work</div>
+    </div>
+    <div class="pipeline-arrow">·</div>
+    <div class="pipeline-step st-amber">
+      <div class="step-num">DEMO (planned)</div>
+      <div class="step-name">Demo workspace</div>
+      <div class="step-detail">fake businesses + reset button · used live on sales calls</div>
+    </div>
+    <div class="pipeline-arrow">·</div>
+    <div class="pipeline-step st-green">
+      <div class="step-num">CLIENT COPIES</div>
+      <div class="step-name">Their GitHub, their infra</div>
+      <div class="step-detail">printed by the Foundry · see the photocopy diagram below</div>
+    </div>
+  </div>
+</div>
+
 <!-- ============ EVENT FLOW ============ -->
 <h2 class="headline">How modules work together without touching each other</h2>
 <p class="headline-sub">Modules never import each other's code. Each one only writes events to the bus and reacts to events on the bus. That is the whole trick — it is why you can add or remove any module per client and nothing breaks. Follow one lead through the chain:</p>
