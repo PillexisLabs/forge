@@ -940,6 +940,81 @@ flowchart TD
   </div>
 </div>
 
+<!-- ============ VOICE SYSTEM ============ -->
+<h2 class="headline">Inside the voice module: the full call system</h2>
+<p class="headline-sub">Providers decided: <strong style="color:var(--text)">Twilio</strong> carries the phone call, <strong style="color:var(--text)">Sarvam</strong> does the listening, thinking, and speaking (best Hinglish). Working cost ≈ <strong style="color:var(--text)">₹2 per call-minute, ~₹10 per 5-minute call</strong> — a rounding error next to a client's ad spend. The hard requirement is not cost, it is <strong style="color:var(--text)">latency</strong>: each reply must come back in under ~1.2 seconds or the call stops feeling human.</p>
+
+<div class="mermaid-wrap section" style="--i:0; min-height:520px">
+  <div class="zoom-controls">
+    <button onclick="zoomDiagram(this, 1.2)" title="Zoom in">+</button>
+    <button onclick="zoomDiagram(this, 0.8)" title="Zoom out">&minus;</button>
+    <button onclick="resetZoom(this)" title="Reset zoom">&#8634;</button>
+  </div>
+  <pre class="mermaid" style="zoom:2.1" data-zoom="2.1" data-initial="2.1">
+flowchart TD
+  B1["Notice board<br/>note: lead.qualified"]
+  W["Voice worker<br/>checks consent + calling window,<br/>loads lead context from core tables"]
+  TA["Telephony adapter<br/>(vendor-neutral interface)"]
+  TW["Twilio Programmable Voice<br/>dials the lead · ~₹0.66/min"]
+  LEAD["The lead's phone<br/>(live two-way audio)"]
+
+  subgraph PIPE ["Sarvam speech loop — runs every turn, target &lt; 1.2s"]
+    STT["Saarika STT<br/>hears Hinglish → text<br/>₹0.50/min"]
+    LLM["sarvam-m LLM<br/>qualification script + lead context<br/>→ decides the reply · ~₹0.10/min"]
+    TTS["Bulbul v3 TTS<br/>text → natural Hinglish voice<br/>~₹0.75/min avg"]
+  end
+
+  OUT["On hangup:<br/>transcript + outcome saved to<br/>the conversation record (core)"]
+  B2["Notice board<br/>pins call.completed<br/>(+ followup.requested if needed)"]
+  AN["Analytics module<br/>cost per booked call updates live"]
+  WA["WhatsApp module<br/>sends the follow-up text"]
+
+  B1 --> W --> TA --> TW
+  TW <-- "audio stream (Media Streams)" --> LEAD
+  TW <-- "WebSocket audio" --> STT
+  STT --> LLM --> TTS --> TW
+  TW --> OUT --> B2
+  B2 -.-> AN
+  B2 -.-> WA
+
+  classDef board fill:#f7ede2,stroke:#b45309,color:#7c3a06
+  classDef mod fill:#f9e8ec,stroke:#9f1239,color:#7c0e2c
+  classDef vendor fill:#eef0f4,stroke:#1e3a5f,color:#1e3a5f
+  classDef human fill:#f9f4f0,stroke:#8a7a74,color:#201a1c
+  classDef sarvam fill:#e7f2f0,stroke:#0f766e,color:#0b4f4a
+  classDef ok fill:#eef3e6,stroke:#4d7c0f,color:#37590b
+  class B1,B2 board
+  class W,TA mod
+  class TW vendor
+  class LEAD human
+  class STT,LLM,TTS sarvam
+  class OUT,AN,WA ok
+  </pre>
+</div>
+
+<div class="rules" style="margin-top:14px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr))">
+  <div class="rule">
+    <div class="rn">WHY TWO VENDORS</div>
+    <div class="rt">Each does one job</div>
+    <div class="rd">Twilio only carries the call (the phone line). Sarvam only handles speech (ears, brain, mouth). Both sit behind adapters — a client on Exotel or English-only ElevenLabs is a config change, not a rewrite.</div>
+  </div>
+  <div class="rule">
+    <div class="rn">THE ECONOMICS</div>
+    <div class="rt">~₹10 per qualified call</div>
+    <div class="rd">500 calls/month ≈ ₹5,000 of usage. The same volume on ElevenLabs ≈ ₹19–28k, on OpenAI Realtime ≈ ₹14–24k. Sarvam is beta pricing — even doubled, this stack wins 3–4x.</div>
+  </div>
+  <div class="rule">
+    <div class="rn">THE REAL RISK</div>
+    <div class="rt">Latency, not money</div>
+    <div class="rd">The spike's pass/fail test: hear → think → speak in under 1.2 seconds per turn. If the pause feels robotic, the demo dies regardless of cost.</div>
+  </div>
+  <div class="rule">
+    <div class="rn">COMPLIANCE</div>
+    <div class="rt">Consent before dialing</div>
+    <div class="rd">TRAI/DND rules apply to automated calls. We only call leads who consented in the WhatsApp step — consent capture is built into that flow, and the worker checks it before every dial.</div>
+  </div>
+</div>
+
 <!-- ============ DEMO WORKSPACE ============ -->
 <h2 class="headline">The demo workspace: how this closes calls</h2>
 <p class="headline-sub">A second deployment of the same repo, filled with fake businesses (a D2C food brand, a coaching institute, a manufacturer) and a reset button. On a sales call, the prospect's own phone becomes the demo screen:</p>
@@ -983,7 +1058,7 @@ flowchart TD
     <button onclick="zoomDiagram(this, 0.8)" title="Zoom out">&minus;</button>
     <button onclick="resetZoom(this)" title="Reset zoom">&#8634;</button>
   </div>
-  <pre class="mermaid" style="zoom:1.5" data-zoom="1.5" data-initial="1.5">
+  <pre class="mermaid" style="zoom:2" data-zoom="2" data-initial="2">
 flowchart TD
   UP["UPSTREAM — our master copy<br/>whatsapp 1.5 · lead-qual 1.3 · voice 1.1<br/>keeps improving forever"]
   F["FOUNDRY — the photocopy machine<br/>forge new client --modules ..."]
