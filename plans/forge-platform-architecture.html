@@ -1,0 +1,1166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Forge — Pillexis Delivery Platform Architecture</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Fira+Code:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --font-body: 'DM Sans', system-ui, sans-serif;
+    --font-mono: 'Fira Code', 'SF Mono', Consolas, monospace;
+
+    /* Pillexis warm light system — light theme only (brand rule) */
+    --bg: #f5f1ee;
+    --surface: #fffdfb;
+    --surface2: #f9f4f0;
+    --border: rgba(60, 40, 35, 0.09);
+    --border-bright: rgba(60, 40, 35, 0.18);
+    --text: #201a1c;
+    --text-dim: #8a7a74;
+
+    --red: #d94850;
+    --red-dim: rgba(217, 72, 80, 0.08);
+    --teal: #0f766e;
+    --teal-dim: rgba(15, 118, 110, 0.08);
+    --amber: #b45309;
+    --amber-dim: rgba(180, 83, 9, 0.08);
+    --green: #4d7c0f;
+    --green-dim: rgba(77, 124, 15, 0.08);
+    --plum: #9f1239;
+    --plum-dim: rgba(159, 18, 57, 0.07);
+    --slate: #1e3a5f;
+    --slate-dim: rgba(30, 58, 95, 0.07);
+
+    --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    background-image:
+      radial-gradient(ellipse at 15% 0%, var(--red-dim) 0%, transparent 45%),
+      radial-gradient(ellipse at 90% 85%, var(--teal-dim) 0%, transparent 40%);
+    color: var(--text);
+    font-family: var(--font-body);
+    padding: 48px 32px 80px;
+    min-height: 100vh;
+    overflow-wrap: break-word;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(14px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes fadeScale {
+    from { opacity: 0; transform: scale(0.94); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  .section, .flow-arrow { animation: fadeUp 0.55s var(--ease-out-expo) both; animation-delay: calc(var(--i, 0) * 0.07s); }
+  .chip { animation: fadeScale 0.45s var(--ease-out-quint) both; animation-delay: calc(var(--i, 0) * 0.08s); }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-delay: 0ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+
+  .wrap { max-width: 1080px; margin: 0 auto; }
+
+  header { margin-bottom: 14px; }
+  .kicker {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--red);
+    margin-bottom: 10px;
+  }
+  h1 {
+    font-size: clamp(30px, 4.5vw, 42px);
+    font-weight: 700;
+    letter-spacing: -1.2px;
+    line-height: 1.08;
+    text-wrap: balance;
+    margin-bottom: 12px;
+  }
+  .lede {
+    font-size: 17px;
+    line-height: 1.6;
+    color: var(--text-dim);
+    max-width: 62ch;
+    margin-bottom: 24px;
+  }
+  .lede strong { color: var(--text); font-weight: 600; }
+
+  .chips { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 44px; }
+  .chip {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 18px;
+    box-shadow: 0 2px 10px rgba(60, 40, 35, 0.05);
+  }
+  .chip .num { font-size: 24px; font-weight: 700; letter-spacing: -0.5px; font-variant-numeric: tabular-nums; }
+  .chip .lbl { font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim); margin-top: 2px; }
+  .chip--red .num { color: var(--red); }
+  .chip--teal .num { color: var(--teal); }
+  .chip--amber .num { color: var(--amber); }
+  .chip--green .num { color: var(--green); }
+
+  h2.headline {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    margin: 52px 0 6px;
+  }
+  .headline-sub { color: var(--text-dim); font-size: 14px; line-height: 1.55; margin-bottom: 20px; max-width: 68ch; }
+  .headline-sub code, .desc code, .callout code, li code {
+    font-family: var(--font-mono);
+    font-size: 0.85em;
+    background: var(--red-dim);
+    color: #b13840;
+    padding: 1px 5px;
+    border-radius: 4px;
+  }
+
+  .diagram { display: grid; grid-template-columns: 1fr; gap: 18px; }
+  .diagram > * { min-width: 0; }
+
+  .section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 22px 26px;
+  }
+  .section--hero {
+    background: linear-gradient(180deg, #fffdfb 0%, #fdf6f3 100%);
+    box-shadow: 0 6px 24px rgba(60, 40, 35, 0.07);
+    padding: 26px 30px;
+  }
+  .section--soft-teal { background: color-mix(in srgb, var(--surface) 94%, var(--teal) 6%); }
+  .section--soft-amber { background: color-mix(in srgb, var(--surface) 94%, var(--amber) 6%); }
+  .section--soft-slate { background: color-mix(in srgb, var(--surface) 95%, var(--slate) 5%); }
+
+  .section-label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .section-label .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; background: currentColor; }
+  .lbl-red { color: var(--red); }
+  .lbl-teal { color: var(--teal); }
+  .lbl-amber { color: var(--amber); }
+  .lbl-green { color: var(--green); }
+  .lbl-plum { color: var(--plum); }
+  .lbl-slate { color: var(--slate); }
+
+  .layer-title { font-size: 17px; font-weight: 700; margin-bottom: 4px; }
+  .layer-sub { font-size: 13px; color: var(--text-dim); line-height: 1.55; margin-bottom: 16px; max-width: 70ch; }
+
+  .inner-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; }
+  .inner-grid > * { min-width: 0; }
+  .inner-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 13px 16px;
+  }
+  .inner-card--bright { background: var(--surface); box-shadow: 0 2px 8px rgba(60, 40, 35, 0.05); }
+  .inner-card .title { font-weight: 600; font-size: 13.5px; margin-bottom: 4px; display: flex; align-items: center; gap: 7px; }
+  .inner-card .title .mini-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .inner-card .desc { color: var(--text-dim); font-size: 12.5px; line-height: 1.55; }
+
+  .flow-arrow {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-dim);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    padding: 0;
+  }
+  .flow-arrow svg { width: 20px; height: 20px; fill: none; stroke: var(--border-bright); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* Mermaid container */
+  .mermaid-wrap {
+    position: relative;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 28px 20px;
+    overflow: auto;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 420px;
+    cursor: grab;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+  .mermaid-wrap.is-panning { cursor: grabbing; user-select: none; }
+  .mermaid-wrap .mermaid { zoom: 1.15; }
+  .zoom-controls {
+    position: absolute; top: 10px; right: 10px; display: flex; gap: 2px; z-index: 10;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 2px;
+  }
+  .zoom-controls button {
+    width: 28px; height: 28px; border: none; background: transparent; color: var(--text-dim);
+    font-family: var(--font-mono); font-size: 14px; cursor: pointer; border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.15s var(--ease-out-quint), color 0.15s var(--ease-out-quint);
+  }
+  .zoom-controls button:hover { background: var(--red-dim); color: var(--red); }
+
+  /* Folder tree */
+  .tree {
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    line-height: 1.85;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .tree b { color: var(--red); font-weight: 600; }
+  .tree i { color: var(--text-dim); font-style: normal; }
+
+  .rules { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; margin-top: 14px; }
+  .rules > * { min-width: 0; }
+  .rule {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    box-shadow: 0 2px 8px rgba(60, 40, 35, 0.04);
+  }
+  .rule .rn { font-family: var(--font-mono); font-size: 10px; font-weight: 600; letter-spacing: 1px; color: var(--red); margin-bottom: 6px; }
+  .rule .rt { font-weight: 600; font-size: 13.5px; margin-bottom: 4px; }
+  .rule .rd { font-size: 12.5px; color: var(--text-dim); line-height: 1.55; }
+
+  /* Table */
+  .table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
+  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; line-height: 1.5; }
+  thead th {
+    background: var(--surface2);
+    font-family: var(--font-mono);
+    font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;
+    color: var(--text-dim); text-align: left; padding: 12px 18px;
+    border-bottom: 2px solid var(--border-bright); white-space: nowrap;
+  }
+  td { padding: 12px 18px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr { transition: background 0.15s var(--ease-out-quint); }
+  tbody tr:hover { background: var(--red-dim); }
+  td code { font-family: var(--font-mono); font-size: 11.5px; background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 1px 6px; border-radius: 4px; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: var(--font-mono); font-size: 11px; font-weight: 500;
+    padding: 3px 10px; border-radius: 6px; white-space: nowrap;
+  }
+  .pill--teal { background: var(--teal-dim); color: var(--teal); }
+  .pill--amber { background: var(--amber-dim); color: var(--amber); }
+  .pill--green { background: var(--green-dim); color: var(--green); }
+  .pill--red { background: var(--red-dim); color: var(--red); }
+  .pill--plum { background: var(--plum-dim); color: var(--plum); }
+  .pill--slate { background: var(--slate-dim); color: var(--slate); }
+
+  /* Demo pipeline */
+  .pipeline { display: flex; gap: 0; align-items: stretch; overflow-x: auto; padding-bottom: 6px; }
+  .pipeline-step {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    min-width: 150px;
+    flex: 1;
+    flex-shrink: 0;
+  }
+  .pipeline-step .step-num { font-family: var(--font-mono); font-size: 10px; font-weight: 600; margin-bottom: 5px; letter-spacing: 1px; }
+  .pipeline-step .step-name { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+  .pipeline-step .step-detail { font-size: 11.5px; color: var(--text-dim); line-height: 1.5; }
+  .pipeline-arrow { display: flex; align-items: center; padding: 0 6px; color: var(--border-bright); font-size: 17px; flex-shrink: 0; }
+  .st-red .step-num { color: var(--red); }
+  .st-teal .step-num { color: var(--teal); }
+  .st-amber .step-num { color: var(--amber); }
+  .st-green .step-num { color: var(--green); }
+
+  /* Build order */
+  .steps { list-style: none; counter-reset: step; display: grid; gap: 10px; }
+  .steps li {
+    counter-increment: step;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 18px 14px 58px;
+    position: relative;
+    font-size: 13.5px;
+    line-height: 1.55;
+  }
+  .steps li::before {
+    content: counter(step);
+    position: absolute;
+    left: 16px; top: 13px;
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: var(--red-dim);
+    color: var(--red);
+    font-family: var(--font-mono);
+    font-weight: 600;
+    font-size: 13px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .steps li strong { font-weight: 600; }
+  .steps li .when { font-family: var(--font-mono); font-size: 10.5px; color: var(--text-dim); display: block; margin-top: 3px; }
+  .steps li.now { background: color-mix(in srgb, var(--surface) 93%, var(--red) 7%); box-shadow: 0 3px 14px rgba(217, 72, 80, 0.10); }
+  .steps li.now::before { background: var(--red); color: #fff; }
+
+  /* Callout — full soft background, no edge strip */
+  .callout {
+    background: color-mix(in srgb, var(--surface) 92%, var(--green) 8%);
+    border: 1px solid color-mix(in srgb, var(--border) 60%, var(--green) 40%);
+    border-radius: 12px;
+    padding: 18px 22px;
+    font-size: 14px;
+    line-height: 1.65;
+  }
+  .callout .ct { font-family: var(--font-mono); font-size: 10.5px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: var(--green); margin-bottom: 8px; }
+  .callout strong { font-weight: 600; }
+
+  .not-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+  .not-list > * { min-width: 0; }
+  .not-card {
+    background: var(--surface2);
+    border: 1px dashed var(--border-bright);
+    border-radius: 10px;
+    padding: 13px 16px;
+    font-size: 12.5px;
+    line-height: 1.5;
+    color: var(--text-dim);
+  }
+  .not-card b { color: var(--text); font-weight: 600; display: block; margin-bottom: 3px; font-size: 13px; }
+
+  /* Glossary cards */
+  .gloss { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 12px; }
+  .gloss > * { min-width: 0; }
+  .gloss-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 17px;
+    box-shadow: 0 2px 8px rgba(60, 40, 35, 0.04);
+  }
+  .gloss-card .term { font-weight: 700; font-size: 14px; margin-bottom: 5px; display: flex; align-items: center; gap: 8px; }
+  .gloss-card .term .mini-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .gloss-card .plain { font-size: 12.5px; color: var(--text-dim); line-height: 1.6; }
+  .gloss-card .plain b { color: var(--text); font-weight: 600; }
+
+  /* Code blocks */
+  .code-block {
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    line-height: 1.7;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 13px 16px;
+    overflow-x: auto;
+    white-space: pre;
+    margin-top: 12px;
+  }
+  .code-block .c { color: var(--text-dim); }
+
+  /* Two-column flow panels */
+  .flow2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .flow2 > * { min-width: 0; overflow-wrap: break-word; }
+
+  /* Notice board (event catalog) */
+  .board {
+    background: color-mix(in srgb, var(--surface2) 88%, var(--amber) 12%);
+    border: 1px solid color-mix(in srgb, var(--border) 55%, var(--amber) 45%);
+    border-radius: 16px;
+    padding: 26px 24px 24px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    gap: 16px;
+  }
+  .board > * { min-width: 0; }
+  .note {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 15px 12px;
+    box-shadow: 0 3px 10px rgba(60, 40, 35, 0.09);
+    position: relative;
+    transition: transform 0.2s var(--ease-out-quint);
+  }
+  .note:nth-child(odd) { transform: rotate(-0.8deg); }
+  .note:nth-child(even) { transform: rotate(0.7deg); }
+  .note:hover { transform: rotate(0deg) translateY(-3px); }
+  .note::before {
+    content: '';
+    position: absolute;
+    top: -6px; left: 50%;
+    transform: translateX(-50%);
+    width: 11px; height: 11px;
+    border-radius: 50%;
+    background: var(--red);
+    box-shadow: 0 1px 3px rgba(60, 40, 35, 0.35);
+  }
+  .note .ev {
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 8px;
+    text-align: center;
+  }
+  .note .who { font-size: 11px; line-height: 1.7; color: var(--text-dim); }
+  .note .who b { color: var(--text); font-weight: 600; }
+  .note .who .tagline { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; margin-top: 2px; }
+  .note .tag {
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    font-weight: 500;
+    padding: 1px 7px;
+    border-radius: 5px;
+    white-space: nowrap;
+  }
+  .tag--teal { background: var(--teal-dim); color: var(--teal); }
+  .tag--amber { background: var(--amber-dim); color: var(--amber); }
+  .tag--plum { background: var(--plum-dim); color: var(--plum); }
+  .tag--green { background: var(--green-dim); color: var(--green); }
+  .tag--red { background: var(--red-dim); color: #b13840; }
+  .tag--slate { background: var(--slate-dim); color: var(--slate); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .note, .note:nth-child(odd), .note:nth-child(even) { transform: none; }
+  }
+
+  @media (max-width: 768px) {
+    body { padding: 24px 16px 60px; }
+    .pipeline { flex-wrap: wrap; gap: 8px; }
+    .pipeline-arrow { display: none; }
+    .section { padding: 18px 18px; }
+    .flow2 { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="kicker">Pillexis Labs · Internal architecture</div>
+  <h1>Forge becomes the platform,<br>not just a dashboard</h1>
+  <p class="lede">The same asks keep coming up on sales calls. Instead of rebuilding each one per client, Forge holds <strong>reusable modules</strong> that snap together, get <strong>demoed live</strong> on calls, and get <strong>copied into the client's own repo</strong> when they sign. Same play as realfast.ai's Exo.</p>
+</header>
+
+<div class="chips">
+  <div class="chip chip--red" style="--i:0"><div class="num">17 / 27</div><div class="lbl">calls ask for WhatsApp automation</div></div>
+  <div class="chip chip--teal" style="--i:1"><div class="num">12 / 27</div><div class="lbl">calls ask for lead qualification</div></div>
+  <div class="chip chip--amber" style="--i:2"><div class="num">~50%</div><div class="lbl">of pipeline wants fixed-price plug-and-play</div></div>
+  <div class="chip chip--green" style="--i:3"><div class="num">4</div><div class="lbl">launch modules</div></div>
+</div>
+
+<!-- ============ GLOSSARY ============ -->
+<h2 class="headline">The words, in plain terms</h2>
+<p class="headline-sub">Read this box first. Every term used on this page, explained the way you'd explain it over chai.</p>
+
+<div class="gloss" style="margin-bottom:8px">
+  <div class="gloss-card">
+    <div class="term"><span class="mini-dot" style="background:var(--teal)"></span>Module</div>
+    <div class="plain">A <b>self-contained feature block</b> — like an appliance you plug into a house. WhatsApp automation is one appliance, voice calling is another. Unplug one and the house still works. Each module owns its own screens, tables, and code in one folder.</div>
+  </div>
+  <div class="gloss-card">
+    <div class="term"><span class="mini-dot" style="background:var(--red)"></span>Core</div>
+    <div class="plain">The <b>plumbing and wiring of the house</b>. Login, the one shared list of leads and conversations, logging. Every module plugs into core; no module works without it.</div>
+  </div>
+  <div class="gloss-card">
+    <div class="term"><span class="mini-dot" style="background:var(--red)"></span>Event / event bus</div>
+    <div class="plain">A <b>shared notice board</b>. When something happens, a module pins a note: <b>"lead replied"</b>. Other modules read the board and react. Modules never talk to each other directly — only through notes on the board. That is why removing a module breaks nothing.</div>
+  </div>
+  <div class="gloss-card">
+    <div class="term"><span class="mini-dot" style="background:var(--amber)"></span>Manifest</div>
+    <div class="plain">The <b>label on the appliance box</b>. One small file per module that says: its name, its version, what settings it needs, and which notes it pins to and reads from the board. Want to know what a module touches? Read the label, not the code.</div>
+  </div>
+  <div class="gloss-card">
+    <div class="term"><span class="mini-dot" style="background:var(--plum)"></span>Provider adapter</div>
+    <div class="plain">A <b>universal travel plug</b>. The module speaks one plug shape ("send a message"); the adapter converts it for whichever outside service the client uses — Meta, Twilio, Exotel. Swap the service, keep the module.</div>
+  </div>
+  <div class="gloss-card">
+    <div class="term"><span class="mini-dot" style="background:var(--green)"></span>Upstream</div>
+    <div class="plain"><b>Our master copy</b> of core and all the modules — the one Forge repo we keep improving forever. Every client project starts as a copy of this.</div>
+  </div>
+  <div class="gloss-card">
+    <div class="term"><span class="mini-dot" style="background:var(--green)"></span>Client copy</div>
+    <div class="plain">A <b>photocopy</b> of upstream, handed to a client on day 1 in their own GitHub. They own it fully — no lock-in. From that moment their copy and our original change independently.</div>
+  </div>
+  <div class="gloss-card">
+    <div class="term"><span class="mini-dot" style="background:var(--amber)"></span>Foundry / scaffolding</div>
+    <div class="plain">The <b>photocopy machine</b>. A command that picks the modules a client bought, prints a complete copy, and pushes it to their GitHub. It also writes <b>forge.lock</b> — the receipt that records which module versions their copy was printed from.</div>
+  </div>
+  <div class="gloss-card">
+    <div class="term"><span class="mini-dot" style="background:var(--slate)"></span>Demo workspace</div>
+    <div class="plain">A <b>showroom</b>. A separate running copy of Forge filled with fake businesses and a reset button, used live on sales calls. Nothing in it is real client data.</div>
+  </div>
+</div>
+
+<!-- ============ THE THREE LAYERS ============ -->
+<h2 class="headline">The big picture: three layers</h2>
+<p class="headline-sub">One repo. Core is the foundation everything shares. Modules are the sellable capabilities. Foundry stamps out client copies.</p>
+
+<div class="diagram">
+
+  <div class="section section--hero" style="--i:0">
+    <div class="section-label lbl-red"><span class="dot"></span> Layer 1 · Forge Core — <code style="background:none;color:var(--text-dim);padding:0">src/core/</code></div>
+    <div class="layer-title">The shared foundation</div>
+    <div class="layer-sub">Mostly exists today in <code>src/lib/</code>. Every module plugs into this. It holds the one copy of the truth: who the lead is, and what happened.</div>
+    <div class="inner-grid">
+      <div class="inner-card inner-card--bright">
+        <div class="title"><span class="mini-dot" style="background:var(--red)"></span>Data spine</div>
+        <div class="desc">One set of tables: <code>contacts</code>, <code>leads</code>, <code>conversations</code>. Modules extend these. No module makes its own copy of "a lead".</div>
+      </div>
+      <div class="inner-card inner-card--bright">
+        <div class="title"><span class="mini-dot" style="background:var(--red)"></span>Event bus</div>
+        <div class="desc">One Postgres <code>events</code> table. A module writes an event; other modules react to it. No Kafka, no queues.</div>
+      </div>
+      <div class="inner-card">
+        <div class="title"><span class="mini-dot" style="background:var(--text-dim)"></span>Auth + config</div>
+        <div class="desc">Login, env, secrets, client settings.</div>
+      </div>
+      <div class="inner-card">
+        <div class="title"><span class="mini-dot" style="background:var(--text-dim)"></span>Workers + logging</div>
+        <div class="desc">Cron runtime, audit log, sync engine.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="flow-arrow" style="--i:1">
+    <svg viewBox="0 0 20 20"><path d="M10 4 L10 16 M6 12 L10 16 L14 12"/></svg>
+    modules plug into core
+  </div>
+
+  <div class="section section--soft-teal" style="--i:2">
+    <div class="section-label lbl-teal"><span class="dot"></span> Layer 2 · Modules — <code style="background:none;color:var(--text-dim);padding:0">src/modules/&lt;name&gt;/</code></div>
+    <div class="layer-title">The sellable capabilities</div>
+    <div class="layer-sub">Each module is one folder that owns its own tables, screens, API routes, and workers. These are the things clients keep asking for.</div>
+    <div class="inner-grid">
+      <div class="inner-card inner-card--bright">
+        <div class="title"><span class="mini-dot" style="background:var(--teal)"></span>WhatsApp automation</div>
+        <div class="desc">Chat flows, follow-ups, reminders. Sandbox already works in forge today.</div>
+      </div>
+      <div class="inner-card inner-card--bright">
+        <div class="title"><span class="mini-dot" style="background:var(--amber)"></span>Lead qualification</div>
+        <div class="desc">Scores every lead, routes the good ones, syncs to the client's CRM.</div>
+      </div>
+      <div class="inner-card inner-card--bright">
+        <div class="title"><span class="mini-dot" style="background:var(--plum)"></span>AI voice calling</div>
+        <div class="desc">The Milap ask. Calls the lead, qualifies by voice, writes the transcript back. New build.</div>
+      </div>
+      <div class="inner-card inner-card--bright">
+        <div class="title"><span class="mini-dot" style="background:var(--green)"></span>Analytics + insights</div>
+        <div class="desc">Today's dashboard, generalized: cost per booked call, funnel leaks, plain-English actions.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="flow-arrow" style="--i:3">
+    <svg viewBox="0 0 20 20"><path d="M10 4 L10 16 M6 12 L10 16 L14 12"/></svg>
+    foundry copies core + chosen modules out
+  </div>
+
+  <div class="section section--soft-amber" style="--i:4">
+    <div class="section-label lbl-amber"><span class="dot"></span> Layer 3 · Foundry — the copy machine</div>
+    <div class="layer-title">How a client gets their own Forge</div>
+    <div class="layer-sub">This is what protects the ownership promise: the client gets a full copy in <strong>their</strong> GitHub on day 1. No lock-in. You keep the upstream templates and make them better with every project.</div>
+    <div class="pipeline">
+      <div class="pipeline-step st-red">
+        <div class="step-num">UPSTREAM</div>
+        <div class="step-name">Forge repo</div>
+        <div class="step-detail">Your master copy of core + all modules</div>
+      </div>
+      <div class="pipeline-arrow">→</div>
+      <div class="pipeline-step st-amber">
+        <div class="step-num">COMMAND</div>
+        <div class="step-name">forge new humpy-farms</div>
+        <div class="step-detail">--modules whatsapp, leadqual, analytics</div>
+      </div>
+      <div class="pipeline-arrow">→</div>
+      <div class="pipeline-step st-teal">
+        <div class="step-num">RESULT</div>
+        <div class="step-name">Client's repo</div>
+        <div class="step-detail">Core + only their modules, pushed to their GitHub. They own it.</div>
+      </div>
+      <div class="pipeline-arrow">→</div>
+      <div class="pipeline-step st-green">
+        <div class="step-num">DEPLOY</div>
+        <div class="step-name">Their Railway</div>
+        <div class="step-detail">One deployment per client. A forge.lock file records module versions.</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ============ EVENT FLOW ============ -->
+<h2 class="headline">How modules work together without touching each other</h2>
+<p class="headline-sub">Modules never import each other's code. Each one only writes events to the bus and reacts to events on the bus. That is the whole trick — it is why you can add or remove any module per client and nothing breaks. Follow one lead through the chain:</p>
+
+<div class="mermaid-wrap section" style="--i:0">
+  <div class="zoom-controls">
+    <button onclick="zoomDiagram(this, 1.2)" title="Zoom in">+</button>
+    <button onclick="zoomDiagram(this, 0.8)" title="Zoom out">&minus;</button>
+    <button onclick="resetZoom(this)" title="Reset zoom">&#8634;</button>
+  </div>
+  <pre class="mermaid">
+flowchart TD
+  L["New lead<br/>Meta ad click or Cal.com booking"]
+  WA["WhatsApp module<br/>chats with the lead, asks the qualifying questions"]
+  LQ["Lead qualification module<br/>scores the answers, routes to CRM"]
+  V["Voice module<br/>AI calls the lead, books the meeting"]
+  AN["Analytics module<br/>listens to every event, shows cost per booked call"]
+
+  L --> WA
+  WA -- "writes event: lead.replied" --> LQ
+  LQ -- "writes event: lead.qualified" --> V
+  V -- "writes event: call.completed" --> AN
+  WA -. "every event also lands here" .-> AN
+  LQ -.-> AN
+
+  classDef lead fill:#f9f4f0,stroke:#8a7a74,color:#201a1c
+  classDef wa fill:#e7f2f0,stroke:#0f766e,color:#0b4f4a
+  classDef lq fill:#f7ede2,stroke:#b45309,color:#7c3a06
+  classDef vc fill:#f9e8ec,stroke:#9f1239,color:#7c0e2c
+  classDef an fill:#eef3e6,stroke:#4d7c0f,color:#37590b
+  class L lead
+  class WA wa
+  class LQ lq
+  class V vc
+  class AN an
+  </pre>
+</div>
+
+<p class="headline-sub" style="margin-top:14px">Remove the voice module for a client who does not want it? Nothing else changes — the events it would have consumed simply sit unused. That is what "loosely coupled" buys you.</p>
+
+<!-- ============ SEQUENCE VIEW ============ -->
+<h2 class="headline">The same journey, minute by minute</h2>
+<p class="headline-sub">The diagram above shows who connects to whom. This one shows <em>when</em> — one real lead moving left to right through time. Notice that modules only ever talk to the board, never to each other.</p>
+
+<div class="mermaid-wrap section" style="--i:0; min-height:440px">
+  <div class="zoom-controls">
+    <button onclick="zoomDiagram(this, 1.2)" title="Zoom in">+</button>
+    <button onclick="zoomDiagram(this, 0.8)" title="Zoom out">&minus;</button>
+    <button onclick="resetZoom(this)" title="Reset zoom">&#8634;</button>
+  </div>
+  <pre class="mermaid" style="zoom:2" data-zoom="2" data-initial="2">
+sequenceDiagram
+  participant L as The lead (their phone)
+  participant W as WhatsApp module
+  participant B as Notice board
+  participant Q as Lead-qual module
+  participant V as Voice module
+  participant A as Analytics module
+
+  L->>W: Hi, saw your ad
+  W->>L: Asks the qualifying questions
+  L->>W: Answers
+  W->>B: pins lead.replied
+  B-->>Q: lead.replied
+  Q->>Q: Scores the answers
+  Q->>B: pins lead.qualified
+  B-->>V: lead.qualified
+  V->>L: AI phone call, books the meeting
+  V->>B: pins call.completed
+  B-->>A: every note also lands here
+  A->>A: Updates cost per booked call
+  </pre>
+</div>
+
+<!-- ============ NOTICE BOARD ============ -->
+<h2 class="headline">The notice board, drawn out</h2>
+<p class="headline-sub">This is the actual starting event catalog — every note that can be pinned to the board, who pins it, and who reads it. When someone asks "what happens if I remove the voice module?", scan the board: its notes just sit unread. Nothing else changes.</p>
+
+<div class="board section" style="--i:0; display:grid">
+  <div class="note">
+    <div class="ev">lead.created</div>
+    <div class="who">
+      <div class="tagline"><b>Pinned by</b> <span class="tag tag--red">core</span> <span style="font-size:10px">(Cal.com intake, Meta ad click)</span></div>
+      <div class="tagline"><b>Read by</b> <span class="tag tag--teal">whatsapp</span> <span class="tag tag--green">analytics</span></div>
+    </div>
+  </div>
+  <div class="note">
+    <div class="ev">lead.replied</div>
+    <div class="who">
+      <div class="tagline"><b>Pinned by</b> <span class="tag tag--teal">whatsapp</span></div>
+      <div class="tagline"><b>Read by</b> <span class="tag tag--amber">lead-qual</span> <span class="tag tag--green">analytics</span></div>
+    </div>
+  </div>
+  <div class="note">
+    <div class="ev">lead.qualified</div>
+    <div class="who">
+      <div class="tagline"><b>Pinned by</b> <span class="tag tag--amber">lead-qual</span></div>
+      <div class="tagline"><b>Read by</b> <span class="tag tag--plum">voice</span> <span class="tag tag--slate">crm</span> <span class="tag tag--green">analytics</span></div>
+    </div>
+  </div>
+  <div class="note">
+    <div class="ev">call.completed</div>
+    <div class="who">
+      <div class="tagline"><b>Pinned by</b> <span class="tag tag--plum">voice</span></div>
+      <div class="tagline"><b>Read by</b> <span class="tag tag--slate">crm</span> <span class="tag tag--green">analytics</span></div>
+    </div>
+  </div>
+  <div class="note">
+    <div class="ev">booking.created</div>
+    <div class="who">
+      <div class="tagline"><b>Pinned by</b> <span class="tag tag--red">core</span> <span style="font-size:10px">(Cal.com webhook)</span></div>
+      <div class="tagline"><b>Read by</b> <span class="tag tag--teal">whatsapp</span> <span class="tag tag--green">analytics</span></div>
+    </div>
+  </div>
+  <div class="note">
+    <div class="ev">followup.requested</div>
+    <div class="who">
+      <div class="tagline"><b>Pinned by</b> <span class="tag tag--plum">voice</span> <span class="tag tag--amber">lead-qual</span></div>
+      <div class="tagline"><b>Read by</b> <span class="tag tag--teal">whatsapp</span> <span style="font-size:10px">(the owner of sending messages)</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODULE ANATOMY ============ -->
+<h2 class="headline">What one module looks like inside</h2>
+<p class="headline-sub">Every module follows the same folder shape, so anyone on the team can open any module and know where things live.</p>
+
+<div class="diagram">
+  <div class="section" style="--i:0">
+    <div class="section-label lbl-teal"><span class="dot"></span> Anatomy — example: WhatsApp</div>
+<div class="tree">src/modules/whatsapp/
+├── <b>manifest.ts</b>     <i>name, version, config it needs, events in / out</i>
+├── <b>migrations/</b>     <i>its own tables, prefixed: wa_flows, wa_messages</i>
+├── <b>api/</b>            <i>webhook + API routes, mounted by core</i>
+├── <b>ui/</b>             <i>its screens, mounted under /m/whatsapp</i>
+├── <b>workers/</b>        <i>crons and queue consumers</i>
+└── <b>providers/</b>      <i>adapter over Meta / Twilio — swappable per client</i></div>
+    <div class="rules">
+      <div class="rule">
+        <div class="rn">RULE 1</div>
+        <div class="rt">No cross-imports</div>
+        <div class="rd">Modules talk only through core events and the shared lead tables. Never <code>import</code> from another module.</div>
+      </div>
+      <div class="rule">
+        <div class="rn">RULE 2</div>
+        <div class="rt">Providers are adapters</div>
+        <div class="rd">Every outside service sits behind an interface. Swap Exotel for Twilio without touching module logic.</div>
+      </div>
+      <div class="rule">
+        <div class="rn">RULE 3</div>
+        <div class="rt">No Pillexis values in module code</div>
+        <div class="rd">Client identity lives only in config. If a module hardcodes anything Pillexis-specific, it cannot be copied out.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ FEATURE IMPACT ============ -->
+<h2 class="headline">A module gets a new feature — who is affected?</h2>
+<p class="headline-sub">Short answer: <strong style="color:var(--text)">usually nobody.</strong> Modules cannot import each other's code, so a change inside one module has no path to reach another. The only two shared surfaces are the notice board (events) and the core tables. A feature only matters to others when it touches one of those two — and this table is the complete list of what's safe and what's not.</p>
+
+<div class="table-wrap section" style="--i:0; padding:0">
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr><th>Type of change</th><th>Effect on other modules</th><th>Rule</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>New screens, tables, or logic <em>inside</em> a module</td>
+          <td><span class="pill pill--green">none</span></td>
+          <td>Ship it. Nobody else can see it.</td>
+        </tr>
+        <tr>
+          <td>Pin a <strong>new kind of note</strong> to the board (new event)</td>
+          <td><span class="pill pill--green">none</span></td>
+          <td>Safe. Modules ignore notes they don't know. Add it to the catalog.</td>
+        </tr>
+        <tr>
+          <td><strong>Add a field</strong> to an existing note (event payload)</td>
+          <td><span class="pill pill--green">none</span></td>
+          <td>Safe, as long as it's additive. Readers skip fields they don't use.</td>
+        </tr>
+        <tr>
+          <td><strong>Rename or remove</strong> a note, or change what a field means</td>
+          <td><span class="pill pill--red">breaks readers silently</span></td>
+          <td>Never. Ship <code>lead.qualified.v2</code> next to the old one, move readers over, then retire v1.</td>
+        </tr>
+        <tr>
+          <td>Change a <strong>core table</strong> (leads, contacts, conversations)</td>
+          <td><span class="pill pill--amber">touches everyone</span></td>
+          <td>Only core migrations may do this, add-columns-only, reviewed against every module's manifest.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<p class="headline-sub" style="margin-top:14px">The manifest makes this checkable in seconds: every module's label declares which notes it pins and reads. Before merging, one search over the labels answers "who reads this note?" — you know the blast radius <em>before</em> shipping, not after.</p>
+
+<!-- ============ DUPLICATION ============ -->
+<h2 class="headline">Avoiding duplicates: four kinds, four rules</h2>
+<p class="headline-sub">"Don't repeat yourself" means something different for data, code, features, and client copies. Each has its own rule.</p>
+
+<div class="rules" style="grid-template-columns: repeat(auto-fit, minmax(240px, 1fr))">
+  <div class="rule">
+    <div class="rn">DATA</div>
+    <div class="rt">One list of leads, ever</div>
+    <div class="rd">Core owns <code>leads</code>, <code>contacts</code>, <code>conversations</code>. A module never makes its own copy — its tables point at core IDs (<code>wa_messages.lead_id → leads.id</code>). A PR adding a table that smells like "leads again" gets rejected.</div>
+  </div>
+  <div class="rule">
+    <div class="rn">CODE</div>
+    <div class="rt">Needed by two? It moves to core</div>
+    <div class="rd">Shared helpers (phone formatting, retries, logging) live in core. A lint rule physically blocks one module importing from another — so the only way to share code is to move it to core. Copy-paste between modules is the one door that's locked.</div>
+  </div>
+  <div class="rule">
+    <div class="rn">FEATURES</div>
+    <div class="rt">Every capability has one owner</div>
+    <div class="rd">The voice module never sends a WhatsApp message. If a call should trigger a follow-up text, voice pins a note — <code>followup.requested</code> — and the WhatsApp module, the owner of sending messages, handles it. Two modules never build the same thing.</div>
+  </div>
+  <div class="rule">
+    <div class="rn">CLIENT COPIES</div>
+    <div class="rt">Duplication here is the product</div>
+    <div class="rd">Each client owning a full copy IS the business model. The dedupe point is upstream: improvements flow client → upstream → future clients. Never sideways from one client's repo to another's.</div>
+  </div>
+</div>
+
+<!-- ============ CODE PLACEMENT DECISION TREE ============ -->
+<h2 class="headline">"Where does my code go?" — the 20-second decision</h2>
+<p class="headline-sub">Pin this next to your desk. Every piece of new code has exactly one home, and four questions find it.</p>
+
+<div class="mermaid-wrap section" style="--i:0; min-height:480px">
+  <div class="zoom-controls">
+    <button onclick="zoomDiagram(this, 1.2)" title="Zoom in">+</button>
+    <button onclick="zoomDiagram(this, 0.8)" title="Zoom out">&minus;</button>
+    <button onclick="resetZoom(this)" title="Reset zoom">&#8634;</button>
+  </div>
+  <pre class="mermaid" style="zoom:1.35" data-zoom="1.35" data-initial="1.35">
+flowchart TD
+  Q1{"Will two or more modules<br/>need this code?"}
+  Q2{"Is it glue for one outside<br/>service? (Meta, Twilio, Exotel)"}
+  Q3{"Is it for ONE specific<br/>client only?"}
+  Q4{"Does it need another module<br/>to do something?"}
+  CORE["Put it in src/core<br/>(shared plumbing)"]
+  ADAPTER["Write it as a provider adapter<br/>inside the module"]
+  CLIENT["Build it in the client's repo only<br/>(never in upstream)"]
+  MODULE["Put it inside the<br/>owning module"]
+  EVENT["Pin a note — emit an event.<br/>NEVER import the other module."]
+  SHIP["Ship it"]
+
+  Q1 -- "yes" --> CORE
+  Q1 -- "no" --> Q2
+  Q2 -- "yes" --> ADAPTER
+  Q2 -- "no" --> Q3
+  Q3 -- "yes" --> CLIENT
+  Q3 -- "no" --> MODULE
+  MODULE --> Q4
+  Q4 -- "yes" --> EVENT
+  Q4 -- "no" --> SHIP
+
+  classDef q fill:#fffdfb,stroke:#8a7a74,color:#201a1c
+  classDef core fill:#fbebec,stroke:#d94850,color:#8f2c33
+  classDef mod fill:#e7f2f0,stroke:#0f766e,color:#0b4f4a
+  classDef cli fill:#f7ede2,stroke:#b45309,color:#7c3a06
+  classDef ev fill:#f9e8ec,stroke:#9f1239,color:#7c0e2c
+  classDef ok fill:#eef3e6,stroke:#4d7c0f,color:#37590b
+  class Q1,Q2,Q3,Q4 q
+  class CORE core
+  class MODULE,ADAPTER mod
+  class CLIENT cli
+  class EVENT ev
+  class SHIP ok
+  </pre>
+</div>
+
+<!-- ============ FILE MAPPING ============ -->
+<h2 class="headline">The refactor is mostly file moves</h2>
+<p class="headline-sub">Three of the four launch modules already exist in <code>forge/src/lib/</code> — they are just tangled together in one flat folder. Here is where today's files go:</p>
+
+<div class="table-wrap section" style="--i:0; padding:0">
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr><th>Today, in src/lib/</th><th>Moves to</th><th>Status</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>auth.ts</code> <code>db.ts</code> <code>env.ts</code> <code>logger.ts</code> <code>api-audit.ts</code></td>
+          <td><code>src/core/</code></td>
+          <td><span class="pill pill--green">exists — move</span></td>
+        </tr>
+        <tr>
+          <td><code>ga.ts</code> <code>meta.ts</code> <code>sync.ts</code> <code>insights.ts</code> <code>analytics-data.ts</code></td>
+          <td><code>src/modules/analytics/</code></td>
+          <td><span class="pill pill--green">exists — move</span></td>
+        </tr>
+        <tr>
+          <td><code>whatsapp-provider.ts</code> <code>whatsapp-worker-core.ts</code> <code>crm-whatsapp-*.ts</code></td>
+          <td><code>src/modules/whatsapp/</code></td>
+          <td><span class="pill pill--green">exists — move</span></td>
+        </tr>
+        <tr>
+          <td><code>crm-data.ts</code> <code>crm-routes.ts</code> <code>crm-cal-intake.ts</code> <code>crm-types.ts</code></td>
+          <td><code>src/modules/crm/</code> → lead-qual split out later</td>
+          <td><span class="pill pill--amber">exists — move + split</span></td>
+        </tr>
+        <tr>
+          <td>— (nothing yet)</td>
+          <td><code>src/modules/voice/</code></td>
+          <td><span class="pill pill--red">new build</span></td>
+        </tr>
+        <tr>
+          <td>— (nothing yet)</td>
+          <td><code>src/core/events</code> table + <code>manifest.ts</code> per module</td>
+          <td><span class="pill pill--red">new build</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ============ DEMO WORKSPACE ============ -->
+<h2 class="headline">The demo workspace: how this closes calls</h2>
+<p class="headline-sub">A second deployment of the same repo, filled with fake businesses (a D2C food brand, a coaching institute, a manufacturer) and a reset button. On a sales call, the prospect's own phone becomes the demo screen:</p>
+
+<div class="section section--soft-slate" style="--i:0">
+  <div class="section-label lbl-slate"><span class="dot"></span> Live on the call — the Milap play</div>
+  <div class="pipeline">
+    <div class="pipeline-step st-red">
+      <div class="step-num">MIN 1</div>
+      <div class="step-name">Ask for their number</div>
+      <div class="step-detail">"Give me your WhatsApp number for a second."</div>
+    </div>
+    <div class="pipeline-arrow">→</div>
+    <div class="pipeline-step st-teal">
+      <div class="step-num">MIN 2</div>
+      <div class="step-name">Trigger the flow</div>
+      <div class="step-detail">Their phone buzzes mid-call. The qualification chat starts.</div>
+    </div>
+    <div class="pipeline-arrow">→</div>
+    <div class="pipeline-step st-amber">
+      <div class="step-num">MIN 4</div>
+      <div class="step-name">Voice AI calls them</div>
+      <div class="step-detail">They answer their own demo call. This is the moment that sells.</div>
+    </div>
+    <div class="pipeline-arrow">→</div>
+    <div class="pipeline-step st-green">
+      <div class="step-num">MIN 6</div>
+      <div class="step-name">Show the dashboard</div>
+      <div class="step-detail">Their events land in analytics live: lead → qualified → call done.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ UPDATE FLOWS ============ -->
+<h2 class="headline">How improvements travel between our copy and client copies</h2>
+<p class="headline-sub">Remember: a client gets a <strong style="color:var(--text)">photocopy</strong>. From day 1 there are two documents in the world — our original (upstream) and their copy — and both keep changing on their own. Updates never flow automatically (that's the ownership promise working). Instead, improvements are hand-carried in two directions:</p>
+
+<div class="mermaid-wrap section" style="--i:0; min-height:420px; margin-bottom:18px">
+  <div class="zoom-controls">
+    <button onclick="zoomDiagram(this, 1.2)" title="Zoom in">+</button>
+    <button onclick="zoomDiagram(this, 0.8)" title="Zoom out">&minus;</button>
+    <button onclick="resetZoom(this)" title="Reset zoom">&#8634;</button>
+  </div>
+  <pre class="mermaid" style="zoom:1.5" data-zoom="1.5" data-initial="1.5">
+flowchart TD
+  UP["UPSTREAM — our master copy<br/>whatsapp 1.5 · lead-qual 1.3 · voice 1.1<br/>keeps improving forever"]
+  F["FOUNDRY — the photocopy machine<br/>forge new client --modules ..."]
+  A["Humpy Farms repo<br/>cut at whatsapp 1.2<br/>THEY own it"]
+  B["Abhimanu repo<br/>cut at whatsapp 1.4 + voice 1.1<br/>THEY own it"]
+  D["Demo workspace<br/>always runs the latest<br/>WE own it"]
+
+  UP --> F
+  F -- "print copy, day 1" --> A
+  F -- "print copy, day 1" --> B
+  UP -- "deploys directly" --> D
+  UP -. "FORWARD: diff &amp; port<br/>(next engagement, or security fix)" .-> A
+  B -. "REVERSE: strip &amp; land<br/>(generic feature goes upstream)" .-> UP
+
+  classDef up fill:#fbebec,stroke:#d94850,color:#8f2c33
+  classDef foundry fill:#f7ede2,stroke:#b45309,color:#7c3a06
+  classDef client fill:#e7f2f0,stroke:#0f766e,color:#0b4f4a
+  classDef demo fill:#eef0f4,stroke:#1e3a5f,color:#1e3a5f
+  class UP up
+  class F foundry
+  class A,B client
+  class D demo
+  </pre>
+</div>
+
+<p class="headline-sub" style="margin-bottom:18px">Solid arrows happen once, on day 1. Dashed arrows are the hand-carried updates — they only happen when we decide, never automatically. Note the version numbers: Humpy's copy stays at 1.2 until we port; that is not a bug, that is ownership.</p>
+
+<div class="flow2">
+  <div class="section section--soft-teal" style="--i:0">
+    <div class="section-label lbl-teal"><span class="dot"></span> Forward flow · upstream → client</div>
+    <div class="layer-title">"Diff and port"</div>
+    <div class="layer-sub">Their photocopy was taken in January (<code>forge.lock</code> says WhatsApp 1.2). By June our original is at 1.5. <strong>Diff</strong> = list what changed in the original since their copy was taken. <strong>Port</strong> = carry over only the changes they want, test in their setup, open a PR on <em>their</em> repo. Usually happens on the next paid engagement; a security fix is offered right away.</div>
+<pre class="code-block"><span class="c"># inside the CLIENT's repo</span>
+git remote add upstream git@github.com:PillexisLabs/forge.git
+git fetch upstream
+
+<span class="c"># the diff: what changed in this module since their cut</span>
+git log --oneline upstream/master -- src/modules/whatsapp/
+
+<span class="c"># the port: carry over only the commits they want</span>
+git cherry-pick &lt;commit1&gt; &lt;commit2&gt;</pre>
+  </div>
+
+  <div class="section section--soft-amber" style="--i:1">
+    <div class="section-label lbl-amber"><span class="dot"></span> Reverse flow · client → upstream</div>
+    <div class="layer-title">"Strip and land"</div>
+    <div class="layer-sub">We built something for one client that every future client will want. <strong>Strip</strong> = a review pass that removes everything client-specific: hardcoded prices become config, their keys and copy text are deleted. <strong>Land</strong> = PR into upstream, bump the module version, add a changelog line. The client keeps their original — nothing is taken, only generalized.</div>
+<pre class="code-block"><span class="c"># inside OUR upstream forge repo</span>
+git remote add humpy git@github.com:humpyfarms/forge.git
+git fetch humpy
+
+git checkout -b port/subscription-flows
+git cherry-pick &lt;feature-commit-1&gt; &lt;feature-commit-2&gt;
+
+<span class="c"># strip: hardcoded values → config, client bits deleted</span>
+git commit -am "Generalize subscription flows"
+<span class="c"># land: PR → master, bump module version + changelog</span></pre>
+  </div>
+</div>
+
+<div class="rules" style="margin-top:14px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr))">
+  <div class="rule">
+    <div class="rn">WHY CHERRY-PICK WORKS</div>
+    <div class="rt">Same file paths, different histories</div>
+    <div class="rd">The two repos share no git history, but the scaffolder keeps the folder tree identical — so commits apply cleanly across them. Conflicts resolve like any merge.</div>
+  </div>
+  <div class="rule">
+    <div class="rn">FALLBACKS</div>
+    <div class="rt">When cherry-pick is awkward</div>
+    <div class="rd">Patch files (<code>git format-patch</code> → <code>git am</code>) need no repo access — a client can email a .patch. Or plain folder copy + read the diff: loses history, fine for small changes.</div>
+  </div>
+  <div class="rule">
+    <div class="rn">BEST WORKAROUND</div>
+    <div class="rt">Avoid reverse flow entirely</div>
+    <div class="rd">Spot mid-project that a feature is generic? Build it in upstream <em>first</em>, then forward-port it to the client immediately. Reverse flow is then only for surprises.</div>
+  </div>
+  <div class="rule">
+    <div class="rn">DELIBERATELY REJECTED</div>
+    <div class="rt">No npm packages, no submodules</div>
+    <div class="rd">Private packages or submodules would give automatic updates — but the client's repo would then depend on infrastructure we control. That is exactly the lock-in we sell against. Manual ports are the honest price of true ownership.</div>
+  </div>
+</div>
+
+<!-- ============ BUILD ORDER ============ -->
+<h2 class="headline">Build order</h2>
+<p class="headline-sub">Sequenced so the Milap voice demo arrives as early as possible without skipping the foundation.</p>
+
+<ol class="steps">
+  <li class="now"><strong>Carve the folders.</strong> Move files into <code>core/</code> and <code>modules/</code>, add the events table and per-module manifests. Moves, not rewrites.<span class="when">~1 week · unblocks everything</span></li>
+  <li><strong>Voice module, demo-grade.</strong> Provider adapter (Exotel or Twilio + a voice-AI layer; test Sarvam for Hindi). Outbound call on lead.qualified, transcript written back.<span class="when">the Milap demo</span></li>
+  <li><strong>Harden WhatsApp into full module shape.</strong> It mostly works today; give it the manifest, migrations, and provider interface.</li>
+  <li><strong>Split lead-qual out of CRM.</strong> Scoring rules, routing, event emissions.</li>
+  <li><strong>Demo workspace.</strong> Seed data for 3 fake businesses, reset button, its own staging deployment.</li>
+  <li><strong>Foundry scaffolder.</strong> Automate <code>forge new</code> only after 1–2 client copies were done by hand and the contract stopped moving.</li>
+</ol>
+
+<!-- ============ NOT BUILDING ============ -->
+<h2 class="headline">Deliberately not building</h2>
+<p class="headline-sub">Half the value of this plan is what it avoids.</p>
+<div class="not-list">
+  <div class="not-card"><b>No multi-tenancy</b>One deployment = one client. The internal Pillexis analytics instance is just workspace #1.</div>
+  <div class="not-card"><b>No public signup or billing</b>Forge is a delivery backbone and a demo, not a SaaS product.</div>
+  <div class="not-card"><b>No forced updates to client repos</b>Clients own their copy. Improvements travel forward on the next engagement, not by pushing into their repo.</div>
+  <div class="not-card"><b>No module marketplace</b>Four modules, done well, matched to what the corpus says people ask for.</div>
+</div>
+
+<!-- ============ CALLOUT ============ -->
+<div style="margin-top:28px">
+  <div class="callout">
+    <div class="ct">Why this matters commercially</div>
+    Modules give you a <strong>fixed-price SKU sheet</strong>. About half the pipeline cannot afford ₹80k/month but asks for plug-and-play. "WhatsApp lead qualification, fixed price, live in two weeks" is the offer that converts them — and the demo workspace is how you sell it in the call itself.
+  </div>
+</div>
+
+</div>
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'base',
+    themeVariables: {
+      fontFamily: 'DM Sans, system-ui, sans-serif',
+      fontSize: '15px',
+      primaryColor: '#fffdfb',
+      primaryTextColor: '#201a1c',
+      primaryBorderColor: '#d94850',
+      lineColor: '#8a7a74',
+      edgeLabelBackground: '#f5f1ee',
+      clusterBkg: '#f9f4f0',
+      background: '#fffdfb'
+    },
+    flowchart: { curve: 'basis', nodeSpacing: 46, rankSpacing: 58 }
+  });
+</script>
+<script>
+  var INITIAL_ZOOM = 1.15;
+  function zoomDiagram(btn, factor) {
+    var wrap = btn.closest('.mermaid-wrap');
+    var target = wrap.querySelector('.mermaid');
+    var current = parseFloat(target.dataset.zoom || INITIAL_ZOOM);
+    var next = Math.min(Math.max(current * factor, 0.5), 5);
+    target.dataset.zoom = next;
+    target.style.zoom = next;
+  }
+  function resetZoom(btn) {
+    var wrap = btn.closest('.mermaid-wrap');
+    var target = wrap.querySelector('.mermaid');
+    var initial = parseFloat(target.dataset.initial || INITIAL_ZOOM);
+    target.dataset.zoom = initial;
+    target.style.zoom = initial;
+  }
+  document.querySelectorAll('.mermaid-wrap').forEach(function(wrap) {
+    wrap.addEventListener('wheel', function(e) {
+      if (!e.ctrlKey && !e.metaKey) return;
+      e.preventDefault();
+      var target = wrap.querySelector('.mermaid');
+      var current = parseFloat(target.dataset.zoom || INITIAL_ZOOM);
+      var factor = e.deltaY < 0 ? 1.1 : 0.9;
+      var next = Math.min(Math.max(current * factor, 0.5), 5);
+      target.dataset.zoom = next;
+      target.style.zoom = next;
+    }, { passive: false });
+    var startX, startY, scrollL, scrollT;
+    wrap.addEventListener('mousedown', function(e) {
+      if (e.target.closest('.zoom-controls')) return;
+      wrap.classList.add('is-panning');
+      startX = e.clientX; startY = e.clientY;
+      scrollL = wrap.scrollLeft; scrollT = wrap.scrollTop;
+    });
+    window.addEventListener('mousemove', function(e) {
+      if (!wrap.classList.contains('is-panning')) return;
+      wrap.scrollLeft = scrollL - (e.clientX - startX);
+      wrap.scrollTop = scrollT - (e.clientY - startY);
+    });
+    window.addEventListener('mouseup', function() { wrap.classList.remove('is-panning'); });
+  });
+</script>
+</body>
+</html>
