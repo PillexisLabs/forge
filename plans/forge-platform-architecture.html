@@ -621,72 +621,117 @@
 
 <!-- ============ FULL SYSTEM MAP ============ -->
 <h2 class="headline">The entire Forge on one page</h2>
-<p class="headline-sub">Every box that exists (or is planned) in the whole system: where leads come from, what the outside services do, what core holds, what each module owns, and where it all runs. Use the zoom controls — this one is dense on purpose.</p>
+<p class="headline-sub">Every part of the whole system, top to bottom: where leads come from, what core holds, what each module owns, which outside services sit behind adapters, and where it all runs. Each card carries small notes showing what it connects to.</p>
 
-<div class="mermaid-wrap section" style="--i:0; min-height:560px">
-  <div class="zoom-controls">
-    <button onclick="zoomDiagram(this, 1.2)" title="Zoom in">+</button>
-    <button onclick="zoomDiagram(this, 0.8)" title="Zoom out">&minus;</button>
-    <button onclick="resetZoom(this)" title="Reset zoom">&#8634;</button>
+<div class="diagram">
+
+  <div class="section" style="--i:0">
+    <div class="section-label" style="color:var(--text-dim)"><span class="dot"></span> 1 · Where leads come from</div>
+    <div class="pipeline" style="margin-bottom:12px">
+      <div class="pipeline-step st-red">
+        <div class="step-num">PAID</div>
+        <div class="step-name">Meta ads</div>
+        <div class="step-detail">Instagram + Facebook campaigns</div>
+      </div>
+      <div class="pipeline-arrow">→</div>
+      <div class="pipeline-step st-amber">
+        <div class="step-num">SITE</div>
+        <div class="step-name">pillexislabs.com</div>
+        <div class="step-detail">Astro site on Netlify</div>
+      </div>
+      <div class="pipeline-arrow">→</div>
+      <div class="pipeline-step st-teal">
+        <div class="step-num">BOOKING</div>
+        <div class="step-name">Cal.com intro call</div>
+        <div class="step-detail">webhook fires into core on every booking</div>
+      </div>
+    </div>
+    <div class="inner-card" style="max-width:520px">
+      <div class="title"><span class="mini-dot" style="background:var(--text-dim)"></span>The lead's phone</div>
+      <div class="desc">The other entry point — some leads land straight in WhatsApp from an ad, no booking. The phone also receives the AI voice call later. Talks to Forge only through Meta's and Twilio's networks (band 4).</div>
+    </div>
   </div>
-  <pre class="mermaid" style="zoom:3.4" data-zoom="3.4" data-initial="3.4">
-flowchart TD
-  subgraph WORLD ["WHERE LEADS COME FROM"]
-    direction LR
-    ADS["Meta ads<br/>Instagram + Facebook"] --> SITE["pillexislabs.com<br/>Astro site on Netlify"] --> CAL["Cal.com<br/>intro-call booking"]
-    LEADPH["The lead's phone<br/>WhatsApp chats + voice calls"]
-  end
 
-  subgraph CORE ["FORGE CORE — shared foundation"]
-    INTAKE["Intake webhooks<br/>Cal booking · WhatsApp inbound"]
-    SPINE[("Data spine — Postgres<br/>contacts · leads · conversations")]
-    BUS[("Notice board<br/>events table")]
-    AUTH["Auth · config · logging<br/>worker runtime · dashboard shell"]
-  end
+  <div class="flow-arrow" style="--i:1">
+    <svg viewBox="0 0 20 20"><path d="M10 4 L10 16 M6 12 L10 16 L14 12"/></svg>
+    intake webhooks: Cal booking · WhatsApp inbound
+  </div>
 
-  subgraph MODS ["MODULES — read/write the spine, talk only via the board"]
-    direction LR
-    WA["WhatsApp<br/>flows + consent"]
-    LQ["Lead-qual<br/>scoring + routing"]
-    VC["Voice<br/>AI calls"]
-    AN["Analytics<br/>₹ per booked call"]
-  end
+  <div class="section section--hero" style="--i:2">
+    <div class="section-label lbl-red"><span class="dot"></span> 2 · Forge Core — the shared foundation</div>
+    <div class="inner-grid">
+      <div class="inner-card inner-card--bright">
+        <div class="title"><span class="mini-dot" style="background:var(--red)"></span>Intake webhooks</div>
+        <div class="desc">Catch the Cal.com booking and the inbound WhatsApp message. Store the lead once, pin the first note.</div>
+      </div>
+      <div class="inner-card inner-card--bright">
+        <div class="title"><span class="mini-dot" style="background:var(--red)"></span>Data spine (Postgres)</div>
+        <div class="desc">The one copy of the truth: <code>contacts</code> · <code>leads</code> · <code>conversations</code>. Every module reads and writes here by ID.</div>
+      </div>
+      <div class="inner-card inner-card--bright">
+        <div class="title"><span class="mini-dot" style="background:var(--red)"></span>Notice board (events)</div>
+        <div class="desc">The only way modules talk: pin a note, react to a note. Drawn in full two sections below.</div>
+      </div>
+      <div class="inner-card">
+        <div class="title"><span class="mini-dot" style="background:var(--text-dim)"></span>Auth · workers · logging</div>
+        <div class="desc">Login for Anurag + team, config, cron runtime, audit trail, the dashboard shell.</div>
+      </div>
+    </div>
+  </div>
 
-  subgraph EXT ["OUTSIDE SERVICES — always behind adapters"]
-    direction LR
-    METAWA["Meta WhatsApp<br/>Cloud API"]
-    TWSRV["Twilio + Sarvam<br/>voice stack"]
-    GA4["GA4 + Meta Ads APIs<br/>daily forge-sync cron"]
-  end
+  <div class="flow-arrow" style="--i:3">
+    <svg viewBox="0 0 20 20"><path d="M10 4 L10 16 M6 12 L10 16 L14 12"/></svg>
+    modules plug in — they read/write the spine, and talk only via the board
+  </div>
 
-  TEAM["Anurag + team<br/>log into the dashboard"]
+  <div class="section section--soft-teal" style="--i:4">
+    <div class="section-label lbl-teal"><span class="dot"></span> 3 · Modules — the sellable capabilities</div>
+    <div class="inner-grid">
+      <div class="inner-card inner-card--bright">
+        <div class="title"><span class="mini-dot" style="background:var(--teal)"></span>WhatsApp</div>
+        <div class="desc">Chat flows, follow-ups, consent capture.<br><b style="font-weight:600">Pins:</b> <code>lead.replied</code> · <b style="font-weight:600">Uses:</b> Meta Cloud API</div>
+      </div>
+      <div class="inner-card inner-card--bright">
+        <div class="title"><span class="mini-dot" style="background:var(--amber)"></span>Lead-qual</div>
+        <div class="desc">Scores answers, routes the good leads.<br><b style="font-weight:600">Pins:</b> <code>lead.qualified</code> · <b style="font-weight:600">Uses:</b> nothing outside</div>
+      </div>
+      <div class="inner-card inner-card--bright">
+        <div class="title"><span class="mini-dot" style="background:var(--plum)"></span>Voice</div>
+        <div class="desc">AI qualification calls in Hinglish.<br><b style="font-weight:600">Pins:</b> <code>call.completed</code> · <b style="font-weight:600">Uses:</b> Twilio + Sarvam</div>
+      </div>
+      <div class="inner-card inner-card--bright">
+        <div class="title"><span class="mini-dot" style="background:var(--green)"></span>Analytics</div>
+        <div class="desc">₹ cost per booked call, funnel insights.<br><b style="font-weight:600">Reads:</b> every note · <b style="font-weight:600">Uses:</b> GA4 + Meta Ads APIs</div>
+      </div>
+    </div>
+  </div>
 
-  CAL -- "webhook" --> INTAKE
-  LEADPH <--> METAWA
-  INTAKE --> SPINE
-  INTAKE --> BUS
-  BUS <--> WA
-  BUS <--> LQ
-  BUS <--> VC
-  BUS --> AN
-  WA <--> METAWA
-  VC <--> TWSRV
-  TWSRV -. "dials" .-> LEADPH
-  GA4 --> AN
-  TEAM --> AUTH
+  <div class="flow-arrow" style="--i:5">
+    <svg viewBox="0 0 20 20"><path d="M10 4 L10 16 M6 12 L10 16 L14 12"/></svg>
+    every outside service sits behind a swappable adapter
+  </div>
 
-  classDef world fill:#f9f4f0,stroke:#8a7a74,color:#201a1c
-  classDef core fill:#fbebec,stroke:#d94850,color:#8f2c33
-  classDef mod fill:#e7f2f0,stroke:#0f766e,color:#0b4f4a
-  classDef ext fill:#eef0f4,stroke:#1e3a5f,color:#1e3a5f
-  class ADS,SITE,CAL,LEADPH,TEAM world
-  class INTAKE,SPINE,BUS,AUTH core
-  class WA,LQ,VC,AN mod
-  class METAWA,TWSRV,GA4 ext
-  </pre>
+  <div class="section section--soft-slate" style="--i:6">
+    <div class="section-label lbl-slate"><span class="dot"></span> 4 · Outside services</div>
+    <div class="inner-grid" style="grid-template-columns: repeat(auto-fit, minmax(240px, 1fr))">
+      <div class="inner-card">
+        <div class="title"><span class="mini-dot" style="background:var(--slate)"></span>Meta WhatsApp Cloud API</div>
+        <div class="desc">Carries every WhatsApp message between the lead's phone and the WhatsApp module.</div>
+      </div>
+      <div class="inner-card">
+        <div class="title"><span class="mini-dot" style="background:var(--slate)"></span>Twilio + Sarvam</div>
+        <div class="desc">Twilio dials and carries the call; Sarvam listens, thinks, and speaks. Full detail in the voice diagram below.</div>
+      </div>
+      <div class="inner-card">
+        <div class="title"><span class="mini-dot" style="background:var(--slate)"></span>GA4 + Meta Ads APIs</div>
+        <div class="desc">Pulled daily by the forge-sync cron; feeds ad spend and traffic into analytics.</div>
+      </div>
+    </div>
+  </div>
+
 </div>
 
-<p class="headline-sub" style="margin-top:14px">How to read it: leads arrive at the top (ads → site → Cal.com, or straight into WhatsApp). Core catches everything, stores each lead once in the data spine, and pins notes to the board. Modules react to notes, read and write the spine, and reach the outside world only through adapters. And this whole picture runs in four places:</p>
+<p class="headline-sub" style="margin-top:14px">How to read it: leads arrive at the top (ads → site → Cal.com, or straight into WhatsApp). Core catches everything, stores each lead once in the spine, and pins notes to the board. Modules react to notes and reach the outside world only through adapters. And this whole picture runs in four places:</p>
 
 <div class="section section--soft-amber" style="--i:1">
   <div class="section-label lbl-amber"><span class="dot"></span> Where this exact system runs</div>
