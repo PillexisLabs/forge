@@ -41,6 +41,7 @@ create its own copy of a lead, contact, or conversation.
 - `leads` — one row per sales opportunity. Points at a contact.
 - `conversations` — one row per thread (WhatsApp, voice, email).
 - `events` — the outbox for the event bus.
+- `knowledge` — the knowledge pack (see section 3a).
 
 Rules:
 
@@ -48,6 +49,36 @@ Rules:
   IDs (`wa_messages.lead_id -> leads.id`).
 - Only core migrations may change core tables. Additive columns only.
 - Review each core migration against every module manifest.
+
+## 3a. Knowledge pack
+
+The knowledge pack holds everything the AI agents are allowed to say. Core
+owns it, next to the data spine. One pack per workspace.
+
+Contents:
+
+- Business profile: what the business sells and to whom.
+- Offer and product facts, including prices where approved.
+- The qualification script and the scoring rubric.
+- FAQ answers and objection responses.
+- Tone rules and banned claims.
+
+Storage: structured records plus markdown chunks in Postgres (`knowledge`
+tables). Packs are small. Load the full pack into the prompt at first. Add
+retrieval only when a pack grows too large for the context window.
+
+Rules:
+
+- **Agent prompts must be built from the knowledge pack. Never hardcode
+  business facts, scripts, or answers in module code.** This is the same
+  rule as config: client identity lives in data, not in code.
+- Voice builds its call prompt from the pack. WhatsApp builds its flow
+  replies from the pack. Lead-qual takes its scoring rubric from the pack.
+- The team edits the pack through a dashboard screen. Filling the pack is
+  a core part of every client engagement (discovery output).
+- The demo workspace's fake businesses are three pre-filled packs.
+- The pack travels with the client copy: their repo, their database, their
+  facts. Nothing stays with us after handover.
 
 ## 4. Event bus
 
@@ -145,12 +176,13 @@ Default providers (decided 2026-08-19):
 Flow:
 
 1. Consume `lead.qualified`. Check consent and the calling window.
-2. Dial through the telephony adapter.
-3. Stream audio both ways: Twilio Media Streams ↔ Saarika → sarvam-m →
+2. Build the call prompt from the knowledge pack plus the lead's record.
+3. Dial through the telephony adapter.
+4. Stream audio both ways: Twilio Media Streams ↔ Saarika → sarvam-m →
    Bulbul → Twilio.
-4. Target turn latency: under 1.2 seconds. This is the spike's pass/fail
+5. Target turn latency: under 1.2 seconds. This is the spike's pass/fail
    test, not cost.
-5. On hangup: write transcript and outcome to `conversations`, emit
+6. On hangup: write transcript and outcome to `conversations`, emit
    `call.completed`, and emit `followup.requested` when the script asks
    for it.
 

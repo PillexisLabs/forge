@@ -497,6 +497,10 @@
     <div class="plain">A <b>shared notice board</b>. When something happens, a module pins a note: <b>"lead replied"</b>. Other modules read the board and react. Modules never talk to each other directly — only through notes on the board. That is why removing a module breaks nothing.</div>
   </div>
   <div class="gloss-card">
+    <div class="term"><span class="mini-dot" style="background:var(--red)"></span>Knowledge pack</div>
+    <div class="plain">The <b>briefing folder</b> the AI agents speak from: what the business sells, prices, the qualification script, FAQ answers, tone rules. One pack per workspace. Filling it is a core part of every client engagement, and the demo's fake businesses are just three pre-filled packs.</div>
+  </div>
+  <div class="gloss-card">
     <div class="term"><span class="mini-dot" style="background:var(--amber)"></span>Manifest</div>
     <div class="plain">The <b>label on the appliance box</b>. One small file per module that says: its name, its version, what settings it needs, and which notes it pins to and reads from the board. Want to know what a module touches? Read the label, not the code.</div>
   </div>
@@ -540,6 +544,10 @@
       <div class="inner-card inner-card--bright">
         <div class="title"><span class="mini-dot" style="background:var(--red)"></span>Event bus</div>
         <div class="desc">One Postgres <code>events</code> table. A module writes an event; other modules react to it. No Kafka, no queues.</div>
+      </div>
+      <div class="inner-card inner-card--bright">
+        <div class="title"><span class="mini-dot" style="background:var(--red)"></span>Knowledge pack</div>
+        <div class="desc">Per-workspace business facts, scripts, and tone rules. AI modules build their prompts from it — never hardcoded.</div>
       </div>
       <div class="inner-card">
         <div class="title"><span class="mini-dot" style="background:var(--text-dim)"></span>Auth + config</div>
@@ -671,6 +679,10 @@
       <div class="inner-card inner-card--bright">
         <div class="title"><span class="mini-dot" style="background:var(--red)"></span>Notice board (events)</div>
         <div class="desc">The only way modules talk: pin a note, react to a note. Drawn in full two sections below.</div>
+      </div>
+      <div class="inner-card inner-card--bright">
+        <div class="title"><span class="mini-dot" style="background:var(--red)"></span>Knowledge pack</div>
+        <div class="desc">Everything the AI agents are allowed to say: business facts, offers, the qualification script, FAQ answers, tone rules. One pack per workspace. Voice and WhatsApp build their prompts from it — never from hardcoded text.</div>
       </div>
       <div class="inner-card">
         <div class="title"><span class="mini-dot" style="background:var(--text-dim)"></span>Auth · workers · logging</div>
