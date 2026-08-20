@@ -1,7 +1,7 @@
 # Progress & Changelog
 
 Running log of what's built, what's known-broken, and what's next.
-_Last updated: 2026-07-31._
+_Last updated: 2026-08-06._
 
 ## Current state
 
@@ -11,6 +11,7 @@ _Last updated: 2026-07-31._
 - The local analytics server and sync launchd jobs are retired. Their disabled definitions are archived under `../archive/launchd/`; Railway is the only scheduled runtime.
 - Staging has eight days of Meta data for `act_1705074640527431`; authenticated API reads return that data. GA remains deferred until valid service-account JSON is configured.
 - Production data was backfilled through 2026-07-19 and the dashboard reports the selected range independently from the number of days containing data.
+- Production has a dedicated `codex` machine client with `analytics:read` scope. The matching secret is stored only in `../keys/analytics-api-clients.json`, alongside the separate staging client. A live production request returned HTTP 200 on 2026-08-06.
 
 ## Built so far
 
@@ -74,3 +75,16 @@ _Last updated: 2026-07-31._
 - **Campaign-level rollup in Ads** — MEDIUM. Group ads under campaign totals before per-ad rows. Data already present.
 - **Active view in the URL** (`?view=ads`) — nice-to-have, makes views bookmarkable / survive refresh.
 - **Bookings trendline on the chart** — LOW, deferred until bookings are a regular occurrence.
+
+## Added 2026-08-07
+
+Four items were added to the top of `plans/ROADMAP.md` after reviewing the Fireflies sales
+corpus, Cal bookings, and Meta performance together: production WhatsApp sender, trigger
+abstraction for inbound leads, demo scope in production, and deal amount plus source
+attribution. See the Execution order table there.
+
+The finding driving them: **52 Cal bookings and 34 Meta Schedules have produced one closed deal
+at ₹30,000.** Forge currently measures cost per booked call and has no revenue field, so the
+first paying customer is unattributable. WhatsApp is raised by the prospect in 10 of 17
+transcribed accounts, and six describe the same entry point the built workflow does not yet
+support: a paid ad click landing directly in WhatsApp with no booking object.

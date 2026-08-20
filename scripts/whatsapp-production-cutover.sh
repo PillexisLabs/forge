@@ -4,7 +4,7 @@
 #   scripts/whatsapp-production-cutover.sh railway-vars     # set production env vars
 #   scripts/whatsapp-production-cutover.sh staging-cal      # set staging Cal secret for rehearsal
 #   scripts/whatsapp-production-cutover.sh cal-webhook <target-url>
-#       e.g. cal-webhook https://forge-production-fc70.up.railway.app/api/cal/webhook
+#       e.g. cal-webhook https://forge.pillexislabs.com/api/cal/webhook
 #   scripts/whatsapp-production-cutover.sh test-booking <base-url> <secret> <phone-e164>
 #       sends a signed fake BOOKING_CREATED to <base-url>/api/cal/webhook
 set -euo pipefail

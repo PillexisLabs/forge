@@ -90,8 +90,9 @@ case "${1:-}" in
     ;;
 
   request-code)
+    METHOD="${2:-SMS}"   # SMS (default) or VOICE
     curl -s -X POST "$API/$PHONE_ID/request_code" "${auth[@]}" "${json[@]}" \
-      -d '{"code_method":"SMS","language":"en_US"}' | pretty
+      -d "{\"code_method\":\"$METHOD\",\"language\":\"en_US\"}" | pretty
     ;;
 
   verify)

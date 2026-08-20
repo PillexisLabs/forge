@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Guidance for coding agents working in the Forge marketing analytics repository.
+Guidance for coding agents working in the Forge repository (Pillexis's Exo-style delivery platform of reusable modules).
 
 ## Git repository boundary
 
@@ -10,7 +10,9 @@ This `forge/` directory is an independent Git repository. The parent Pillexis wo
 
 ## Canonical ownership
 
-This repository is the only active analytics implementation. The old local copy at `../archive/marketing-analytics-local/` is frozen and must not receive changes.
+Forge is Pillexis's Exo-style delivery platform of reusable modules (WhatsApp automation, lead qualification + CRM sync, analytics/insights, AI voice calling). It serves as the internal delivery backbone and environment for live sales demos, not a SaaS. The IP model: the client owns their instance (modules are templates copied into the client's GitHub repo), and Pillexis keeps upstream templates.
+
+The Analytics dashboard is the first module, and this repository is the only active analytics implementation. The old local copy at `../archive/marketing-analytics-local/` is frozen and must not receive changes.
 
 Read `README.md` for operation and deployment, `PROGRESS.md` for current status, and `plans/ROADMAP.md` for ordered implementation priorities. Roadmap Priority 0 requires staging to use fixtures and forbids production Meta or GA credentials in staging.
 
