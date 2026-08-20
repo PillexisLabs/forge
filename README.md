@@ -208,7 +208,8 @@ cd forge
 
 npm run sync            # manual sync, last 8 days
 npm run sync -- 30      # backfill 30 days
-npm run db:migrate      # apply db/schema.sql to the current DATABASE_URL
+npm run db:migrate      # apply pending db/migrations/*.sql to the current DATABASE_URL
+npm run db:migrate -- --dry-run   # list what would run, change nothing
 npm run crm:import      # import ../clients/client-database.csv into the CRM
 npm run crm:sync-fireflies -- 90  # sync the last 90 days through the Fireflies API
 npm run build           # verify a production build
@@ -250,7 +251,9 @@ Nothing fails silently:
 | `crm_meetings` | one row per Fireflies transcript | call context |
 | `crm_bookings` | one row per Cal.com booking | meeting status and qualification |
 
-Full DDL in [`db/schema.sql`](db/schema.sql).
+Full DDL in [`db/migrations/`](db/migrations/). Every schema change is a new
+numbered file applied exactly once and recorded in `schema_migrations`; applied
+migrations are immutable, so a change to a shipped file fails the run.
 
 ---
 
@@ -291,7 +294,7 @@ If setting this up on a fresh machine:
 - **GA returns nothing / one day only.** Confirm the service account is a Viewer and `GA4_PROPERTY_ID` is numeric. Note: as of this writing GA only reports site traffic from 2026-06-26 — see `PROGRESS.md` (likely the GA tag's install date, or ads pointing to WhatsApp not the site).
 - **Cron syncs are skipped on Railway.** Railway cron services must exit cleanly after the task finishes. Use `npm run sync -- 8` as the cron start command, not `npm run start`.
 - **Refresh writes zeros.** Check the service env. `/api/sync` needs the same secrets as the main app, especially the Meta token and `DATABASE_URL`.
-- **Dashboard shows "not ready".** DB unreachable or schema not applied — check the Docker container and `db/schema.sql`.
+- **Dashboard shows "not ready".** DB unreachable or schema not applied — check the Docker container and run `npm run db:migrate`.
 
 ---
 
