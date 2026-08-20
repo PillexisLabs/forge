@@ -1564,7 +1564,8 @@ git commit -am "Generalize subscription flows"
 
 <ol class="steps">
   <li class="now"><strong>Carve the folders.</strong> Move files into <code>core/</code> and <code>modules/</code>, add the events table and per-module manifests. Moves, not rewrites.<span class="when">~1 week · unblocks everything</span></li>
-  <li><strong>Voice module, demo-grade.</strong> Provider adapter (Exotel or Twilio + a voice-AI layer; test Sarvam for Hindi). Outbound call on lead.qualified, transcript written back.<span class="when">the Milap demo</span></li>
+  <li><strong>The /docs route.</strong> Forge renders the repo's <code>docs/</code> folder behind the existing login. Docs get changed on GitHub, read in Forge — and every client copy ships with its own manual.<span class="when">starts right after the carve</span></li>
+  <li><strong>Voice module, demo-grade.</strong> Provider adapter on the decided stack: Twilio carries the call, Sarvam listens, thinks, and speaks in Hinglish. Outbound call on lead.qualified, transcript written back.<span class="when">the Milap demo</span></li>
   <li><strong>Harden WhatsApp into full module shape.</strong> It mostly works today; give it the manifest, migrations, and provider interface.</li>
   <li><strong>Split lead-qual out of CRM.</strong> Scoring rules, routing, event emissions.</li>
   <li><strong>Demo workspace.</strong> Seed data for 3 fake businesses, reset button, its own staging deployment.</li>

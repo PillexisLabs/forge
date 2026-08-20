@@ -215,7 +215,7 @@ How the platform work changes it:
 - After PR 2, events move the cards: `booking.created` sets
   `intro_call_booked`, `lead.qualified` sets `qualified`, and
   `call.completed` writes an activity on the deal.
-- The lead-qual split (checklist step 6) takes the scoring logic out of
+- The lead-qual split (checklist step 7) takes the scoring logic out of
   crm. The board stays in crm: crm shows state, lead-qual decides it.
 - Stages `discovery_proposed` through `won` are human sales work. The
   modules support these stages but never move them automatically.
@@ -225,17 +225,21 @@ How the platform work changes it:
 1. [ ] PR 1 — the carve. Create `src/core/` and
    `src/modules/{analytics,whatsapp,crm}/`. Move files, fix imports, add
    the ESLint boundary rule. Zero behavior change.
-2. [ ] PR 2 — the event spine. `events` table, `emitEvent()` helper.
+2. [ ] `/docs` route (decided 2026-08-20). Forge renders the repo's
+   `docs/` folder behind the existing login. Start after PR 1, when the
+   module structure is stable. Docs get changed on GitHub and read in
+   Forge; every client copy ships with the docs viewer.
+3. [ ] PR 2 — the event spine. `events` table, `emitEvent()` helper.
    Emit `booking.created`, `lead.replied` (inbound WhatsApp), and sync
    completion.
-3. [ ] PR 3 — manifests per module. Build nav from manifests.
-4. [ ] Voice spike (throwaway): one AI call to our own phone on the
+4. [ ] PR 3 — manifests per module. Build nav from manifests.
+5. [ ] Voice spike (throwaway): one AI call to our own phone on the
    Twilio + Sarvam stack. Pass: latency under 1.2 s and demo quality.
-5. [ ] `src/modules/voice/` on the event spine.
-6. [ ] Split lead-qual out of crm.
-7. [ ] Demo workspace: seed data for three fake businesses, reset button,
+6. [ ] `src/modules/voice/` on the event spine.
+7. [ ] Split lead-qual out of crm.
+8. [ ] Demo workspace: seed data for three fake businesses, reset button,
    own staging deployment.
-8. [ ] Foundry scaffolder, only after one or two client copies were cut by
+9. [ ] Foundry scaffolder, only after one or two client copies were cut by
    hand.
 
 ### File moves for PR 1
