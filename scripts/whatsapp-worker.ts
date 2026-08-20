@@ -6,15 +6,15 @@
 //   npm run crm:whatsapp-worker -- --watch  # keep running, check every 60s
 //   WHATSAPP_DRY_RUN=1 npm run crm:whatsapp-worker   # log instead of sending
 
-import { getSql } from '../src/lib/db';
-import { processDueRows } from '../src/lib/whatsapp-worker-core';
+import { getSql } from '../src/core/db';
+import { runWorkerPass } from '../src/modules/whatsapp/whatsapp-worker-core';
 
 async function main() {
   const watch = process.argv.includes('--watch');
   do {
     const started = new Date().toISOString();
     try {
-      const sent = await processDueRows();
+      const sent = await runWorkerPass();
       console.log(`[${started}] pass complete — ${sent} message(s) sent`);
     } catch (error) {
       console.error(`[${started}] pass failed:`, error);

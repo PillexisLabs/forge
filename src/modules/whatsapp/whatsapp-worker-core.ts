@@ -1,5 +1,6 @@
 import { getSql } from '@/core/db';
 import { env } from '@/core/env';
+import { consumeBookingCreated } from './booking-consumer';
 import { resolveDueSend } from './crm-whatsapp-rules';
 import { sendWhatsAppTemplate, sendWhatsAppText } from './whatsapp-provider';
 
@@ -116,6 +117,16 @@ export async function processDueRows(): Promise<number> {
   return sent;
 }
 
+// One full worker pass: consume bus events first (a booking.created becomes
+// a configured workflow), then send whatever is due — so a fresh booking's
+// confirmation usually goes out in the same pass.
+export async function runWorkerPass(): Promise<number> {
+  await consumeBookingCreated().catch((error) =>
+    console.error('whatsapp booking consumer pass failed:', error),
+  );
+  return processDueRows();
+}
+
 declare global {
   // eslint-disable-next-line no-var
   var __whatsappInlineWorker: ReturnType<typeof setInterval> | undefined;
@@ -128,10 +139,10 @@ export function startInlineWorker(intervalMs = 60_000) {
   if (global.__whatsappInlineWorker) return;
   console.log(`whatsapp worker: inline mode started (every ${Math.round(intervalMs / 1000)}s)`);
   global.__whatsappInlineWorker = setInterval(() => {
-    processDueRows().catch((error) => console.error('whatsapp worker pass failed:', error));
+    runWorkerPass().catch((error) => console.error('whatsapp worker pass failed:', error));
   }, intervalMs);
   // A first pass shortly after boot, so deploys don't wait a full minute.
   setTimeout(() => {
-    processDueRows().catch((error) => console.error('whatsapp worker pass failed:', error));
+    runWorkerPass().catch((error) => console.error('whatsapp worker pass failed:', error));
   }, 5_000);
 }
