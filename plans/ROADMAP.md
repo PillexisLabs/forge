@@ -4,6 +4,11 @@ Canonical implementation roadmap for Forge marketing analytics.
 
 **Last updated:** 2026-08-07
 
+> **Platform note (2026-08-20):** Forge is now the module platform. The
+> platform build order lives in `plans/PLATFORM.md` section 10 and takes
+> precedence for structural work. This file remains the analytics-era
+> roadmap; its Priority 0 staging-fixtures rule still applies.
+
 ## Execution order
 
 Priority 0 continues unchanged and in parallel. The four items below were added on 2026-08-07
@@ -318,7 +323,7 @@ Staging must never read from or write to production analytics systems. It must u
 
 #### Phase 1: Code guardrails
 
-- Centralize environment and data-mode checks in `src/lib/env.ts`.
+- Centralize environment and data-mode checks in `src/core/env.ts`.
 - Guard `runSync`, `/api/sync`, and the CLI before provider clients are constructed.
 - Return a clear `live_sync_disabled` error in non-production environments.
 - Record denied sync attempts without logging credentials.

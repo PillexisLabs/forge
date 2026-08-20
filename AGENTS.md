@@ -14,7 +14,19 @@ Forge is Pillexis's Exo-style delivery platform of reusable modules (WhatsApp au
 
 The Analytics dashboard is the first module, and this repository is the only active analytics implementation. The old local copy at `../archive/marketing-analytics-local/` is frozen and must not receive changes.
 
-Read `README.md` for operation and deployment, `PROGRESS.md` for current status, and `plans/ROADMAP.md` for ordered implementation priorities. Roadmap Priority 0 requires staging to use fixtures and forbids production Meta or GA credentials in staging.
+Read `README.md` for operation and deployment, `PROGRESS.md` for current status, and `plans/PLATFORM.md` for the platform contract and the ordered build checklist (section 10). Review every PR against `plans/PLATFORM.md`. The older `plans/ROADMAP.md` holds the analytics-era priorities; its Priority 0 rule still applies: staging uses fixtures and must not hold production Meta or GA credentials.
+
+## Platform structure (mandatory since 2026-08-20)
+
+The code is carved into core and modules. These rules are enforced by an ESLint boundary rule — breaking them fails the build:
+
+- `src/core/` — auth, config, db, logging, the event bus (`events.ts`), shared data-spine types (`crm-types.ts`), the manifest type. Core must not import from `src/modules/`.
+- `src/modules/<name>/` — analytics, whatsapp, crm (voice next). A module must not import another module. Modules communicate only through events (`emitEvent` / `consumeEvents` from `@/core/events`) and the shared database tables.
+- `src/modules/registry.ts` — the composition root, the only file that imports every module's `manifest.ts`. App-level code that needs "all modules" (the nav, future status pages, the Foundry) reads this registry.
+- Each module has a `manifest.ts`: name, version, nav entries, events emitted and consumed, env keys read. Update the manifest whenever any of those change.
+- New code placement: shared by two or more modules → core; glue for one outside service → a provider adapter inside the module; client-specific → the client's repo, never upstream; otherwise → the owning module (full decision list in `plans/PLATFORM.md` section 6).
+- `spikes/` — throwaway experiments, excluded from the app build via `tsconfig.json`. Never import from `spikes/` in app code.
+- After any repo-wide refactor, verify the committed tree, not the working tree: `git grep '<old path>' HEAD`. The carve shipped broken once because `scripts/` rewrites were left unstaged while the local build passed.
 
 ## Branch and deployment workflow
 
@@ -43,11 +55,14 @@ Read `README.md` for operation and deployment, `PROGRESS.md` for current status,
 
 ## Repository organization
 
-- `src/`, application and sync implementation.
+- `src/core/`, shared foundation (auth, db, env, events, logging, manifest type).
+- `src/modules/`, one folder per module plus `registry.ts` (see Platform structure above).
+- `src/app/` and `src/components/`, Next.js routes and UI shells.
 - `public/`, PWA icons and service worker. Do not cache authenticated pages or API responses.
-- `db/`, Postgres schema.
+- `db/`, Postgres schema (idempotent, applied by `npm run db:migrate`).
 - `scripts/`, migration, sync, standalone-build, and retired local wrappers.
-- `plans/`, product planning artifacts. `plans/ROADMAP.md` is the canonical ordered roadmap; older session and HTML plans are supporting context.
+- `plans/`, product planning artifacts. `plans/PLATFORM.md` is the platform contract and build order; `plans/forge-platform-architecture.html` is the team explainer; `plans/ROADMAP.md` is the analytics-era roadmap kept for context.
+- `spikes/`, throwaway experiments (currently `voice-call/`), excluded from the app build.
 - `output/`, generated verification artifacts only.
 - `.playwright-cli/`, generated browser state only.
 

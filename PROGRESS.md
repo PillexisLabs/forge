@@ -1,7 +1,7 @@
 # Progress & Changelog
 
 Running log of what's built, what's known-broken, and what's next.
-_Last updated: 2026-08-06._
+_Last updated: 2026-08-20._
 
 ## Current state
 
@@ -26,7 +26,7 @@ _Last updated: 2026-08-06._
 - Fixed server-side Meta account targeting and `api_request_log` access auditing.
 
 **Analysis layer**
-- `src/lib/insights.ts` — rule-based "What's happening" findings with severity + a "→ Do" action (spend-with-no-conversions, biggest funnel leak, best/worst ad, CTR health, click→session drop, range trend).
+- `src/modules/analytics/insights.ts` — rule-based "What's happening" findings with severity + a "→ Do" action (spend-with-no-conversions, biggest funnel leak, best/worst ad, CTR health, click→session drop, range trend).
 - Conversion funnel with the worst-leaking stage highlighted.
 - KPI cards: Cost per booked call, Session→booking rate, Ad spend, Book-call intent.
 
@@ -88,3 +88,56 @@ at ₹30,000.** Forge currently measures cost per booked call and has no revenue
 first paying customer is unattributable. WhatsApp is raised by the prospect in 10 of 17
 transcribed accounts, and six describe the same entry point the built workflow does not yet
 support: a paid ad click landing directly in WhatsApp with no booking object.
+
+## Platform era — 2026-08-20
+
+Forge became the delivery platform. The contract is `plans/PLATFORM.md`;
+the team explainer is `plans/forge-platform-architecture.html`. The repo
+moved to the `PillexisLabs` GitHub organization on 2026-08-18.
+
+**Shipped today (all on `staging`):**
+
+- **PR 1 — the carve** (merged). `src/lib/` is gone: shared code moved to
+  `src/core/`, capability code to `src/modules/{analytics,whatsapp,crm}/`.
+  An ESLint boundary rule makes any module-to-module import (and any
+  core-to-module import) a build error. `crm-types.ts` went to core, not
+  crm — it holds shared deal, stage, and WhatsApp workflow types.
+  - Fix-up commit `6dc96be`: the PR 1 commit staged only `src/`, so the
+    import rewrites in `scripts/` and `tests/` were missed. Local builds
+    passed on the working tree while the Railway build failed. Lesson:
+    after a repo-wide refactor, verify the committed tree
+    (`git grep 'src/lib' HEAD`), not the working tree.
+- **PR 2 — the event spine** (merged). `events` outbox + `event_cursors`
+  tables (already applied to the staging database), `src/core/events.ts`
+  with `emitEvent()` / `consumeEvents()` (at-least-once, per-consumer
+  cursor under a row lock). Live emitters: `booking.created` (Cal intake,
+  same transaction), `lead.replied` (inbound WhatsApp), `sync.completed`
+  (analytics sync). First consumer: the whatsapp worker consumes
+  `booking.created` and starts the confirmation workflow — the last
+  cross-module import is gone. Behavior note: the confirmation now starts
+  on the next worker pass (up to ~1 minute) instead of inside the webhook.
+- **PR 3 — manifests** (open: PillexisLabs/forge#3). One `manifest.ts` per
+  module (name, version, nav, events in/out, config keys);
+  `src/modules/registry.ts` is the composition root; the sidebar and
+  mobile nav build from the registry. Rendered nav unchanged.
+- **Voice spike** (`spikes/voice-call/`, committed, excluded from the app
+  build). One outbound AI call: Twilio Media Streams ↔ Sarvam STT → LLM →
+  TTS in Hinglish. Prints per-turn latency PASS/FAIL against the 1.2 s
+  budget and the transcript on hangup. Blocked on credentials only.
+
+**Infrastructure note:** Railway had a platform incident today (Google
+Cloud upstream) — deployments were paused/queued for hours. The deploy
+triggers themselves are correctly configured post-transfer.
+
+**Next steps, in order:**
+
+1. Anurag: merge PR 3; create Twilio (voice number + ~USD 10 credit +
+   India geo permission) and Sarvam (API key + ~INR 2k) accounts; put the
+   five keys in `../keys/.env` per `spikes/voice-call/README.md`.
+2. Verify staging after the deploy goes green: dashboard + pipeline
+   render, worker and booking consumer boot, analytics API returns data.
+3. Run the voice spike; pass = under 1.2 s per turn.
+4. Build `src/modules/voice/` on the event spine → sets the Milap demo
+   date.
+5. Then: lead-qual split, `/docs` route, demo workspace, Foundry
+   (order in `plans/PLATFORM.md` section 10).
