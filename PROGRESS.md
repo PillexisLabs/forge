@@ -134,8 +134,11 @@ triggers themselves are correctly configured post-transfer.
 1. Anurag: merge PR 3; create Twilio (voice number + ~USD 10 credit +
    India geo permission) and Sarvam (API key + ~INR 2k) accounts; put the
    five keys in `../keys/.env` per `spikes/voice-call/README.md`.
-2. Verify staging after the deploy goes green: dashboard + pipeline
-   render, worker and booking consumer boot, analytics API returns data.
+2. ~~Verify staging after the deploy goes green~~ — done 2026-08-20
+   23:05 IST: deploy SUCCESS, app Ready, deploy-time migration applied
+   the events tables, inline worker started, booking consumer created
+   its cursor row, `/api/health` 200, login 200, authenticated
+   analytics API 200 with data.
 3. Run the voice spike; pass = under 1.2 s per turn.
 4. Build `src/modules/voice/` on the event spine → sets the Milap demo
    date.
