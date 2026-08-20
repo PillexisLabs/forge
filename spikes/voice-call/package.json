@@ -1,0 +1,16 @@
+{
+  "name": "voice-call-spike",
+  "private": true,
+  "description": "Throwaway spike: one outbound AI qualification call on Twilio + Sarvam. Pass: turn latency under 1.2 s.",
+  "type": "module",
+  "scripts": {
+    "call": "tsx spike.ts"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.5.12",
+    "tsx": "^4.16.2"
+  }
+}
