@@ -297,6 +297,10 @@
   .pipeline-step .step-name { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
   .pipeline-step .step-detail { font-size: 11.5px; color: var(--text-dim); line-height: 1.5; }
   .pipeline-arrow { display: flex; align-items: center; padding: 0 6px; color: var(--border-bright); font-size: 17px; flex-shrink: 0; }
+  .pipeline--dense .pipeline-step { min-width: 94px; padding: 10px 11px; }
+  .pipeline--dense .step-name { font-size: 11.5px; }
+  .pipeline--dense .step-detail { font-size: 10.5px; }
+  .pipeline--dense .pipeline-arrow { padding: 0 4px; font-size: 14px; }
   .st-red .step-num { color: var(--red); }
   .st-teal .step-num { color: var(--teal); }
   .st-amber .step-num { color: var(--amber); }
@@ -567,6 +571,10 @@
     <div class="plain">The <b>briefing folder</b> the AI agents speak from: what the business sells, prices, the qualification script, FAQ answers, tone rules. One pack per workspace. Filling it is a core part of every client engagement, and the demo's fake businesses are just three pre-filled packs.</div>
   </div>
   <div class="gloss-card">
+    <div class="term"><span class="mini-dot" style="background:var(--slate)"></span>Lead pipeline</div>
+    <div class="plain">The <b>deal board</b> — our sales view. Every lead is one card that moves left to right through stages: new lead → contacted → intro call booked → … → won. Already live on staging inside the CRM module. The other modules do the work; the pipeline shows where each deal stands.</div>
+  </div>
+  <div class="gloss-card">
     <div class="term"><span class="mini-dot" style="background:var(--amber)"></span>Manifest</div>
     <div class="plain">The <b>label on the appliance box</b>. One small file per module that says: its name, its version, what settings it needs, and which notes it pins to and reads from the board. Want to know what a module touches? Read the label, not the code.</div>
   </div>
@@ -781,6 +789,10 @@
         <div class="title"><span class="mini-dot" style="background:var(--green)"></span>Analytics</div>
         <div class="desc">₹ cost per booked call, funnel insights.<br><b style="font-weight:600">Reads:</b> every note · <b style="font-weight:600">Uses:</b> GA4 + Meta Ads APIs</div>
       </div>
+      <div class="inner-card inner-card--bright">
+        <div class="title"><span class="mini-dot" style="background:var(--slate)"></span>CRM · lead pipeline</div>
+        <div class="desc">The deal board — live on staging today. Drawn in full below the user flow.<br><b style="font-weight:600">Reads:</b> <code>booking.created</code> · <code>lead.qualified</code> · <code>call.completed</code> · <b style="font-weight:600">Uses:</b> Cal.com + Fireflies</div>
+      </div>
     </div>
   </div>
 
@@ -943,6 +955,85 @@
 </div>
 
 <p class="headline-sub" style="margin-top:14px">Every hand-off in this story is a note on the board — at no point did one module call another. That is why the flow bends per client: remove the voice module and step 5 disappears, lead-qual pins <code>followup.requested</code> itself, and the rest of the journey runs untouched.</p>
+
+<!-- ============ LEAD PIPELINE ============ -->
+<h2 class="headline">The lead pipeline: our view of the same journey</h2>
+<p class="headline-sub">The user flow above is what the lead experiences. This board is what <b>we</b> see — it is already live on staging at <code>/crm/pipeline</code>, inside what becomes the CRM module. Every lead is one card, and the card moves left to right through these stages:</p>
+
+<div class="section section--soft-slate" style="--i:0">
+  <div class="section-label lbl-slate"><span class="dot"></span> CRM module · the deal board · live on staging today</div>
+
+  <div class="pipeline pipeline--dense" style="margin-bottom:16px">
+    <div class="pipeline-step st-red">
+      <div class="step-num">1</div>
+      <div class="step-name">New lead</div>
+      <div class="step-detail">landed from an ad, WhatsApp, or a referral</div>
+    </div>
+    <div class="pipeline-arrow">→</div>
+    <div class="pipeline-step">
+      <div class="step-num" style="color:var(--text-dim)">2</div>
+      <div class="step-name">Contacted</div>
+      <div class="step-detail">first reply sent</div>
+    </div>
+    <div class="pipeline-arrow">→</div>
+    <div class="pipeline-step st-teal">
+      <div class="step-num">3</div>
+      <div class="step-name">Intro call booked</div>
+      <div class="step-detail">Cal.com booking on the calendar</div>
+    </div>
+    <div class="pipeline-arrow">→</div>
+    <div class="pipeline-step st-amber">
+      <div class="step-num">4</div>
+      <div class="step-name">Qualified</div>
+      <div class="step-detail">fits budget and scope</div>
+    </div>
+    <div class="pipeline-arrow">→</div>
+    <div class="pipeline-step">
+      <div class="step-num" style="color:var(--text-dim)">5</div>
+      <div class="step-name">Discovery proposed</div>
+      <div class="step-detail">discovery offer sent</div>
+    </div>
+    <div class="pipeline-arrow">→</div>
+    <div class="pipeline-step st-green">
+      <div class="step-num">6</div>
+      <div class="step-name">Discovery won</div>
+      <div class="step-detail">paid discovery running</div>
+    </div>
+    <div class="pipeline-arrow">→</div>
+    <div class="pipeline-step" style="min-width:122px">
+      <div class="step-num" style="color:var(--text-dim)">7</div>
+      <div class="step-name">Implementation proposed</div>
+      <div class="step-detail">build proposal sent</div>
+    </div>
+    <div class="pipeline-arrow">→</div>
+    <div class="pipeline-step st-green">
+      <div class="step-num">8</div>
+      <div class="step-name">Won</div>
+      <div class="step-detail">build signed</div>
+    </div>
+  </div>
+
+  <div class="inner-grid" style="grid-template-columns: repeat(auto-fit, minmax(230px, 1fr))">
+    <div class="inner-card">
+      <div class="title"><span class="mini-dot" style="background:var(--slate)"></span>Two side lanes</div>
+      <div class="desc">A deal can leave the main path into <b>Nurture</b> (not now — keep warm, WhatsApp keeps a gentle sequence going) or <b>Lost</b>. Nurture deals can come back; lost ones stay closed.</div>
+    </div>
+    <div class="inner-card">
+      <div class="title"><span class="mini-dot" style="background:var(--slate)"></span>On every card</div>
+      <div class="desc">An owner (Anurag or Priyanka), the next action with a due date, estimated value, the WhatsApp workflow state and consent status, and the latest Fireflies meeting summary.</div>
+    </div>
+    <div class="inner-card">
+      <div class="title"><span class="mini-dot" style="background:var(--teal)"></span>What moves cards today</div>
+      <div class="desc">The Cal.com intake: a booking finds or creates the contact, reuses the contact's open deal, and moves it to <b>Intro call booked</b> — a rebooked lead never forks into two cards. Every other move is by hand.</div>
+    </div>
+    <div class="inner-card">
+      <div class="title"><span class="mini-dot" style="background:var(--red)"></span>What moves cards after PR 2</div>
+      <div class="desc">Notes on the board: <code>booking.created</code> → Intro call booked · <code>lead.qualified</code> → Qualified · <code>call.completed</code> → writes an activity on the card. The board becomes a live mirror of the user flow above.</div>
+    </div>
+  </div>
+</div>
+
+<p class="headline-sub" style="margin-top:14px">How the two pictures connect: user-flow steps 1–6 all happen inside pipeline stages 1–4. The pipeline then keeps going where automation stops — stages 5–8 are the human sales work (discovery, proposal, close), which the modules support but never run.</p>
 
 <!-- ============ EVENT FLOW ============ -->
 <h2 class="headline">How modules work together without touching each other</h2>

@@ -189,7 +189,38 @@ Flow:
 Compliance: call only leads who gave consent in the WhatsApp step. Capture
 consent there. Respect TRAI/DND rules.
 
-## 9. Migration checklist
+## 9. CRM module: the lead pipeline (live on staging)
+
+The crm module already runs on staging. Its center is the pipeline board
+at `/crm/pipeline`: one card per deal, one column per stage.
+
+Stages, in order: `new_lead` → `contacted` → `intro_call_booked` →
+`qualified` → `discovery_proposed` → `discovery_won` →
+`implementation_proposed` → `won`. Two side stages catch the rest:
+`nurture` (keep warm) and `lost`.
+
+What the board holds today:
+
+- One deal per open opportunity, with an owner (Anurag or Priyanka), an
+  estimated value, and a next action with a due date.
+- Cal.com intake: a booking finds or creates the contact, reuses the
+  contact's open deal, and moves it to `intro_call_booked`. A rebooked
+  lead never forks into two deals.
+- The WhatsApp workflow state and consent status sit on each deal.
+- Fireflies meeting summaries attach to the deal.
+
+How the platform work changes it:
+
+- PR 1 moves the code to `src/modules/crm/` with zero behavior change.
+- After PR 2, events move the cards: `booking.created` sets
+  `intro_call_booked`, `lead.qualified` sets `qualified`, and
+  `call.completed` writes an activity on the deal.
+- The lead-qual split (checklist step 6) takes the scoring logic out of
+  crm. The board stays in crm: crm shows state, lead-qual decides it.
+- Stages `discovery_proposed` through `won` are human sales work. The
+  modules support these stages but never move them automatically.
+
+## 10. Migration checklist
 
 1. [ ] PR 1 — the carve. Create `src/core/` and
    `src/modules/{analytics,whatsapp,crm}/`. Move files, fix imports, add
@@ -216,7 +247,7 @@ consent there. Respect TRAI/DND rules.
 | `whatsapp-provider.ts`, `whatsapp-worker-core.ts`, `crm-whatsapp-*.ts` | `src/modules/whatsapp/` |
 | `crm-data.ts`, `crm-routes.ts`, `crm-cal-intake.ts`, `crm-types.ts` | `src/modules/crm/` |
 
-## 10. Demo workspace
+## 11. Demo workspace
 
 A second deployment of the same repo. Seed data for three fake businesses
 (D2C food, coaching institute, manufacturer) and a reset button. Used live
