@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { resolveAnalyticsRange, resolveCampaignScope } from '../src/lib/analytics-data';
+import { resolveAnalyticsRange, resolveCampaignScope } from '../src/modules/analytics/analytics-data';
 
 const campaigns = [
   { id: '1001', name: 'Launch campaign' },

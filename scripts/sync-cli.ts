@@ -1,6 +1,6 @@
 // Manual sync from the terminal: `npm run sync` (loads .env).
 // Optional: `npm run sync -- 7` to backfill the last 7 days.
-import { runSync } from '../src/lib/sync';
+import { runSync } from '../src/modules/analytics/sync';
 
 const days = Number(process.argv[2] ?? '8');
 
