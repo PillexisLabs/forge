@@ -135,6 +135,11 @@ Rules:
 - Each capability has exactly one owning module. Example: only whatsapp
   sends WhatsApp messages. Other modules request it with
   `followup.requested`.
+- `src/modules/registry.ts` is the composition root: the one file that
+  imports every manifest (shipped in PR 3). App-level code that needs
+  "all modules" — the nav, a status page, the Foundry — reads this
+  list. Core never imports it. A client copy with fewer modules edits
+  exactly this file.
 
 ## 6. Code placement
 
@@ -235,7 +240,7 @@ How the platform work changes it:
 2. [x] PR 2 — the event spine. `events` table, `emitEvent()` helper.
    Emit `booking.created`, `lead.replied` (inbound WhatsApp), and sync
    completion.
-3. [ ] PR 3 — manifests per module. Build nav from manifests.
+3. [x] PR 3 — manifests per module. Build nav from manifests.
 4. [ ] Voice spike (throwaway): one AI call to our own phone on the
    Twilio + Sarvam stack. Pass: latency under 1.2 s and demo quality.
 5. [ ] `src/modules/voice/` on the event spine.
