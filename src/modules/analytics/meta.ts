@@ -1,4 +1,4 @@
-import { env } from './env';
+import { env } from '@/core/env';
 import type { MetaAccount, MetaAd } from './types';
 
 // Meta returns the SAME conversion under several alias action_types (e.g. a pixel

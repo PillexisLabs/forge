@@ -19,8 +19,8 @@ import {
   TableCell,
   Badge,
 } from '@tremor/react';
-import type { CampaignOption, DailySummaryRow, AdRow, SourceRow, SyncRunRow, PeriodTotals } from '@/lib/types';
-import { buildInsights, type Severity } from '@/lib/insights';
+import type { CampaignOption, DailySummaryRow, AdRow, SourceRow, SyncRunRow, PeriodTotals } from '@/modules/analytics/types';
+import { buildInsights, type Severity } from '@/modules/analytics/insights';
 import ForgeShell from './ForgeShell';
 
 function DeltaBadge({ curr, prev, mode }: { curr: number | null; prev: number; mode: 'higher' | 'lower' | 'neutral' }) {

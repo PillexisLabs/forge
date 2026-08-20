@@ -1,5 +1,5 @@
 import { BetaAnalyticsDataClient } from '@google-analytics/data';
-import { env } from './env';
+import { env } from '@/core/env';
 import type { GaSummary, GaSource } from './types';
 
 function getClient() {

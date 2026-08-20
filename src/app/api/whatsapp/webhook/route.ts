@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { env } from '@/lib/env';
-import { recordDeliveryFailure, recordInboundWhatsApp } from '@/lib/crm-whatsapp-inbound';
-import { sendWhatsAppText } from '@/lib/whatsapp-provider';
+import { env } from '@/core/env';
+import { recordDeliveryFailure, recordInboundWhatsApp } from '@/modules/whatsapp/crm-whatsapp-inbound';
+import { sendWhatsAppText } from '@/modules/whatsapp/whatsapp-provider';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

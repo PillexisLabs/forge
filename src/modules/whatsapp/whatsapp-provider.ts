@@ -1,4 +1,4 @@
-import { env } from './env';
+import { env } from '@/core/env';
 
 // Thin client for the WhatsApp Cloud API. Free-form text sends work with the
 // Meta test number to registered recipients; production numbers need approved

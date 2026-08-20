@@ -1,4 +1,4 @@
-import { getSql } from './db';
+import { getSql } from '@/core/db';
 import {
   classifyInboundIntent,
   inboundAck,
@@ -6,7 +6,7 @@ import {
   type WhatsAppWorkflowAction,
 } from './crm-whatsapp-rules';
 import { transitionCrmWhatsApp } from './crm-whatsapp-data';
-import { env } from './env';
+import { env } from '@/core/env';
 
 const INTENT_ACTIONS: Record<InboundIntent, WhatsAppWorkflowAction> = {
   confirm: 'confirm',

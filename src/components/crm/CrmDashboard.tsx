@@ -28,9 +28,9 @@ import {
   type CrmWorkspace,
   type WhatsAppConsentStatus,
   type WhatsAppWorkflowState,
-} from '@/lib/crm-types';
-import { CRM_VIEW_PATHS, type CrmView } from '@/lib/crm-routes';
-import type { WhatsAppWorkflowAction } from '@/lib/crm-whatsapp-rules';
+} from '@/core/crm-types';
+import { CRM_VIEW_PATHS, type CrmView } from '@/modules/crm/crm-routes';
+import type { WhatsAppWorkflowAction } from '@/modules/whatsapp/crm-whatsapp-rules';
 
 // Small inline copy-to-clipboard control shown beside emails and phone
 // numbers. Swaps to a check for a moment so the tap has visible feedback.

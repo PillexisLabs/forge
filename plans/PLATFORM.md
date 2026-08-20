@@ -222,7 +222,7 @@ How the platform work changes it:
 
 ## 10. Migration checklist
 
-1. [ ] PR 1 — the carve. Create `src/core/` and
+1. [x] PR 1 — the carve. Create `src/core/` and
    `src/modules/{analytics,whatsapp,crm}/`. Move files, fix imports, add
    the ESLint boundary rule. Zero behavior change.
 2. [ ] `/docs` route (decided 2026-08-20). Forge renders the repo's
@@ -246,10 +246,24 @@ How the platform work changes it:
 
 | Today (`src/lib/`) | Target |
 |---|---|
-| `auth.ts`, `db.ts`, `env.ts`, `logger.ts`, `api-audit.ts`, `api-auth.ts` | `src/core/` |
-| `ga.ts`, `meta.ts`, `sync.ts`, `insights.ts`, `analytics-data.ts` | `src/modules/analytics/` |
+| `auth.ts`, `db.ts`, `env.ts`, `logger.ts`, `api-audit.ts`, `api-auth.ts`, `forge-nav.ts`, `crm-types.ts` | `src/core/` |
+| `ga.ts`, `meta.ts`, `sync.ts`, `insights.ts`, `analytics-data.ts`, `types.ts` | `src/modules/analytics/` |
 | `whatsapp-provider.ts`, `whatsapp-worker-core.ts`, `crm-whatsapp-*.ts` | `src/modules/whatsapp/` |
-| `crm-data.ts`, `crm-routes.ts`, `crm-cal-intake.ts`, `crm-types.ts` | `src/modules/crm/` |
+| `crm-data.ts`, `crm-routes.ts`, `crm-cal-intake.ts` | `src/modules/crm/` |
+
+Notes from the carve (2026-08-20):
+
+- `crm-types.ts` went to core, not to the crm module. It holds the
+  shared deal, stage, and WhatsApp workflow types that both crm and
+  whatsapp need — data spine types. Keeping it in crm would force a
+  cross-module import.
+- `forge-nav.ts` (dashboard shell nav) and `types.ts` (analytics
+  domain types) were not in the original table; they moved to core and
+  analytics.
+- One temporary boundary exception, marked with an eslint-disable and
+  a comment: `crm-cal-intake.ts` calls the whatsapp module directly to
+  start the booking workflow. PR 2 replaces this call with the
+  `booking.created` event.
 
 ## 11. Demo workspace
 

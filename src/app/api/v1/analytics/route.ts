@@ -1,10 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
-import { getAnalyticsData, resolveAnalyticsRange } from '@/lib/analytics-data';
-import { recordApiRequest } from '@/lib/api-audit';
-import { authorizeApiClient } from '@/lib/api-auth';
-import { env } from '@/lib/env';
+import { getAnalyticsData, resolveAnalyticsRange } from '@/modules/analytics/analytics-data';
+import { recordApiRequest } from '@/core/api-audit';
+import { authorizeApiClient } from '@/core/api-auth';
+import { env } from '@/core/env';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

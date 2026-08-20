@@ -1,17 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { SESSION_COOKIE, verifyToken } from '@/lib/auth';
+import { SESSION_COOKIE, verifyToken } from '@/core/auth';
 import {
   configureCrmWhatsApp,
   isWhatsAppConsentStatus,
   markWhatsAppDueNow,
   transitionCrmWhatsApp,
-} from '@/lib/crm-whatsapp-data';
-import { processDueRows } from '@/lib/whatsapp-worker-core';
+} from '@/modules/whatsapp/crm-whatsapp-data';
+import { processDueRows } from '@/modules/whatsapp/whatsapp-worker-core';
 
 export const runtime = 'nodejs';
-import type { WhatsAppWorkflowAction } from '@/lib/crm-whatsapp-rules';
-import { updateCrmDeal } from '@/lib/crm-data';
-import { env } from '@/lib/env';
+import type { WhatsAppWorkflowAction } from '@/modules/whatsapp/crm-whatsapp-rules';
+import { updateCrmDeal } from '@/modules/crm/crm-data';
+import { env } from '@/core/env';
 
 const ACTIONS: WhatsAppWorkflowAction[] = [
   'start',

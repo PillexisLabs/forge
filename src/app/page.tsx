@@ -1,6 +1,6 @@
 import DashboardView from '@/components/DashboardView';
 import SetupNotice from '@/components/SetupNotice';
-import { getAnalyticsData, resolveAnalyticsRange } from '@/lib/analytics-data';
+import { getAnalyticsData, resolveAnalyticsRange } from '@/modules/analytics/analytics-data';
 
 export const dynamic = 'force-dynamic';
 

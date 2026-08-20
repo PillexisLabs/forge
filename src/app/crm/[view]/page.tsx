@@ -1,8 +1,8 @@
 import { notFound } from 'next/navigation';
 import CrmDashboard from '@/components/crm/CrmDashboard';
 import SetupNotice from '@/components/SetupNotice';
-import { getCrmWorkspace } from '@/lib/crm-data';
-import { crmViewFromRoute } from '@/lib/crm-routes';
+import { getCrmWorkspace } from '@/modules/crm/crm-data';
+import { crmViewFromRoute } from '@/modules/crm/crm-routes';
 
 export const dynamic = 'force-dynamic';
 

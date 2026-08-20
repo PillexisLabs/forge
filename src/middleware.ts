@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { verifyToken, SESSION_COOKIE } from './lib/auth';
+import { verifyToken, SESSION_COOKIE } from './core/auth';
 
 // API routes authenticate themselves and must return JSON errors rather than
 // being redirected to the dashboard login page.

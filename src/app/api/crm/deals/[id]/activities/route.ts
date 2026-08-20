@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { SESSION_COOKIE, verifyToken } from '@/lib/auth';
-import { addCrmActivity } from '@/lib/crm-data';
-import { env } from '@/lib/env';
+import { SESSION_COOKIE, verifyToken } from '@/core/auth';
+import { addCrmActivity } from '@/modules/crm/crm-data';
+import { env } from '@/core/env';
 
 export async function POST(
   request: NextRequest,

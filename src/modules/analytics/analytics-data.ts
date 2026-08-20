@@ -1,5 +1,5 @@
 import { differenceInCalendarDays, format, isValid, parseISO, subDays } from 'date-fns';
-import { getSql } from './db';
+import { getSql } from '@/core/db';
 import type { AdRow, CampaignOption, DailySummaryRow, PeriodTotals, SourceRow, SyncRunRow } from './types';
 
 const emptyTotals: PeriodTotals = {

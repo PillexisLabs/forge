@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { env } from '@/lib/env';
-import { recordCalBooking } from '@/lib/crm-cal-intake';
+import { env } from '@/core/env';
+import { recordCalBooking } from '@/modules/crm/crm-cal-intake';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

@@ -1,6 +1,6 @@
-import { getSql } from './db';
-import type { CrmActivity, CrmDeal, CrmOwner, CrmStage, CrmWorkspace } from './crm-types';
-import { CRM_OWNERS, CRM_STAGES } from './crm-types';
+import { getSql } from '@/core/db';
+import type { CrmActivity, CrmDeal, CrmOwner, CrmStage, CrmWorkspace } from '@/core/crm-types';
+import { CRM_OWNERS, CRM_STAGES } from '@/core/crm-types';
 
 type DealRow = Omit<CrmDeal, 'activities' | 'estimated_value' | 'whatsapp'> & {
   estimated_value: string | number | null;

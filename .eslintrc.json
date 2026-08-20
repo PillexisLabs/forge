@@ -1,0 +1,49 @@
+{
+  "extends": "next/core-web-vitals",
+  "overrides": [
+    {
+      "files": ["src/modules/analytics/**"],
+      "rules": {
+        "no-restricted-imports": ["error", {
+          "patterns": [{
+            "group": ["@/modules/*", "@/modules/*/**", "!@/modules/analytics", "!@/modules/analytics/**"],
+            "message": "Modules must not import other modules. Communicate through events and the data spine (plans/PLATFORM.md section 4)."
+          }]
+        }]
+      }
+    },
+    {
+      "files": ["src/modules/whatsapp/**"],
+      "rules": {
+        "no-restricted-imports": ["error", {
+          "patterns": [{
+            "group": ["@/modules/*", "@/modules/*/**", "!@/modules/whatsapp", "!@/modules/whatsapp/**"],
+            "message": "Modules must not import other modules. Communicate through events and the data spine (plans/PLATFORM.md section 4)."
+          }]
+        }]
+      }
+    },
+    {
+      "files": ["src/modules/crm/**"],
+      "rules": {
+        "no-restricted-imports": ["error", {
+          "patterns": [{
+            "group": ["@/modules/*", "@/modules/*/**", "!@/modules/crm", "!@/modules/crm/**"],
+            "message": "Modules must not import other modules. Communicate through events and the data spine (plans/PLATFORM.md section 4)."
+          }]
+        }]
+      }
+    },
+    {
+      "files": ["src/core/**"],
+      "rules": {
+        "no-restricted-imports": ["error", {
+          "patterns": [{
+            "group": ["@/modules/*", "@/modules/*/**"],
+            "message": "Core must not depend on modules. Move shared code into core or use events (plans/PLATFORM.md section 2)."
+          }]
+        }]
+      }
+    }
+  ]
+}

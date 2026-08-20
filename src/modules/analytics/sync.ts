@@ -1,8 +1,8 @@
 import { differenceInCalendarDays, format, isValid, parseISO, subDays } from 'date-fns';
-import { getSql } from './db';
+import { getSql } from '@/core/db';
 import { getGaSummary, getGaSources } from './ga';
 import { getMetaAccount, getMetaAds } from './meta';
-import { log } from './logger';
+import { log } from '@/core/logger';
 
 /**
  * Fetch GA + Meta for one day and upsert all three tables.
