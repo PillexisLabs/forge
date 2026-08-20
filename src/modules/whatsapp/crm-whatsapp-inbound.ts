@@ -1,4 +1,5 @@
 import { getSql } from '@/core/db';
+import { emitEvent } from '@/core/events';
 import {
   classifyInboundIntent,
   inboundAck,
@@ -62,6 +63,16 @@ export async function recordInboundWhatsApp(input: {
   if (!inserted.length) return { handled: false, reason: 'duplicate' };
 
   const intent = classifyInboundIntent(input.text);
+
+  // The bus hears about every reply (lead-qual and analytics consume this).
+  // Meta's message id makes the emit idempotent alongside the activity row.
+  await emitEvent('lead.replied', {
+    lead_id: lead.deal_id,
+    message_id: input.messageId,
+    intent,
+  }, { emittedBy: 'whatsapp', dedupeKey: `wa-in-${input.messageId}` }).catch((error) =>
+    console.error(`inbound whatsapp deal ${lead.deal_id}: lead.replied emit failed`, error),
+  );
   try {
     await transitionCrmWhatsApp({
       dealId: lead.deal_id,

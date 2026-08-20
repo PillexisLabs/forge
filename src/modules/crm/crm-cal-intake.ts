@@ -1,12 +1,10 @@
 import { getSql } from '@/core/db';
-// Temporary cross-module import. PR 2 replaces this direct call with the
-// booking.created event, which the whatsapp module consumes.
-// eslint-disable-next-line no-restricted-imports
-import { configureCrmWhatsApp, transitionCrmWhatsApp } from '@/modules/whatsapp/crm-whatsapp-data';
+import { emitEvent } from '@/core/events';
 
 // Turns a Cal.com BOOKING_CREATED webhook into CRM state: contact, deal,
-// booking row, and a queued WhatsApp confirmation. Idempotent on the Cal
-// booking uid, because Cal retries webhooks on non-200 responses.
+// booking row, and a booking.created event on the bus (the whatsapp module
+// consumes it and queues the confirmation). Idempotent on the Cal booking
+// uid, because Cal retries webhooks on non-200 responses.
 
 export type CalBookingIntake = {
   bookingUid: string;
@@ -21,7 +19,6 @@ export type CalIntakeResult = {
   dealId: number;
   createdDeal: boolean;
   duplicate: boolean;
-  whatsappQueued: boolean;
 };
 
 export async function recordCalBooking(input: CalBookingIntake): Promise<CalIntakeResult> {
@@ -121,37 +118,20 @@ export async function recordCalBooking(input: CalBookingIntake): Promise<CalInta
       )
     `;
 
+    // Same transaction as the booking rows (the outbox pattern): the event
+    // exists exactly when the booking does. The whatsapp module consumes it
+    // and queues the confirmation. phone_provided carries the consent signal:
+    // the booking form collects the WhatsApp number for call reminders, so a
+    // provided number is treated as consent.
+    await emitEvent('booking.created', {
+      lead_id: dealId,
+      booking_uid: input.bookingUid,
+      start_at: input.startsAt,
+      phone_provided: Boolean(input.phone),
+    }, { emittedBy: 'core', dedupeKey: input.bookingUid, sql: tx });
+
     return { dealId, createdDeal, duplicate: false };
   });
 
-  if (outcome.duplicate) {
-    return { ...outcome, whatsappQueued: false };
-  }
-
-  // The booking form collects the WhatsApp number for call reminders, so a
-  // provided number is treated as consent. Without one the workflow stays
-  // unconfigured and the lead surfaces in Today for manual setup.
-  let whatsappQueued = false;
-  if (input.phone) {
-    try {
-      await configureCrmWhatsApp({
-        dealId: outcome.dealId,
-        consentStatus: 'granted',
-        appointmentAt: input.startsAt,
-        actor: 'system',
-      });
-      await transitionCrmWhatsApp({
-        dealId: outcome.dealId,
-        action: 'start',
-        actor: 'system',
-      });
-      whatsappQueued = true;
-    } catch (error) {
-      // The booking is already recorded; a workflow guard (e.g. an earlier
-      // opt-out) must not make Cal retry the whole webhook.
-      console.warn(`cal intake deal ${outcome.dealId}: workflow not started —`, error);
-    }
-  }
-
-  return { ...outcome, whatsappQueued };
+  return outcome;
 }

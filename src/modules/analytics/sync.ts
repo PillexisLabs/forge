@@ -1,5 +1,6 @@
 import { differenceInCalendarDays, format, isValid, parseISO, subDays } from 'date-fns';
 import { getSql } from '@/core/db';
+import { emitEvent } from '@/core/events';
 import { getGaSummary, getGaSources } from './ga';
 import { getMetaAccount, getMetaAds } from './meta';
 import { log } from '@/core/logger';
@@ -298,6 +299,15 @@ export async function runSync({
     // Best-effort: never let logging failure mask the real result.
     await recordSyncRun({ startedAt, trigger, days: syncDays, status, results, errors: allErrors, durationMs }).catch((err) =>
       log.error('failed to record sync run', err),
+    );
+    await emitEvent('sync.completed', {
+      status,
+      trigger,
+      days: syncDays,
+      error_count: allErrors.length,
+      duration_ms: durationMs,
+    }, { emittedBy: 'analytics' }).catch((err) =>
+      log.error('failed to emit sync.completed', err),
     );
   }
 }

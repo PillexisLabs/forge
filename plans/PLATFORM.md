@@ -99,11 +99,18 @@ Module communication rules:
 | Event | Emitter | Consumers | Payload (minimum) |
 |---|---|---|---|
 | `lead.created` | core (Cal intake, Meta click) | whatsapp, analytics | lead_id, source, created_at |
-| `lead.replied` | whatsapp | lead-qual, analytics | lead_id, conversation_id, message_id |
+| `lead.replied` | whatsapp | lead-qual, analytics | lead_id, message_id, intent |
 | `lead.qualified` | lead-qual | voice, crm, analytics | lead_id, score, answers |
 | `call.completed` | voice | crm, analytics | lead_id, call_id, outcome, transcript_ref, duration_s |
 | `booking.created` | core (Cal webhook) | whatsapp, analytics | lead_id, booking_uid, start_at |
 | `followup.requested` | voice, lead-qual | whatsapp | lead_id, reason, template_hint |
+| `booking.created` (extra field) | — | — | phone_provided: the consent signal for the WhatsApp workflow |
+| `sync.completed` | analytics | (none yet) | status, trigger, days, error_count, duration_ms |
+
+The bus itself (shipped in PR 2): the `events` table plus `event_cursors`.
+`emitEvent()` accepts the caller's transaction, so an event commits with the
+data it describes. `consumeEvents()` delivers at least once — handlers must
+be idempotent — and advances one cursor per consumer under a row lock.
 
 ## 5. Module contract
 
@@ -225,7 +232,7 @@ How the platform work changes it:
 1. [x] PR 1 — the carve. Create `src/core/` and
    `src/modules/{analytics,whatsapp,crm}/`. Move files, fix imports, add
    the ESLint boundary rule. Zero behavior change.
-2. [ ] PR 2 — the event spine. `events` table, `emitEvent()` helper.
+2. [x] PR 2 — the event spine. `events` table, `emitEvent()` helper.
    Emit `booking.created`, `lead.replied` (inbound WhatsApp), and sync
    completion.
 3. [ ] PR 3 — manifests per module. Build nav from manifests.
@@ -260,10 +267,10 @@ Notes from the carve (2026-08-20):
 - `forge-nav.ts` (dashboard shell nav) and `types.ts` (analytics
   domain types) were not in the original table; they moved to core and
   analytics.
-- One temporary boundary exception, marked with an eslint-disable and
-  a comment: `crm-cal-intake.ts` calls the whatsapp module directly to
-  start the booking workflow. PR 2 replaces this call with the
-  `booking.created` event.
+- The one temporary boundary exception (crm-cal-intake calling the
+  whatsapp module directly) was resolved in PR 2: the intake now emits
+  `booking.created` and the whatsapp worker consumes it. Zero
+  cross-module imports remain.
 
 ## 11. Demo workspace
 

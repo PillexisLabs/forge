@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
     console.log(
       `cal intake: booking ${payload.uid} → deal ${result.dealId}`
       + ` (${result.duplicate ? 'duplicate' : result.createdDeal ? 'new deal' : 'existing deal'}`
-      + `${result.whatsappQueued ? ', confirmation queued' : ''})`,
+      + `${result.duplicate ? '' : ', booking.created emitted'})`,
     );
     return NextResponse.json({ ok: true, dealId: result.dealId, duplicate: result.duplicate });
   } catch (error) {

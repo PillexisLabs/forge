@@ -261,3 +261,24 @@ create table if not exists crm_whatsapp_workflows (
 create index if not exists idx_crm_whatsapp_next_message
   on crm_whatsapp_workflows (next_message_at)
   where enabled = true and next_message_at is not null;
+
+-- Event bus (plans/PLATFORM.md section 4): one outbox table. A module emits a
+-- row; other modules consume by event name and track their own cursor. Events
+-- are append-only — never rename an event or change a field's meaning.
+create table if not exists events (
+  id          bigserial primary key,
+  name        text not null,
+  payload     jsonb not null default '{}'::jsonb,
+  emitted_by  text not null,
+  dedupe_key  text,
+  created_at  timestamptz not null default now()
+);
+create unique index if not exists idx_events_dedupe
+  on events (name, dedupe_key) where dedupe_key is not null;
+create index if not exists idx_events_name_id on events (name, id);
+
+create table if not exists event_cursors (
+  consumer      text primary key,
+  last_event_id bigint not null default 0,
+  updated_at    timestamptz not null default now()
+);
