@@ -1,6 +1,6 @@
 import CrmDashboard from '@/components/crm/CrmDashboard';
 import SetupNotice from '@/components/SetupNotice';
-import { getCrmWorkspace } from '@/lib/crm-data';
+import { getCrmWorkspace } from '@/modules/crm/crm-data';
 
 export const dynamic = 'force-dynamic';
 

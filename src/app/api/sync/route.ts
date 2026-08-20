@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { runSync } from '@/lib/sync';
-import { verifyToken, SESSION_COOKIE } from '@/lib/auth';
-import { authorizeApiClient } from '@/lib/api-auth';
-import { env } from '@/lib/env';
+import { runSync } from '@/modules/analytics/sync';
+import { verifyToken, SESSION_COOKIE } from '@/core/auth';
+import { authorizeApiClient } from '@/core/api-auth';
+import { env } from '@/core/env';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

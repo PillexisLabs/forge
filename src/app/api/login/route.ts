@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { createToken, SESSION_COOKIE } from '@/lib/auth';
-import { env } from '@/lib/env';
+import { createToken, SESSION_COOKIE } from '@/core/auth';
+import { env } from '@/core/env';
 
 export const runtime = 'nodejs';
 

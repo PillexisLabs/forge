@@ -4,8 +4,8 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState, type ReactNode } from 'react';
-import { ANALYTICS_NAV, CRM_NAV, type ForgeNavItem } from '@/lib/forge-nav';
-import { crmViewFromRoute } from '@/lib/crm-routes';
+import { ANALYTICS_NAV, CRM_NAV, type ForgeNavItem } from '@/core/forge-nav';
+import { crmViewFromRoute } from '@/modules/crm/crm-routes';
 
 type ForgeArea = 'analytics' | 'crm';
 

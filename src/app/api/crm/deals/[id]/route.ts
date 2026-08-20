@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { SESSION_COOKIE, verifyToken } from '@/lib/auth';
-import { isCrmOwner, isCrmStage, updateCrmDeal } from '@/lib/crm-data';
-import { env } from '@/lib/env';
+import { SESSION_COOKIE, verifyToken } from '@/core/auth';
+import { isCrmOwner, isCrmStage, updateCrmDeal } from '@/modules/crm/crm-data';
+import { env } from '@/core/env';
 
 async function isAuthenticated(request: NextRequest) {
   return verifyToken(request.cookies.get(SESSION_COOKIE)?.value, env.authSecret());

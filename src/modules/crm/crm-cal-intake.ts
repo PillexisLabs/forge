@@ -1,5 +1,8 @@
-import { getSql } from './db';
-import { configureCrmWhatsApp, transitionCrmWhatsApp } from './crm-whatsapp-data';
+import { getSql } from '@/core/db';
+// Temporary cross-module import. PR 2 replaces this direct call with the
+// booking.created event, which the whatsapp module consumes.
+// eslint-disable-next-line no-restricted-imports
+import { configureCrmWhatsApp, transitionCrmWhatsApp } from '@/modules/whatsapp/crm-whatsapp-data';
 
 // Turns a Cal.com BOOKING_CREATED webhook into CRM state: contact, deal,
 // booking row, and a queued WhatsApp confirmation. Idempotent on the Cal

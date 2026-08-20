@@ -1,5 +1,5 @@
-import { getSql } from './db';
-import { env } from './env';
+import { getSql } from '@/core/db';
+import { env } from '@/core/env';
 import { resolveDueSend } from './crm-whatsapp-rules';
 import { sendWhatsAppTemplate, sendWhatsAppText } from './whatsapp-provider';
 

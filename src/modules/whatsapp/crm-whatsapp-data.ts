@@ -1,8 +1,8 @@
-import { getSql } from './db';
+import { getSql } from '@/core/db';
 import {
   WHATSAPP_CONSENT_STATUSES,
   type WhatsAppConsentStatus,
-} from './crm-types';
+} from '@/core/crm-types';
 import {
   confirmationMessage,
   resolveWhatsAppTransition,

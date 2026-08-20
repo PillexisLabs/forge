@@ -1,4 +1,4 @@
-import type { WhatsAppConsentStatus, WhatsAppWorkflowState } from './crm-types';
+import type { WhatsAppConsentStatus, WhatsAppWorkflowState } from '@/core/crm-types';
 
 export type WhatsAppWorkflowAction =
   | 'start'
