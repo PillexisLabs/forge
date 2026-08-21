@@ -1,6 +1,7 @@
 import type { ModuleManifest } from '@/core/manifest';
 import { analyticsManifest } from './analytics/manifest';
 import { crmManifest } from './crm/manifest';
+import { voiceManifest } from './voice/manifest';
 import { whatsappManifest } from './whatsapp/manifest';
 
 // The composition root: the one file that knows every installed module.
@@ -12,6 +13,7 @@ export const MODULES: ModuleManifest[] = [
   analyticsManifest,
   crmManifest,
   whatsappManifest,
+  voiceManifest,
 ];
 
 // Sidebar order = registry order, modules without screens filtered out.
