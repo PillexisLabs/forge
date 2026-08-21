@@ -239,6 +239,25 @@ from Railway staging; `DASHBOARD_PASSWORD` is deleted. Production still
 runs the old shared password until this reaches `master` — set the two
 seed vars on the production `forge` service before promoting.
 
+**Voice spike ran live (2026-08-21 night):** five real calls on the
+Twilio + Sarvam stack after Twilio's Trust Hub profile was approved
+(voice ships disabled until then — error 10005). Sarvam had deprecated
+all three models since the spike was written; the new defaults are
+`saarika:v2.5`, `sarvam-105b-conversations`, and `bulbul:v3` (speaker
+`priya` — v3 has its own roster). Verdict: **conversation quality is
+demo-grade** — the best call held nine coherent Hinglish turns,
+confirmed a meeting time, and answered "what does Pillexis do" — but
+**turn latency FAILS the 1.2 s budget: 1.7–3.9 s** (stt 0.3–0.9 s +
+llm 0.9–1.9 s + tts-first 0.4–1.5 s, all sequential REST). Fixes that
+landed in the spike: Devanagari-only replies (romanized Hindi through
+the hi-IN voice is what sounded garbled), phonetic brand spellings
+(व्हाट्सऐप), greeting pre-synthesized during the ring, VAD threshold
+350 (700 missed real speech) with a live mic-level log, per-stage
+latency instrumentation, sentence-split parallel TTS. Passing the
+budget requires the streaming build (streaming STT + streamed LLM
+first-sentence into TTS) — that is the `src/modules/voice/` bridge
+work, not more spike tuning.
+
 **Next steps, in order:**
 
 1. Anurag: add the WhatsApp number field to the Cal booking form;

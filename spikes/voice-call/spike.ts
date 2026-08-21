@@ -33,15 +33,21 @@ const TO_NUMBER = need('SPIKE_TO_NUMBER');
 const PUBLIC_URL = need('PUBLIC_URL').replace(/\/$/, ''); // https tunnel to this machine
 
 const PORT = Number(process.env.SPIKE_PORT ?? 8090);
-const STT_MODEL = process.env.SARVAM_STT_MODEL ?? 'saarika:v2';
-const LLM_MODEL = process.env.SARVAM_LLM_MODEL ?? 'sarvam-m';
-const TTS_MODEL = process.env.SARVAM_TTS_MODEL ?? 'bulbul:v2';
-const TTS_SPEAKER = process.env.SARVAM_TTS_SPEAKER ?? 'anushka';
+const STT_MODEL = process.env.SARVAM_STT_MODEL ?? 'saarika:v2.5'; // v2 deprecated by Sarvam (verified 2026-08-21)
+const LLM_MODEL = process.env.SARVAM_LLM_MODEL ?? 'sarvam-105b-conversations'; // sarvam-m deprecated (verified 2026-08-21)
+// bulbul:v3 has its own speaker roster (anushka is v2-only); priya verified 2026-08-21.
+const TTS_MODEL = process.env.SARVAM_TTS_MODEL ?? 'bulbul:v3';
+const TTS_SPEAKER = process.env.SARVAM_TTS_SPEAKER ?? 'priya';
 const MAX_CALL_MS = 3 * 60_000;
 
-const SYSTEM_PROMPT = `You are Asha, calling from Pillexis Labs after the lead booked an intro call.
-Speak natural Hinglish (Hindi in Latin script mixed with English), warm and brief.
-One question at a time. Keep every reply under 25 words.
+// Replies must be written in Devanagari: the hi-IN TTS voice reads romanized
+// Hindi with mangled pronunciation (first call verified this the hard way).
+// The company name gets a phonetic Devanagari spelling for the same reason.
+const SYSTEM_PROMPT = `You are Asha (आशा), calling from Pillexis Labs after the lead booked an intro call.
+Write every reply as natural Hinglish in Devanagari script — Hindi in Devanagari, everyday English words (intro call, operations, website) kept in Latin script.
+Write brand and product names phonetically in Devanagari so the voice pronounces them right: पिलेक्सिस लैब्स, व्हाट्सऐप (WhatsApp), शॉपिफ़ाई (Shopify), इंस्टाग्राम (Instagram). Never write these in Latin script.
+If the caller mishears or mangles the company name, keep saying पिलेक्सिस लैब्स correctly — never repeat their version.
+Warm and brief. One question at a time. Keep every reply under 25 words.
 Goal: confirm the meeting time works, ask what their biggest operations headache is, and say Anurag will cover it on the call.
 Never discuss prices. End politely when done.`;
 
@@ -137,7 +143,7 @@ async function chatSarvam(messages: ChatMsg[]): Promise<string> {
   const res = await fetch('https://api.sarvam.ai/v1/chat/completions', {
     method: 'POST',
     headers: { Authorization: `Bearer ${SARVAM_KEY}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model: LLM_MODEL, messages, max_tokens: 120, temperature: 0.6 }),
+    body: JSON.stringify({ model: LLM_MODEL, messages, max_tokens: 60, temperature: 0.6 }),
   });
   if (!res.ok) throw new Error(`LLM ${res.status}: ${await res.text()}`);
   const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
@@ -164,6 +170,10 @@ async function ttsSarvam(text: string): Promise<Int16Array> {
 
 // ---------- call session ----------
 
+const GREETING = 'नमस्ते! मैं आशा बोल रही हूँ, पिलेक्सिस लैब्स से। आपने intro call book किया था — क्या अभी दो minute बात कर सकते हैं?';
+// Kick off greeting synthesis at boot, in parallel with the dial + ring.
+const greetingAudio = ttsSarvam(GREETING);
+
 type TwilioMediaMsg = {
   event: 'connected' | 'start' | 'media' | 'stop' | 'mark';
   start?: { streamSid: string };
@@ -172,7 +182,11 @@ type TwilioMediaMsg = {
 };
 
 // Simple energy VAD over 20 ms mulaw frames (160 samples at 8 kHz).
-const SPEECH_RMS = 700;
+// 700 missed real speech on the first live call; 350 is the new default and
+// SPIKE_VAD_RMS tunes it without an edit. The mic-level log line every 2 s
+// shows what to set it to: comfortably below your speech peaks, above the
+// idle noise floor.
+const SPEECH_RMS = Number(process.env.SPIKE_VAD_RMS ?? 350);
 const END_SILENCE_MS = 500;
 const MIN_UTTERANCE_MS = 300;
 
@@ -190,23 +204,17 @@ function handleStream(ws: WebSocket) {
   let silenceMs = 0;
   let speaking = false; // the bot is talking; ignore input (no barge-in in the spike)
   let turn = 0;
+  let peakRms = 0;
+  let lastMicLog = Date.now();
+  let capturing = false;
 
-  const sendAudio = (pcm: Int16Array) => {
+  const sendAudio = (pcm: Int16Array, withMark = true) => {
     // 20 ms frames, paced by Twilio's jitter buffer — send in one go is fine.
+    // The mark comes back when playback reaches it; only the LAST chunk of a
+    // reply carries one, so the mic stays muted until the whole reply played.
     const payload = Buffer.from(mulawEncode(pcm)).toString('base64');
     ws.send(JSON.stringify({ event: 'media', streamSid, media: { payload } }));
-    ws.send(JSON.stringify({ event: 'mark', streamSid, mark: { name: `turn-${turn}` } }));
-  };
-
-  const speak = async (text: string, latencyFrom?: number) => {
-    speaking = true;
-    const pcm = await ttsSarvam(text);
-    if (latencyFrom) {
-      const ms = Date.now() - latencyFrom;
-      console.log(`TURN ${turn} latency: ${ms} ms ${ms <= 1200 ? 'PASS' : 'FAIL'} (budget 1200)`);
-    }
-    sendAudio(pcm);
-    // 'mark' comes back when playback finishes; until then stay muted.
+    if (withMark) ws.send(JSON.stringify({ event: 'mark', streamSid, mark: { name: `turn-${turn}` } }));
   };
 
   ws.on('message', async (raw) => {
@@ -216,22 +224,41 @@ function handleStream(ws: WebSocket) {
       streamSid = msg.start.streamSid;
       console.log(`stream started: ${streamSid}`);
       turn += 1;
-      const greeting = 'Namaste! Main Asha bol rahi hoon, Pillexis Labs se. Aapne intro call book kiya tha — kya abhi do minute baat kar sakte hain?';
-      history.push({ role: 'assistant', content: greeting });
-      await speak(greeting).catch((e) => console.error('greeting failed:', e));
+      history.push({ role: 'assistant', content: GREETING });
+      try {
+        // Synthesized while the phone was still ringing — plays immediately.
+        speaking = true;
+        sendAudio(await greetingAudio);
+      } catch (e) {
+        console.error('greeting failed:', e);
+        speaking = false;
+      }
       setTimeout(() => ws.close(), MAX_CALL_MS);
       return;
     }
 
     if (msg.event === 'mark') {
       speaking = false; // bot finished talking; listen again
+      console.log('listening…');
       return;
     }
 
     if (msg.event === 'media' && msg.media && !speaking) {
       const pcm = mulawDecode(Buffer.from(msg.media.payload, 'base64'));
       const frameMs = (pcm.length / 8000) * 1000;
-      const loud = rms(pcm) > SPEECH_RMS;
+      const level = rms(pcm);
+      const loud = level > SPEECH_RMS;
+      // Live tuning aid: the caller's actual levels vs the threshold.
+      peakRms = Math.max(peakRms, level);
+      if (Date.now() - lastMicLog > 2000) {
+        console.log(`mic level: peak rms ${Math.round(peakRms)} (threshold ${SPEECH_RMS})`);
+        peakRms = 0;
+        lastMicLog = Date.now();
+      }
+      if (loud && !capturing) {
+        capturing = true;
+        console.log('speech detected, capturing…');
+      }
       if (loud) {
         utterance.push(pcm);
         speechMs += frameMs;
@@ -246,18 +273,40 @@ function handleStream(ws: WebSocket) {
         const full = new Int16Array(utterance.reduce((n, c) => n + c.length, 0));
         let off = 0;
         for (const c of utterance) { full.set(c, off); off += c.length; }
-        utterance = []; speechMs = 0; silenceMs = 0;
+        utterance = []; speechMs = 0; silenceMs = 0; capturing = false;
         speaking = true; // hold the mic while we think
         turn += 1;
         try {
+          const t0 = Date.now();
           const heard = await sttSarvam(full);
+          const sttMs = Date.now() - t0;
           console.log(`heard: "${heard}"`);
           if (!heard) { speaking = false; return; }
           history.push({ role: 'user', content: heard });
+          const t1 = Date.now();
           const reply = await chatSarvam(history);
+          const llmMs = Date.now() - t1;
           history.push({ role: 'assistant', content: reply });
           console.log(`reply: "${reply}"`);
-          await speak(reply, endOfSpeech);
+
+          // Sentence-split TTS: synthesize all sentences in parallel, play the
+          // first the moment it is ready. Latency to first audio becomes
+          // TTS(first sentence) instead of TTS(whole reply).
+          const t2 = Date.now();
+          const sentences = reply.split(/(?<=[।!?.])\s+/).filter(Boolean);
+          const audioJobs = sentences.map((sentence) => ttsSarvam(sentence));
+          const firstAudio = await audioJobs[0];
+          const ttsMs = Date.now() - t2;
+          const totalMs = Date.now() - endOfSpeech;
+          console.log(
+            `TURN ${turn} latency: ${totalMs} ms ${totalMs <= 1200 ? 'PASS' : 'FAIL'} `
+            + `(stt ${sttMs} + llm ${llmMs} + tts-first ${ttsMs}; budget 1200)`,
+          );
+          speaking = true;
+          sendAudio(firstAudio, audioJobs.length === 1);
+          for (let i = 1; i < audioJobs.length; i++) {
+            sendAudio(await audioJobs[i], i === audioJobs.length - 1);
+          }
         } catch (e) {
           console.error('turn failed:', e);
           speaking = false;
