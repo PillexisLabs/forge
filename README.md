@@ -265,6 +265,7 @@ migrations are immutable, so a change to a shipped file fails the run.
 | `DATABASE_SSL` | `disable` for local Postgres |
 | `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` | first-run bootstrap: creates the admin user on the first login when the `users` table is empty; a no-op after that, so remove them once the admin exists |
 | `AUTH_SECRET` | signs the login cookie (`openssl rand -hex 32`); sessions carry the user id + session version and expire after 30 days |
+| `AUTH_EMAIL_DOMAIN` | only emails on this domain can be created or sign in; defaults to `pillexislabs.com`, set `*` to allow any domain (client copies set their own) |
 | `SYNC_SECRET` | protects `/api/sync` for cron/manual automation |
 | `API_CLIENTS_JSON` | identified machine clients with `analytics:read` and/or `analytics:sync` scopes |
 | `GA4_PROPERTY_ID` | numeric property ID `543367139` (not the `G-…` measurement ID) |

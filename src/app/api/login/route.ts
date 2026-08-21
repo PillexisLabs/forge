@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createSessionToken, SESSION_COOKIE, SESSION_MAX_AGE_S } from '@/core/auth';
 import { env } from '@/core/env';
 import {
+  emailDomainAllowed,
   getUserByEmail,
   recordLogin,
   seedAdminIfEmpty,
@@ -36,7 +37,9 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}));
   const email = typeof body?.email === 'string' ? body.email.trim() : '';
   const password = typeof body?.password === 'string' ? body.password : '';
-  if (!email || !password) {
+  // The domain check shares the generic message: an off-domain address is
+  // simply an address that can never sign in.
+  if (!email || !password || !emailDomainAllowed(email)) {
     return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
   }
 

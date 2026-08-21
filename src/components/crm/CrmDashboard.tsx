@@ -515,9 +515,12 @@ function FollowUpsView({
 export default function CrmDashboard({
   initialWorkspace,
   initialView,
+  canWrite = true,
 }: {
   initialWorkspace: CrmWorkspace;
   initialView: CrmView;
+  /** False for viewers: the record drawer renders read-only. The API rejects regardless. */
+  canWrite?: boolean;
 }) {
   const router = useRouter();
   const [search, setSearch] = useState('');
@@ -1019,7 +1022,15 @@ export default function CrmDashboard({
             ))}
           </nav>
 
-          <div className="crm-drawer-content">
+          {!canWrite && (
+            <p className="crm-readonly-note">
+              View-only account — ask an admin for write access to make changes.
+            </p>
+          )}
+          {/* A disabled fieldset switches off every control inside — selects,
+              inputs, and buttons — so a viewer cannot mutate anything even
+              before the API's own 403. */}
+          <fieldset disabled={!canWrite} className="crm-drawer-content" style={{ border: 0, margin: 0, padding: 0, minInlineSize: 0 }}>
           {drawerSection === 'overview' && (
             <div className="crm-drawer-view">
             <UiPanel className="crm-drawer-section crm-record-section">
@@ -1271,7 +1282,7 @@ export default function CrmDashboard({
             </UiPanel>
             </div>
           )}
-          </div>
+          </fieldset>
         </UiDialog>
       )}
     </>

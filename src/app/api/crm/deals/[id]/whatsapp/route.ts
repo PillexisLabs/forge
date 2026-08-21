@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSessionUser } from '@/core/session';
+import { requirePermission } from '@/core/permissions';
 import {
   configureCrmWhatsApp,
   isWhatsAppConsentStatus,
@@ -45,10 +45,9 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } },
 ) {
-  const user = await getSessionUser(request);
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const auth = await requirePermission(request, 'whatsapp:write');
+  if (!auth.ok) return auth.response;
+  const { user } = auth;
 
   const dealId = validDealId(params.id);
   const body = await request.json().catch(() => null);
@@ -88,10 +87,9 @@ export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } },
 ) {
-  const user = await getSessionUser(request);
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const auth = await requirePermission(request, 'whatsapp:write');
+  if (!auth.ok) return auth.response;
+  const { user } = auth;
 
   const dealId = validDealId(params.id);
   const body = await request.json().catch(() => null);
@@ -100,8 +98,12 @@ export async function POST(
   }
 
   // Demo/testing helper: pull the queued message forward and send immediately
-  // instead of waiting for the worker's next minute tick.
+  // instead of waiting for the worker's next minute tick. Sending is the
+  // whatsapp module's declared special action, guarded separately from
+  // workflow bookkeeping.
   if (body.action === 'send_now') {
+    const send = await requirePermission(request, 'whatsapp:send');
+    if (!send.ok) return send.response;
     const queued = await markWhatsAppDueNow(dealId);
     if (!queued) {
       return NextResponse.json({ error: 'Nothing is queued for this lead' }, { status: 400 });

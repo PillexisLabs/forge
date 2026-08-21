@@ -21,6 +21,12 @@ export type ModuleManifest = {
     emits: EventName[];
     consumes: EventName[];
   };
+  /**
+   * Special actions beyond read/write (plans/RBAC.md section 6), e.g.
+   * whatsapp declares ['send']. Core composes the permission vocabulary
+   * from the registry — there is no central list to forget to update.
+   */
+  permissions: string[];
   /** Env keys the module reads (via core env). Secrets stay in config, never in code. */
   configKeys: string[];
 };

@@ -190,6 +190,26 @@ bump 401, disabled user 401, sixth login attempt 429, migration adoption
 on a populated database. `DASHBOARD_PASSWORD` dies at this cutover —
 Railway needs the two seed vars before the deploy.
 
+**RBAC PR B built** (branch `platform/rbac-pr-b`, stacked on PR A):
+`hasPermission()` + `requirePermission()` in core, guards on every
+mutating route (crm:write, whatsapp:write, whatsapp:send for send-now,
+analytics:sync for the manual sync trigger), `permissions` field on every
+module manifest, page-level read guards with an access notice, nav
+filtered by role and module allowlist (Settings appears for admins only),
+a Settings → Users screen (create, edit role and modules, disable,
+reset password), self-service password change with current-password
+proof, lockout protection (no self-demote or self-disable), and viewer
+read-only state on the CRM drawer and the sync button. Verified by a
+scripted sweep: viewer 403 on all six mutating/admin routes, a member
+scoped to `[crm, whatsapp]` writes CRM but gets 403 on sync and the
+access notice on analytics, password change revokes old sessions. One
+bug found and fixed during verification: postgres.js returns bigserial
+ids as strings, which silently broke the `self.id === id` identity
+checks — ids are now cast to int in `src/core/users.ts`. Sign-in is
+restricted to `@pillexislabs.com` addresses (`AUTH_EMAIL_DOMAIN`,
+fail-closed default; a client copy sets its own domain, `*` disables) —
+enforced at login, user creation, and admin seeding.
+
 **Next steps, in order:**
 
 1. Anurag: merge PR 3 (review PR 4 while there); add the WhatsApp number

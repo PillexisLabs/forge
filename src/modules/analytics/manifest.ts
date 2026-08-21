@@ -16,6 +16,7 @@ export const analyticsManifest: ModuleManifest = {
     emits: ['sync.completed'],
     consumes: [],
   },
+  permissions: ['sync'],
   configKeys: [
     'GA4_PROPERTY_ID',
     'GA4_HOSTNAME',

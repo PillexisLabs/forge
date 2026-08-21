@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { runSync } from '@/modules/analytics/sync';
 import { getSessionUser } from '@/core/session';
+import { hasPermission } from '@/core/permissions';
 import { authorizeApiClient } from '@/core/api-auth';
 import { env } from '@/core/env';
 
@@ -14,9 +15,15 @@ async function authorize(req: NextRequest): Promise<
   | { ok: false; status: 401 | 403 | 500; error: string }
 > {
   // 1) Logged-in dashboard user (manual "Refresh now" button). The trigger
-  //    names the acting user so sync_runs rows are attributable.
+  //    names the acting user so sync_runs rows are attributable. Sync is the
+  //    analytics module's declared special action — viewers cannot trigger it.
   const user = await getSessionUser(req);
-  if (user) return { ok: true, trigger: `manual:${user.email}` };
+  if (user) {
+    if (!hasPermission(user, 'analytics:sync')) {
+      return { ok: false, status: 403, error: 'Your account does not have analytics:sync access.' };
+    }
+    return { ok: true, trigger: `manual:${user.email}` };
+  }
 
   // 2) Identified machine client with the explicit sync scope.
   if (req.headers.has('x-pillexis-client-id')) {

@@ -11,6 +11,7 @@ export const whatsappManifest: ModuleManifest = {
     emits: ['lead.replied'],
     consumes: ['booking.created'],
   },
+  permissions: ['send'],
   configKeys: [
     'WHATSAPP_ACCESS_TOKEN',
     'WHATSAPP_PHONE_NUMBER_ID',
