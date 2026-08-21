@@ -207,6 +207,23 @@ bug found and fixed during verification: postgres.js returns bigserial
 ids as strings, which silently broke the `self.id === id` identity
 checks — ids are now cast to int in `src/core/users.ts`.
 
+**Voice module scaffolded** (branch `platform/voice-module`, stacked on
+PR B): `src/modules/voice/` on the event spine per `plans/PLATFORM.md`
+section 8. The manifest declares `permissions: ['call']`, consumes
+`lead.qualified`, emits `call.completed` and `followup.requested`.
+Migration `0003` adds `vc_calls` (one row per attempt, deduped on the
+triggering event id). Pure rules in `voice-rules.ts`: consent gate
+(WhatsApp consent only, opt-out honored) and the 10:00–19:00 IST calling
+window. Providers sit behind a telephony interface: a Twilio REST
+adapter (dials into the media-stream bridge once the spike passes) and a
+stub for dry runs. `npm run voice:worker` consumes events, queues
+eligible calls, dials due ones, writes the outcome to the CRM activity
+trail, and emits `call.completed` transactionally. Verified end to end
+in dry-run against the local database: consented lead called and
+completed, opted-out lead skipped with reason, second pass fully
+idempotent. The realtime audio bridge stays in `spikes/voice-call/`
+until its 1.2 s/turn latency test passes with real keys.
+
 **Next steps, in order:**
 
 1. Anurag: merge PR 3 (review PR 4 while there); add the WhatsApp number

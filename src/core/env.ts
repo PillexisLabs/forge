@@ -43,4 +43,13 @@ export const env = {
 
   // Cal.com BOOKING_CREATED webhook (CRM intake, not the website CAPI one).
   calWebhookSecret: () => process.env.CAL_WEBHOOK_SECRET ?? '',
+
+  // Voice module (Twilio telephony + Sarvam speech, plans/PLATFORM.md §8).
+  twilioAccountSid: () => process.env.TWILIO_ACCOUNT_SID ?? '',
+  twilioAuthToken: () => process.env.TWILIO_AUTH_TOKEN ?? '',
+  twilioFromNumber: () => process.env.TWILIO_FROM_NUMBER ?? '',
+  sarvamApiKey: () => process.env.SARVAM_API_KEY ?? '',
+  voiceDryRun: () => process.env.VOICE_DRY_RUN === '1',
+  voiceCallWindow: () => process.env.VOICE_CALL_WINDOW, // "10-19" IST hours
+  voicePublicUrl: () => process.env.VOICE_PUBLIC_URL ?? '',
 };
