@@ -4,7 +4,8 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState, type ReactNode } from 'react';
-import { ANALYTICS_NAV, CRM_NAV, type ForgeNavItem } from '@/core/forge-nav';
+import { type ForgeNavItem } from '@/core/forge-nav';
+import { NAV_MODULES } from '@/modules/registry';
 import { crmViewFromRoute } from '@/modules/crm/crm-routes';
 
 type ForgeArea = 'analytics' | 'crm';
@@ -32,10 +33,15 @@ export default function WorkspaceChrome({ children }: { children: ReactNode }) {
     ? 'today'
     : crmViewFromRoute(pathname.split('/')[2] ?? '') ?? 'today';
 
-  const groups: { id: ForgeArea; label: string; items: ForgeNavItem[]; activeId: string | null }[] = [
-    { id: 'analytics', label: 'Analytics', items: ANALYTICS_NAV, activeId: area === 'analytics' ? analyticsView : null },
-    { id: 'crm', label: 'CRM', items: CRM_NAV, activeId: area === 'crm' ? crmView : null },
-  ];
+  // Sidebar groups come from the module registry: one group per module that
+  // declares nav entries in its manifest.
+  const groups: { id: ForgeArea; label: string; items: ForgeNavItem[]; activeId: string | null }[] =
+    NAV_MODULES.map((mod) => ({
+      id: mod.name as ForgeArea,
+      label: mod.navLabel ?? mod.name,
+      items: mod.nav,
+      activeId: area === mod.name ? (mod.name === 'crm' ? crmView : analyticsView) : null,
+    }));
 
   return (
     <div className="forge-shell">
@@ -92,7 +98,7 @@ export default function WorkspaceChrome({ children }: { children: ReactNode }) {
 
       {/* Mobile: fixed bottom navigation for the active area's views. */}
       <nav className="forge-bottom-nav" aria-label="Primary views">
-        {(isCrm ? CRM_NAV : ANALYTICS_NAV).map((item) => {
+        {(NAV_MODULES.find((mod) => mod.name === area)?.nav ?? []).map((item) => {
           const activeId = isCrm ? crmView : analyticsView;
           return (
             <Link
