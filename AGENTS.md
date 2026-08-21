@@ -59,7 +59,7 @@ The code is carved into core and modules. These rules are enforced by an ESLint 
 - `src/modules/`, one folder per module plus `registry.ts` (see Platform structure above).
 - `src/app/` and `src/components/`, Next.js routes and UI shells.
 - `public/`, PWA icons and service worker. Do not cache authenticated pages or API responses.
-- `db/`, Postgres schema (idempotent, applied by `npm run db:migrate`).
+- `db/`, Postgres schema as ordered migrations in `db/migrations/`, applied by `npm run db:migrate`. Every schema change is a new `NNNN_lower_snake_case.sql` file, applied exactly once and recorded in `schema_migrations`. Never edit a migration that has already been applied — add a new one.
 - `scripts/`, migration, sync, standalone-build, and retired local wrappers.
 - `plans/`, product planning artifacts. `plans/PLATFORM.md` is the platform contract and build order; `plans/forge-platform-architecture.html` is the team explainer; `plans/ROADMAP.md` is the analytics-era roadmap kept for context.
 - `spikes/`, throwaway experiments (currently `voice-call/`), excluded from the app build.
