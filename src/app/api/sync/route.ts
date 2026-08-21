@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { runSync } from '@/modules/analytics/sync';
-import { verifyToken, SESSION_COOKIE } from '@/core/auth';
+import { getSessionUser } from '@/core/session';
 import { authorizeApiClient } from '@/core/api-auth';
 import { env } from '@/core/env';
 
@@ -13,9 +13,10 @@ async function authorize(req: NextRequest): Promise<
   | { ok: true; trigger: string }
   | { ok: false; status: 401 | 403 | 500; error: string }
 > {
-  // 1) Logged-in dashboard user (manual "Refresh now" button).
-  const token = req.cookies.get(SESSION_COOKIE)?.value;
-  if (await verifyToken(token, env.authSecret())) return { ok: true, trigger: 'manual' };
+  // 1) Logged-in dashboard user (manual "Refresh now" button). The trigger
+  //    names the acting user so sync_runs rows are attributable.
+  const user = await getSessionUser(req);
+  if (user) return { ok: true, trigger: `manual:${user.email}` };
 
   // 2) Identified machine client with the explicit sync scope.
   if (req.headers.has('x-pillexis-client-id')) {

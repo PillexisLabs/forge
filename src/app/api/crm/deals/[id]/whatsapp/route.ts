@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { SESSION_COOKIE, verifyToken } from '@/core/auth';
+import { getSessionUser } from '@/core/session';
 import {
   configureCrmWhatsApp,
   isWhatsAppConsentStatus,
@@ -11,7 +11,6 @@ import { processDueRows } from '@/modules/whatsapp/whatsapp-worker-core';
 export const runtime = 'nodejs';
 import type { WhatsAppWorkflowAction } from '@/modules/whatsapp/crm-whatsapp-rules';
 import { updateCrmDeal } from '@/modules/crm/crm-data';
-import { env } from '@/core/env';
 
 const ACTIONS: WhatsAppWorkflowAction[] = [
   'start',
@@ -23,10 +22,6 @@ const ACTIONS: WhatsAppWorkflowAction[] = [
   'no_show',
   'pause',
 ];
-
-async function isAuthenticated(request: NextRequest) {
-  return verifyToken(request.cookies.get(SESSION_COOKIE)?.value, env.authSecret());
-}
 
 function validDealId(value: string) {
   const id = Number(value);
@@ -50,7 +45,8 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } },
 ) {
-  if (!(await isAuthenticated(request))) {
+  const user = await getSessionUser(request);
+  if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -71,7 +67,7 @@ export async function PATCH(
     : typeof body.primaryPhone === 'string'
       ? body.primaryPhone.trim() || null
       : null;
-  const actor = typeof body.actor === 'string' ? body.actor : 'Founder';
+  const actor = user.name;
 
   try {
     await updateCrmDeal({ id: dealId, primaryPhone, actor });
@@ -92,7 +88,8 @@ export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } },
 ) {
-  if (!(await isAuthenticated(request))) {
+  const user = await getSessionUser(request);
+  if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -121,7 +118,7 @@ export async function POST(
     await transitionCrmWhatsApp({
       dealId,
       action: body.action,
-      actor: typeof body.actor === 'string' ? body.actor : 'Founder',
+      actor: user.name,
       handoffReason: typeof body.handoffReason === 'string' ? body.handoffReason : undefined,
     });
     return NextResponse.json({ ok: true });

@@ -23,6 +23,7 @@
   "dependencies": {
     "@google-analytics/data": "^4.7.0",
     "@tremor/react": "^3.18.7",
+    "bcryptjs": "^3.0.3",
     "date-fns": "^3.6.0",
     "eslint-config-next": "^14.2.35",
     "next": "^14.2.35",

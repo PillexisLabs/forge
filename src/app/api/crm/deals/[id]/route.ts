@@ -1,17 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { SESSION_COOKIE, verifyToken } from '@/core/auth';
+import { getSessionUser } from '@/core/session';
 import { isCrmOwner, isCrmStage, updateCrmDeal } from '@/modules/crm/crm-data';
-import { env } from '@/core/env';
 
-async function isAuthenticated(request: NextRequest) {
-  return verifyToken(request.cookies.get(SESSION_COOKIE)?.value, env.authSecret());
-}
+export const runtime = 'nodejs';
 
 export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } },
 ) {
-  if (!(await isAuthenticated(request))) {
+  const user = await getSessionUser(request);
+  if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -35,7 +33,7 @@ export async function PATCH(
       nextAction: body.nextAction === undefined ? undefined : String(body.nextAction).trim() || null,
       nextActionDueAt: body.nextActionDueAt === undefined ? undefined : String(body.nextActionDueAt).trim() || null,
       primaryPhone: body.primaryPhone === undefined ? undefined : String(body.primaryPhone).trim() || null,
-      actor: typeof body.actor === 'string' ? body.actor : 'Founder',
+      actor: user.name,
     });
     return NextResponse.json({ ok: true });
   } catch (error) {

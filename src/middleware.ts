@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { verifyToken, SESSION_COOKIE } from './core/auth';
+import { verifySessionToken, SESSION_COOKIE } from './core/auth';
 
 // API routes authenticate themselves and must return JSON errors rather than
 // being redirected to the dashboard login page.
@@ -24,9 +24,12 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
+  // Stateless check only (signature + expiry) — Edge cannot reach Postgres.
+  // The Node layer (src/core/session.ts) re-checks the user row on every
+  // request that acts: status, session_version, existence.
   const token = req.cookies.get(SESSION_COOKIE)?.value;
-  const ok = await verifyToken(token, process.env.AUTH_SECRET ?? '');
-  if (!ok) {
+  const claims = await verifySessionToken(token, process.env.AUTH_SECRET ?? '');
+  if (!claims) {
     const url = req.nextUrl.clone();
     url.pathname = '/login';
     return NextResponse.redirect(url);

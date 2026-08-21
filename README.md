@@ -111,7 +111,7 @@ Railway's current docs support deploying a Next.js app from GitHub, wiring a Pos
 - Add a reference variable for `DATABASE_URL` from the Postgres service to the web service.
 - Set these variables on the web service:
   - `DATABASE_SSL=disable` for Railway private-network Postgres
-  - `DASHBOARD_PASSWORD`
+  - `SEED_ADMIN_EMAIL` and `SEED_ADMIN_PASSWORD` (first deploy only — they create the admin on the first login; remove them after)
   - `AUTH_SECRET`
   - `SYNC_SECRET`
   - `API_CLIENTS_JSON`
@@ -263,8 +263,8 @@ migrations are immutable, so a change to a shipped file fails the run.
 |-----|-------|
 | `DATABASE_URL` | `postgres://postgres:pillexis@localhost:5433/pillexis_analytics` (local Docker) |
 | `DATABASE_SSL` | `disable` for local Postgres |
-| `DASHBOARD_PASSWORD` | dashboard login |
-| `AUTH_SECRET` | signs the login cookie (`openssl rand -hex 32`) |
+| `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` | first-run bootstrap: creates the admin user on the first login when the `users` table is empty; a no-op after that, so remove them once the admin exists |
+| `AUTH_SECRET` | signs the login cookie (`openssl rand -hex 32`); sessions carry the user id + session version and expire after 30 days |
 | `SYNC_SECRET` | protects `/api/sync` for cron/manual automation |
 | `API_CLIENTS_JSON` | identified machine clients with `analytics:read` and/or `analytics:sync` scopes |
 | `GA4_PROPERTY_ID` | numeric property ID `543367139` (not the `G-…` measurement ID) |
