@@ -227,19 +227,31 @@ completed, opted-out lead skipped with reason, second pass fully
 idempotent. The realtime audio bridge stays in `spikes/voice-call/`
 until its 1.2 s/turn latency test passes with real keys.
 
+**Staging verified after the RBAC + voice merges (2026-08-21 evening):**
+PRs 3, 4, 5, 6, and 7 are merged; deploy `5e67c81` SUCCESS. The deploy
+log shows `0003_voice_calls.sql` applied (0001/0002 were adopted by the
+earlier PR 5 deploy). Live checks: health 200, anonymous request
+redirects to /login, off-domain login 401, the seeded
+`anurag@pillexislabs.com` admin logged in (200), Settings → Users
+renders the admin row, and the analytics dashboard renders. The
+consumed `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` vars were removed
+from Railway staging; `DASHBOARD_PASSWORD` is deleted. Production still
+runs the old shared password until this reaches `master` — set the two
+seed vars on the production `forge` service before promoting.
+
 **Next steps, in order:**
 
-1. Anurag: merge PR 3 (review PR 4 while there); add the WhatsApp number
-   field to the Cal booking form; register the Cal → Forge production
-   webhook (commands in `plans/WHATSAPP_PRODUCTION_SETUP.md`); create the
-   Twilio and Sarvam accounts and put the keys in `../keys/.env` per
-   `spikes/voice-call/README.md`.
+1. Anurag: add the WhatsApp number field to the Cal booking form;
+   register the Cal → Forge production webhook (commands in
+   `plans/WHATSAPP_PRODUCTION_SETUP.md`); create the Twilio and Sarvam
+   accounts and put the keys in `../keys/.env` per
+   `spikes/voice-call/README.md`; create Priyanka's account in
+   Settings → Users on staging.
 2. Build and run the CRM backfill script against production
    (`plans/CRM_BACKFILL.md`), then hand-set the judgment stages.
-3. RBAC PR A (users + sessions) and PR B (permission guards) per
-   `plans/RBAC.md`.
-4. Run the voice spike; pass = under 1.2 s per turn. Not blocked by RBAC.
-5. Build `src/modules/voice/` on the event spine → sets the Milap demo
-   date.
-6. Then: lead-qual split, `/docs` route, demo workspace, Foundry
+3. Run the voice spike; pass = under 1.2 s per turn.
+4. Wire the media-stream bridge from the passing spike into
+   `src/modules/voice/` (`recordCallResult()` is the seam) → sets the
+   Milap demo date.
+5. Then: lead-qual split, `/docs` route, demo workspace, Foundry
    (order in `plans/PLATFORM.md` section 10).
