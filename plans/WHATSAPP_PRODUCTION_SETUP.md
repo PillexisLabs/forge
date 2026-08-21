@@ -1,6 +1,11 @@
 # WhatsApp production setup and the demand behind it
 
-**Last verified: 2026-08-09** against the Meta Graph API with the `forge-bot` token.
+**Last verified: 2026-08-16** against the Meta Graph API with the `forge-bot` token.
+
+> **STATUS (2026-08-16): the production number sends.** All Meta-side setup is
+> complete and the code is live in production. Two Cal.com steps remain before
+> the pipeline runs end to end. See "Progress log" at the bottom of this file
+> for the full record and the exact remaining commands.
 
 Two things in one document: **why** Pillexis is building WhatsApp automation, and **exactly where
 the production number setup stands**. The second half is a live checklist, so update it as items
@@ -111,34 +116,33 @@ there is a bespoke system to connect to, or nobody to do the work.
 | Token | system user **`forge-bot`**, app id `1057833646896359` | never expires. Scopes: `whatsapp_business_management`, `whatsapp_business_messaging` |
 | Graph version | `v23.0` (`META_GRAPH_VERSION` in `forge/.env`) | |
 
-### Blockers, in order
+### Blockers — ALL CLEARED (2026-08-10 to 2026-08-12)
 
-**1. `forge-bot` has no access to the production WABA.** Confirmed: a Graph call to
-`4407182709496656` returns `GraphMethodException` code 100 subcode 33. The system user is only
-assigned to the Test WABA. Until this is fixed nothing about the production number can be read or
-managed programmatically.
+The seven blockers from the 2026-08-09 audit are resolved. Kept for the record:
 
-Fix: Business settings, Users, System users, `forge-bot`, Add assets, WhatsApp accounts, Pillexis
-Labs, full control.
-
-**2. The WABA is listed as `WhatsApp Business App`, not Cloud API.** The number is attached to the
-WhatsApp Business phone app. A number lives in one place at a time, so it cannot serve the Cloud
-API until it is deregistered from the app and added under WhatsApp Manager, API Setup, with SMS
-verification and a 6 digit PIN.
-
-**3. No payment method on the WABA.** Meta bills per message. Template sends will fail without it.
-
-**4. No templates yet.** Five are needed to match what the worker already sends: booking
-confirmation, silence nudge, 24 hour reminder, attendance check, reschedule offer. Template bodies
-must match the implemented copy exactly, so approval does not silently change what the code sends.
-
-**5. Forge still points at the test number.** `WHATSAPP_PHONE_NUMBER_ID` in `forge/.env` is
-`1157420147464982`. Must change in `.env` **and** in Railway production.
-
-**6. Webhook.** Point at `https://forge-production-fc70.up.railway.app/api/whatsapp/webhook` and
-subscribe to `messages`. Signature verification is already implemented.
-
-**7. Send one test message** to a founder number before using it on a call.
+1. ~~`forge-bot` has no access to the production WABA~~ — **cleared 2026-08-10.** Assigned
+   full control on both WABAs in Business settings.
+2. ~~Number attached to the WhatsApp Business phone app~~ — **moot.** By 2026-08-10 the
+   number already showed `platform_type: CLOUD_API` and turned out to be registered and
+   able to send. The `code_verification_status: NOT_VERIFIED` flag persists but does not
+   block sending; `request_code` returns error 136024 permanently, which is what Meta
+   returns for an already-registered number. Do not chase verification again.
+3. ~~No payment method~~ — **cleared 2026-08-12.** Added on the `Pillexis Labs` WABA row.
+4. ~~No templates~~ — **cleared 2026-08-10.** All five approved within minutes:
+   `pillexis_booking_confirmation`, `pillexis_silence_nudge`, `pillexis_call_reminder_24h`,
+   `pillexis_attendance_check`, `pillexis_no_show_reschedule` (category UTILITY, language `en`).
+5. ~~Forge points at the test number~~ — **cleared 2026-08-10.** Production Railway has the
+   full env block: `WHATSAPP_PHONE_NUMBER_ID=1242052502320950`, `WHATSAPP_USE_TEMPLATES=1`,
+   `WHATSAPP_WORKER_INLINE=1`, `WHATSAPP_APP_SECRET`, `CAL_WEBHOOK_SECRET`, token, verify
+   token, graph version. Staging keeps the test number and free-form sends.
+6. ~~Webhook~~ — **cleared 2026-08-12.** App callback verified at
+   `https://forge.pillexislabs.com/api/whatsapp/webhook` with the `messages` field
+   subscribed (plus template-status fields), the WABA subscribed to the app
+   (`subscribed_apps` returned success), and the app **published (Live mode)** — required
+   for production webhook delivery. Privacy and terms pages were shipped to the website
+   for the publish requirements (`pillexislabs.com/privacy`, `/terms`).
+7. ~~Send one test message~~ — **cleared 2026-08-12.** `send-test` delivered the reminder
+   template from +91 63649 37775 to the founder's phone (918967265150), confirmed on screen.
 
 ### Verification commands
 
@@ -194,3 +198,70 @@ Not a dashboard. Mid call: *"message this number right now."* The prospect Whats
 watches themselves get greeted, qualified and booked in the thread they are already looking at.
 That needs zero fixture data and no screenshot competes with it. It is also the reason the
 production number is the top priority rather than the fifth.
+
+---
+
+## Progress log (2026-08-10 → 2026-08-16)
+
+### What shipped in code (commit `909a6ff`, on `master`, deployed)
+
+- **Template sending.** Every automated send carries its approved template name and
+  parameters (`DueSend.template` in `crm-whatsapp-rules.ts`). With `WHATSAPP_USE_TEMPLATES=1`
+  (production) the worker sends templates, so messages deliver outside the 24 hour window.
+  Staging keeps free-form text on the test number. A test pins each workflow state to its
+  template name so code and Meta cannot drift.
+- **Cal.com intake.** New public endpoint `POST /api/cal/webhook` (`crm-cal-intake.ts`):
+  verifies the Cal HMAC signature, matches or creates the contact by email, reuses an open
+  deal or creates one (`intro_call_booked`, owner anurag), records the booking in
+  `crm_bookings` (idempotent on the Cal uid), stores form answers as qualification data,
+  and when the form includes a phone number it grants consent and queues the WhatsApp
+  confirmation automatically.
+- **Ops scripts.** `scripts/whatsapp-production-setup.sh` (status, templates, verify,
+  subscribe-app, send-test) and `scripts/whatsapp-production-cutover.sh` (railway-vars,
+  cal-webhook, test-booking). Legal pages committed to the website repo (`e2653f1`).
+
+### Decisions made along the way
+
+- **Production URL is `https://forge.pillexislabs.com`** everywhere (custom domain), not
+  the Railway-generated URL.
+- **Display name / username / profile picture** on the number are unpolished. The Edit
+  buttons appeared dead in the founder's browser — likely the ad blocker; retry in
+  incognito. Display name changes go through Meta review; the profile picture and
+  description can be set via the business profile API instead.
+- **Cal booking limits** set on the intro-call event: max 2 bookings per day, 2 hours
+  minimum notice. Cal enforces the daily cap on all future dates, including days that
+  already exceed it.
+- **Do not hard-block leads who answer "No" to paid discovery.** Cal booking questions
+  have no branching. The chosen approach: keep the required select, let Forge flag "No"
+  answers via the qualification data, decide per lead. Revisit a Cal Routing Form or an
+  in-house pre-qualification form only if data shows wasted calls (decision 2026-08-12,
+  full trade-off discussion in the session; in-house form impacts Pixel events,
+  fbc/fbp forwarding, CAPI dedup, and this intake webhook).
+
+### Remaining to go live end to end (as of 2026-08-16)
+
+1. **Cal booking form: WhatsApp number field.** Enable the built-in Phone field on the
+   intro-call event: label `WhatsApp number`, required, helper text saying confirmations
+   and reminders arrive there. The intake reads `attendee.phoneNumber` first. (May already
+   be done in the UI — the API key could not read the event's fields to confirm.)
+2. **Register the Cal → Forge webhook** (confirmed NOT registered as of 2026-08-16):
+   `scripts/whatsapp-production-cutover.sh cal-webhook https://forge.pillexislabs.com/api/cal/webhook`
+3. **End-to-end test:**
+   `scripts/whatsapp-production-cutover.sh test-booking https://forge.pillexislabs.com "$(cat ../keys/cal-webhook-secret-forge.txt)" 918967265150`
+   Expected: `ok:true` + lead in the production CRM + confirmation template on the phone.
+   Then reply "confirm" to test the inbound leg (webhook → classify → state move → ack).
+   Delete the Test Founder lead afterwards.
+4. **Optional polish:** number profile picture (brand logomark) and description; footer
+   links to /privacy and /terms on the website; Meta review of a display-name change if
+   the current name needs changing.
+
+### Gotchas worth remembering
+
+- `request_code` error **136024** on this number = already registered. Not a throttle. Stop.
+- Sending **to the production number itself** returns `(#100) Invalid parameter`.
+- The **WABA-level** `subscribed_apps` call is separate from the app-dashboard webhook
+  config; both are required for inbound delivery, plus the app must be **published**.
+- Cal.com signs webhooks with a plain hex HMAC (no `sha256=` prefix), header
+  `x-cal-signature-256`.
+- The Cal API key in `keys/.env` cannot list webhooks created in the Cal UI (scope) — a
+  "none" listing does not prove the website CAPI webhook is gone.

@@ -241,17 +241,21 @@ How the platform work changes it:
    Emit `booking.created`, `lead.replied` (inbound WhatsApp), and sync
    completion.
 3. [x] PR 3 — manifests per module. Build nav from manifests.
-4. [ ] Voice spike (throwaway): one AI call to our own phone on the
+4. [ ] **RBAC** (decided 2026-08-20, top priority): users, roles, and
+   per-module permissions. Full plan in `plans/RBAC.md`. Lands after
+   PR 3, before the voice module.
+5. [ ] Voice spike (throwaway): one AI call to our own phone on the
    Twilio + Sarvam stack. Pass: latency under 1.2 s and demo quality.
-5. [ ] `src/modules/voice/` on the event spine.
-6. [ ] Split lead-qual out of crm.
-7. [ ] `/docs` route (decided 2026-08-20, resequenced 2026-08-20 to
+   Not blocked by RBAC; runs as soon as the keys exist.
+6. [ ] `src/modules/voice/` on the event spine.
+7. [ ] Split lead-qual out of crm.
+8. [ ] `/docs` route (decided 2026-08-20, resequenced 2026-08-20 to
    after the module work). Forge renders the repo's `docs/` folder
    behind the existing login. Docs get changed on GitHub and read in
    Forge; every client copy ships with the docs viewer.
-8. [ ] Demo workspace: seed data for three fake businesses, reset button,
+9. [ ] Demo workspace: seed data for three fake businesses, reset button,
    own staging deployment.
-9. [ ] Foundry scaffolder, only after one or two client copies were cut by
+10. [ ] Foundry scaffolder, only after one or two client copies were cut by
    hand.
 
 ### File moves for PR 1

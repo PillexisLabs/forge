@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
-import { getSql } from '../src/lib/db';
+import { getSql } from '../src/core/db';
 
 function parseCsv(input: string): Record<string, string>[] {
   const rows: string[][] = [];

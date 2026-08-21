@@ -1,5 +1,5 @@
-import { getSql } from '../src/lib/db';
-import { env } from '../src/lib/env';
+import { getSql } from '../src/core/db';
+import { env } from '../src/core/env';
 
 type Transcript = {
   id: string;

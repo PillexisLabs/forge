@@ -1,6 +1,15 @@
 # Forge
 
-An internal dashboard that pulls **Google Analytics 4** and **Meta Ads** daily and joins
+The Pillexis delivery platform: reusable modules (analytics, CRM + lead pipeline,
+WhatsApp automation, AI voice calling next) built on a shared core, demoed live on
+sales calls, and copied into client repositories on engagement. The contract and
+build order live in `plans/PLATFORM.md`; the team explainer is
+`plans/forge-platform-architecture.html`. Code layout: `src/core/` (shared
+foundation and the event bus) + `src/modules/<name>/` (one folder per module,
+no cross-module imports — enforced by ESLint).
+
+The first module is the analytics dashboard this repo started as: it pulls
+**Google Analytics 4** and **Meta Ads** daily and joins
 them on the one metric that matters: **cost per booked call** (the `Schedule` conversion).
 It doesn't just chart numbers — a rule-based insights engine tells you *what's converting,
 where the funnel leaks, and what to do next.*
@@ -62,7 +71,7 @@ Both environments contain `forge`, `forge-sync`, and Postgres services. Their de
 | **Sync** | History of every sync run — status, trigger, duration, expandable errors |
 
 **Analysis & UX:**
-- **Insights engine** (`src/lib/insights.ts`) — prioritized plain-English findings (critical → warning → good → info), each with a "→ Do" action. Detects spend-with-no-conversions, the worst funnel leak, best/worst ads, CTR health, click→session drop-off, and range trends.
+- **Insights engine** (`src/modules/analytics/insights.ts`) — prioritized plain-English findings (critical → warning → good → info), each with a "→ Do" action. Detects spend-with-no-conversions, the worst funnel leak, best/worst ads, CTR health, click→session drop-off, and range trends.
 - **KPI cards** — Cost per booked call, Session→booking rate, Ad spend, Book-call intent — each with **period-over-period delta** badges (vs the previous equal-length range).
 - **Date range** — Last 7 / 30 / 90 days + custom; everything (KPIs, funnel, tables, insights) recomputes for the range. State lives in the URL (`?from=&to=`).
 - **Responsive dashboard** — mobile uses a 2 by 2 KPI grid, compact insights, and stacked Ads and Traffic metric cards instead of compressed tables. Custom date inputs stay collapsed until requested.
@@ -278,7 +287,7 @@ If setting this up on a fresh machine:
 
 ## Troubleshooting
 
-- **Meta `Schedule` reads 0.** Meta returns conversions under several alias `action_type`s; `src/lib/meta.ts` reads the canonical pixel types (`offsite_conversion.fb_pixel_schedule` / `_initiate_checkout`) to avoid double-counting. If your pixel uses a different event name, log the raw `actions` array and adjust.
+- **Meta `Schedule` reads 0.** Meta returns conversions under several alias `action_type`s; `src/modules/analytics/meta.ts` reads the canonical pixel types (`offsite_conversion.fb_pixel_schedule` / `_initiate_checkout`) to avoid double-counting. If your pixel uses a different event name, log the raw `actions` array and adjust.
 - **GA returns nothing / one day only.** Confirm the service account is a Viewer and `GA4_PROPERTY_ID` is numeric. Note: as of this writing GA only reports site traffic from 2026-06-26 — see `PROGRESS.md` (likely the GA tag's install date, or ads pointing to WhatsApp not the site).
 - **Cron syncs are skipped on Railway.** Railway cron services must exit cleanly after the task finishes. Use `npm run sync -- 8` as the cron start command, not `npm run start`.
 - **Refresh writes zeros.** Check the service env. `/api/sync` needs the same secrets as the main app, especially the Meta token and `DATABASE_URL`.

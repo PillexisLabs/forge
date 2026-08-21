@@ -7,7 +7,7 @@ import {
   resolveDueSend,
   resolveWhatsAppTransition,
   whatsAppTransitionError,
-} from '../src/lib/crm-whatsapp-rules';
+} from '../src/modules/whatsapp/crm-whatsapp-rules';
 
 test('starting a WhatsApp workflow queues confirmation immediately', () => {
   const now = new Date('2026-07-30T12:00:00.000Z');

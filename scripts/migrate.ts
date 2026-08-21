@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { getSql } from '../src/lib/db';
+import { getSql } from '../src/core/db';
 
 async function main() {
   const __filename = fileURLToPath(import.meta.url);

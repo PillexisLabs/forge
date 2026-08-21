@@ -1,16 +1,17 @@
 # Progress & Changelog
 
 Running log of what's built, what's known-broken, and what's next.
-_Last updated: 2026-07-31._
+_Last updated: 2026-08-21._
 
 ## Current state
 
-- Railway production is live at `https://forge-production-fc70.up.railway.app` from `master`.
+- Railway production is live at `https://forge.pillexislabs.com` from `master` (Railway fallback URL: `forge-production-fc70.up.railway.app`).
 - Railway staging is live at `https://forge-staging-7d05.up.railway.app` from `staging` and is the default environment for ongoing work.
 - Each environment has isolated `forge`, `forge-sync`, and Postgres services. The web service runs schema migration before deploy and uses `/api/health`; the sync service runs daily at 07:00 IST.
 - The local analytics server and sync launchd jobs are retired. Their disabled definitions are archived under `../archive/launchd/`; Railway is the only scheduled runtime.
 - Staging has eight days of Meta data for `act_1705074640527431`; authenticated API reads return that data. GA remains deferred until valid service-account JSON is configured.
 - Production data was backfilled through 2026-07-19 and the dashboard reports the selected range independently from the number of days containing data.
+- Production has a dedicated `codex` machine client with `analytics:read` scope. The matching secret is stored only in `../keys/analytics-api-clients.json`, alongside the separate staging client. A live production request returned HTTP 200 on 2026-08-06.
 
 ## Built so far
 
@@ -25,7 +26,7 @@ _Last updated: 2026-07-31._
 - Fixed server-side Meta account targeting and `api_request_log` access auditing.
 
 **Analysis layer**
-- `src/lib/insights.ts` — rule-based "What's happening" findings with severity + a "→ Do" action (spend-with-no-conversions, biggest funnel leak, best/worst ad, CTR health, click→session drop, range trend).
+- `src/modules/analytics/insights.ts` — rule-based "What's happening" findings with severity + a "→ Do" action (spend-with-no-conversions, biggest funnel leak, best/worst ad, CTR health, click→session drop, range trend).
 - Conversion funnel with the worst-leaking stage highlighted.
 - KPI cards: Cost per booked call, Session→booking rate, Ad spend, Book-call intent.
 
@@ -74,3 +75,115 @@ _Last updated: 2026-07-31._
 - **Campaign-level rollup in Ads** — MEDIUM. Group ads under campaign totals before per-ad rows. Data already present.
 - **Active view in the URL** (`?view=ads`) — nice-to-have, makes views bookmarkable / survive refresh.
 - **Bookings trendline on the chart** — LOW, deferred until bookings are a regular occurrence.
+
+## Added 2026-08-07
+
+Four items were added to the top of `plans/ROADMAP.md` after reviewing the Fireflies sales
+corpus, Cal bookings, and Meta performance together: production WhatsApp sender, trigger
+abstraction for inbound leads, demo scope in production, and deal amount plus source
+attribution. See the Execution order table there.
+
+The finding driving them: **52 Cal bookings and 34 Meta Schedules have produced one closed deal
+at ₹30,000.** Forge currently measures cost per booked call and has no revenue field, so the
+first paying customer is unattributable. WhatsApp is raised by the prospect in 10 of 17
+transcribed accounts, and six describe the same entry point the built workflow does not yet
+support: a paid ad click landing directly in WhatsApp with no booking object.
+
+## Platform era — 2026-08-20
+
+Forge became the delivery platform. The contract is `plans/PLATFORM.md`;
+the team explainer is `plans/forge-platform-architecture.html`. The repo
+moved to the `PillexisLabs` GitHub organization on 2026-08-18.
+
+**Shipped today (all on `staging`):**
+
+- **PR 1 — the carve** (merged). `src/lib/` is gone: shared code moved to
+  `src/core/`, capability code to `src/modules/{analytics,whatsapp,crm}/`.
+  An ESLint boundary rule makes any module-to-module import (and any
+  core-to-module import) a build error. `crm-types.ts` went to core, not
+  crm — it holds shared deal, stage, and WhatsApp workflow types.
+  - Fix-up commit `6dc96be`: the PR 1 commit staged only `src/`, so the
+    import rewrites in `scripts/` and `tests/` were missed. Local builds
+    passed on the working tree while the Railway build failed. Lesson:
+    after a repo-wide refactor, verify the committed tree
+    (`git grep 'src/lib' HEAD`), not the working tree.
+- **PR 2 — the event spine** (merged). `events` outbox + `event_cursors`
+  tables (already applied to the staging database), `src/core/events.ts`
+  with `emitEvent()` / `consumeEvents()` (at-least-once, per-consumer
+  cursor under a row lock). Live emitters: `booking.created` (Cal intake,
+  same transaction), `lead.replied` (inbound WhatsApp), `sync.completed`
+  (analytics sync). First consumer: the whatsapp worker consumes
+  `booking.created` and starts the confirmation workflow — the last
+  cross-module import is gone. Behavior note: the confirmation now starts
+  on the next worker pass (up to ~1 minute) instead of inside the webhook.
+- **PR 3 — manifests** (open: PillexisLabs/forge#3). One `manifest.ts` per
+  module (name, version, nav, events in/out, config keys);
+  `src/modules/registry.ts` is the composition root; the sidebar and
+  mobile nav build from the registry. Rendered nav unchanged.
+- **Voice spike** (`spikes/voice-call/`, committed, excluded from the app
+  build). One outbound AI call: Twilio Media Streams ↔ Sarvam STT → LLM →
+  TTS in Hinglish. Prints per-turn latency PASS/FAIL against the 1.2 s
+  budget and the transcript on hangup. Blocked on credentials only.
+
+**Infrastructure note:** Railway had a platform incident today (Google
+Cloud upstream) — deployments were paused/queued for hours. The deploy
+triggers themselves are correctly configured post-transfer.
+
+**Next steps, in order:** superseded by the 2026-08-21 list below.
+(Done from the old list: staging verified 2026-08-20 23:05 IST — deploy
+SUCCESS, events tables migrated, inline worker started, booking consumer
+cursor created, health/login/analytics all 200.)
+
+## Added 2026-08-21
+
+**CRM and analytics UI fixes** (commit `39e7f85`, deployed to staging,
+build SUCCESS):
+
+- Every tall list and table now scrolls inside its own panel instead of
+  the page: Today queue, follow-up groups, pipeline columns, ads and
+  traffic tables (sticky headers), sync log. Mobile keeps page scroll.
+- The table toolbar groups the stage filter and search on the right; the
+  left side is reserved for future bulk-select actions.
+- Removed the "N leads, M calls recorded" header line (same numbers on
+  every view, read as placeholder data) and the Pipeline health panel on
+  Today (it repeated the four stat chips).
+- Fixed the stat chips not recomputing on the All/Live/Demo scope toggle.
+
+**Two new plans** (commit `3cf05a6`):
+
+- `plans/RBAC.md` — roles and permissions, **top priority** by decision
+  on 2026-08-20. Today any valid session grants everything. Plan: three
+  roles (admin/member/viewer) + per-user module allowlist + permission
+  strings checked at the route. Two PRs; lands after PR 3, before the
+  voice module. Also added to the `PLATFORM.md` checklist as item 4.
+- `plans/CRM_BACKFILL.md` — replay the Cal.com bookings into the
+  **production** CRM and attach Fireflies summaries. Verified via both
+  APIs on 2026-08-20: 78 intro-call bookings (74 unique emails, 66 past
+  accepted, 8+ upcoming, 37 in July and 37 in August — the pipeline is
+  active), 50 with a matched Fireflies recording, **zero bookings carry
+  a phone number** (the WhatsApp form field is still missing). Both CRM
+  databases are empty of real leads today.
+- Standing rule recorded with the backfill plan: **staging never
+  receives real data values.** Fixtures only; data-writing scripts must
+  refuse non-production targets.
+
+**Open PRs:** #3 (manifests) and #4 — an external contribution from
+`asliashutosh` adding a migration runner, opened 2026-08-20. Both need
+Anurag's review.
+
+**Next steps, in order:**
+
+1. Anurag: merge PR 3 (review PR 4 while there); add the WhatsApp number
+   field to the Cal booking form; register the Cal → Forge production
+   webhook (commands in `plans/WHATSAPP_PRODUCTION_SETUP.md`); create the
+   Twilio and Sarvam accounts and put the keys in `../keys/.env` per
+   `spikes/voice-call/README.md`.
+2. Build and run the CRM backfill script against production
+   (`plans/CRM_BACKFILL.md`), then hand-set the judgment stages.
+3. RBAC PR A (users + sessions) and PR B (permission guards) per
+   `plans/RBAC.md`.
+4. Run the voice spike; pass = under 1.2 s per turn. Not blocked by RBAC.
+5. Build `src/modules/voice/` on the event spine → sets the Milap demo
+   date.
+6. Then: lead-qual split, `/docs` route, demo workspace, Foundry
+   (order in `plans/PLATFORM.md` section 10).

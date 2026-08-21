@@ -340,8 +340,7 @@ function TodayView({
         ))}
       </section>
 
-      <div className="crm-today-grid">
-        <UiPanel className="crm-panel">
+      <UiPanel className="crm-panel">
           <UiPanelHeader
             className="crm-panel-heading"
             title="Follow up now"
@@ -379,32 +378,6 @@ function TodayView({
             )}
           </div>
         </UiPanel>
-
-        <UiPanel as="aside" className="crm-panel">
-          <UiPanelHeader
-            className="crm-panel-heading"
-            title="Pipeline health"
-            description="The gaps founders need to close."
-          />
-          <dl className="crm-health-list">
-            <div>
-              <dt>Ownership missing</dt>
-              <dd>{counts.unassigned}</dd>
-              <p>Assign every active opportunity.</p>
-            </div>
-            <div>
-              <dt>Next action missing</dt>
-              <dd>{counts.missing}</dd>
-              <p>Add a dated decision or follow up.</p>
-            </div>
-            <div>
-              <dt>Due now</dt>
-              <dd>{counts.overdue + counts.dueToday}</dd>
-              <p>Overdue work plus actions due today.</p>
-            </div>
-          </dl>
-        </UiPanel>
-      </div>
     </>
   );
 }
@@ -585,7 +558,7 @@ export default function CrmDashboard({
       unassigned: active.filter((deal) => deal.owner === 'unassigned').length,
       missing: active.filter((deal) => !deal.next_action || !deal.next_action_due_at).length,
     };
-  }, [initialWorkspace.deals, today]);
+  }, [scopedDeals, today]);
 
   const viewDeals = useMemo(() => {
     if (view === 'today') {
@@ -761,13 +734,9 @@ export default function CrmDashboard({
         description={copy.description}
         tabs={VIEWS}
         activeTab={view}
-        status={
-          <p className="mt-2 text-sm text-[var(--color-muted)]">
-            {scopedDeals.length} leads,{' '}
-            {scopedDeals.reduce((total, deal) => total + deal.meeting_count, 0)} calls recorded
-            {isPending && <span className="crm-saving"> · Updating</span>}
-          </p>
-        }
+        status={isPending
+          ? <p className="mt-2 text-sm text-[var(--color-muted)]"><span className="crm-saving">Updating</span></p>
+          : undefined}
         actions={hasDemoDeals ? (
           <div className="forge-scope-toggle" role="group" aria-label="Data scope">
             {([['all', 'All'], ['live', 'Live'], ['demo', 'Demo']] as const).map(([id, label]) => (

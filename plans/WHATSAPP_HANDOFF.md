@@ -19,35 +19,35 @@ See "What already works" in the setup document.
 
 The gate on every live sales demo. Blockers verified on 2026-08-09.
 
-- [ ] 1. Assign the `forge-bot` system user to the production WABA (`Pillexis Labs`,
+- [x] 1. Assign the `forge-bot` system user to the production WABA (`Pillexis Labs`,
       id `4407182709496656`) with full control. Path: Business settings → Users → System
       users → `forge-bot` → Add assets → WhatsApp accounts.
-- [ ] 2. Move the production number **+91 63649 37775** from the WhatsApp Business phone app
+- [x] 2. Move the production number **+91 63649 37775** from the WhatsApp Business phone app
       to the Cloud API. Deregister it in the phone app first. Then add it under WhatsApp
       Manager → API Setup. This step needs the SMS verification code sent to that number
       and sets a 6 digit two-step PIN. Record the PIN in `keys/`.
-- [ ] 3. Add a payment method to the production WABA. Template sends fail without it.
-- [ ] 4. Create and submit the five message templates. The bodies must match the copy the
+- [x] 3. Add a payment method to the production WABA. Template sends fail without it.
+- [x] 4. Create and submit the five message templates. The bodies must match the copy the
       worker already sends, word for word: booking confirmation, silence nudge, 24 hour
       reminder, attendance check, reschedule offer. Wait for APPROVED status on all five.
-- [ ] 5. Extend the provider module to send template messages when the 24 hour customer
+- [x] 5. Extend the provider module to send template messages when the 24 hour customer
       window is closed, and free-form text when it is open. Today the code sends free-form
       only, which fails with error 131047 outside the window.
-- [ ] 6. Point production Forge at the production number: set `WHATSAPP_PHONE_NUMBER_ID`
+- [x] 6. Point production Forge at the production number: set `WHATSAPP_PHONE_NUMBER_ID`
       (and token if it changes) in Railway **production** variables and in `forge/.env`.
       Staging stays on the test number.
-- [ ] 7. Configure the inbound webhook on the Meta app (`1057833646896359`): callback
-      `https://forge-production-fc70.up.railway.app/api/whatsapp/webhook`, subscribe to
+- [x] 7. Configure the inbound webhook on the Meta app (`1057833646896359`): callback
+      `https://forge.pillexislabs.com/api/whatsapp/webhook`, subscribe to
       `messages`, set the same `WHATSAPP_WEBHOOK_VERIFY_TOKEN` and `WHATSAPP_APP_SECRET`
       in Railway production. Then subscribe the WABA to the app:
       `POST /{waba-id}/subscribed_apps`. Without this call, inbound events do not arrive.
-- [ ] 8. End to end test: send a confirmation to a founder number, reply "confirm", reply
+- [ ] 8. (outbound leg passed 2026-08-12 via send-test; inbound reply + full loop pending) End to end test: send a confirmation to a founder number, reply "confirm", reply
       free-form, reply "stop". Verify each transition and audit row. Only then use the
       number on a sales call.
 
 ### Phase 2: Cal.com intake (part of ROADMAP B)
 
-- [ ] 9. Build the Cal.com `BOOKING_CREATED` webhook receiver in Forge. When a booking
+- [x] 9. Build the Cal.com `BOOKING_CREATED` webhook receiver in Forge. When a booking
       arrives, create or match the CRM lead, store phone and call time, set consent from
       the booking form, and queue the confirmation. Today every lead is entered by hand.
       Note: the website already has a separate Cal webhook for Meta CAPI

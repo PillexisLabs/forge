@@ -47,6 +47,9 @@ const CARD = '!rounded-[var(--radius-card)] !border-[var(--color-rule)] !bg-[var
 const titleCls = '!text-[var(--color-ink)]';
 const labelCls = '!text-[var(--color-muted)]';
 const cellCls = '!text-[var(--color-ink-2)]';
+// Tall tables scroll inside their panel, never the page.
+const tableScrollCls = 'mt-4 hidden md:block max-h-[60vh] overflow-y-auto';
+const stickyHeadCls = 'sticky top-0 z-10 bg-[var(--color-surface)]';
 
 const inr = (v: number | null | undefined) =>
   v == null
@@ -393,15 +396,16 @@ function AdsTable({ ads, rangeTo }: { ads: AdRow[]; rangeTo: string }) {
           );
         })}
       </div>
-      <Table className="mt-4 hidden md:table">
+      <div className={tableScrollCls}>
+      <Table>
       <TableHead>
         <TableRow>
-          <TableHeaderCell className={labelCls}>Ad</TableHeaderCell>
-          <TableHeaderCell className={labelCls}>Campaign</TableHeaderCell>
-          <TableHeaderCell className={`${labelCls} text-right`}>Spend</TableHeaderCell>
-          <TableHeaderCell className={`${labelCls} text-right`}>CTR</TableHeaderCell>
-          <TableHeaderCell className={`${labelCls} text-right`}>Bookings</TableHeaderCell>
-          <TableHeaderCell className={`${labelCls} text-right`}>Cost / booking</TableHeaderCell>
+          <TableHeaderCell className={`${labelCls} ${stickyHeadCls}`}>Ad</TableHeaderCell>
+          <TableHeaderCell className={`${labelCls} ${stickyHeadCls}`}>Campaign</TableHeaderCell>
+          <TableHeaderCell className={`${labelCls} ${stickyHeadCls} text-right`}>Spend</TableHeaderCell>
+          <TableHeaderCell className={`${labelCls} ${stickyHeadCls} text-right`}>CTR</TableHeaderCell>
+          <TableHeaderCell className={`${labelCls} ${stickyHeadCls} text-right`}>Bookings</TableHeaderCell>
+          <TableHeaderCell className={`${labelCls} ${stickyHeadCls} text-right`}>Cost / booking</TableHeaderCell>
         </TableRow>
       </TableHead>
       <TableBody>
@@ -429,6 +433,7 @@ function AdsTable({ ads, rangeTo }: { ads: AdRow[]; rangeTo: string }) {
         })}
       </TableBody>
       </Table>
+      </div>
     </>
   );
 }
@@ -454,14 +459,15 @@ function SourcesTable({ sources }: { sources: SourceRow[] }) {
           );
         })}
       </div>
-      <Table className="mt-4 hidden md:table">
+      <div className={tableScrollCls}>
+      <Table>
       <TableHead>
         <TableRow>
-          <TableHeaderCell className={labelCls}>Source / Medium</TableHeaderCell>
-          <TableHeaderCell className={`${labelCls} text-right`}>Sessions</TableHeaderCell>
-          <TableHeaderCell className={`${labelCls} text-right`}>Book-call clicks</TableHeaderCell>
-          <TableHeaderCell className={`${labelCls} text-right`}>Bookings</TableHeaderCell>
-          <TableHeaderCell className={`${labelCls} text-right`}>Conv. rate</TableHeaderCell>
+          <TableHeaderCell className={`${labelCls} ${stickyHeadCls}`}>Source / Medium</TableHeaderCell>
+          <TableHeaderCell className={`${labelCls} ${stickyHeadCls} text-right`}>Sessions</TableHeaderCell>
+          <TableHeaderCell className={`${labelCls} ${stickyHeadCls} text-right`}>Book-call clicks</TableHeaderCell>
+          <TableHeaderCell className={`${labelCls} ${stickyHeadCls} text-right`}>Bookings</TableHeaderCell>
+          <TableHeaderCell className={`${labelCls} ${stickyHeadCls} text-right`}>Conv. rate</TableHeaderCell>
         </TableRow>
       </TableHead>
       <TableBody>
@@ -483,6 +489,7 @@ function SourcesTable({ sources }: { sources: SourceRow[] }) {
         })}
       </TableBody>
       </Table>
+      </div>
     </>
   );
 }
@@ -491,7 +498,7 @@ function SyncLog({ runs }: { runs: SyncRunRow[] }) {
   const [open, setOpen] = useState<number | null>(null);
   if (runs.length === 0) return <Text className="mt-2 !text-[var(--color-muted)]">No sync runs recorded yet.</Text>;
   return (
-    <div className="mt-4 divide-y divide-[var(--color-rule)]">
+    <div className="mt-4 max-h-[60vh] divide-y divide-[var(--color-rule)] overflow-y-auto">
       {runs.map((r, i) => (
         <div key={i} className="py-2.5">
           <button

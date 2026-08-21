@@ -13,8 +13,8 @@
 // app cannot reach yet (nurture, no_show, attending) are inserted directly so the
 // full state model is visible in the dashboard.
 
-import { getSql } from '../src/lib/db';
-import type { CrmOwner, CrmStage, WhatsAppConsentStatus, WhatsAppWorkflowState } from '../src/lib/crm-types';
+import { getSql } from '../src/core/db';
+import type { CrmOwner, CrmStage, WhatsAppConsentStatus, WhatsAppWorkflowState } from '../src/core/crm-types';
 
 const DEMO_SOURCE = 'demo';
 const DEMO_NOTE = 'demo-fixture';
