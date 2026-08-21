@@ -5,7 +5,7 @@ export default function SetupNotice({ message }: { message: string }) {
         <h1 className="text-lg font-semibold text-[var(--color-ink)]">Dashboard not ready yet</h1>
         <p className="mt-2 text-sm text-[var(--color-muted)]">
           Couldn&apos;t read from the database. Make sure you&apos;ve created the tables
-          (<code className="text-[var(--color-ink-2)]">db/schema.sql</code>), set{' '}
+          (<code className="text-[var(--color-ink-2)]">npm run db:migrate</code>), set{' '}
           <code className="text-[var(--color-ink-2)]">DATABASE_URL</code>, and run a sync.
         </p>
         <pre className="forge-subtle-card mt-4 overflow-auto p-3 text-xs text-[var(--color-critical)]">
