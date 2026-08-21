@@ -11,8 +11,11 @@ export const env = {
   databaseUrl: () => req('DATABASE_URL'),
   databaseSsl: () => (process.env.DATABASE_SSL === 'disable' ? false : ('require' as const)),
 
-  dashboardPassword: () => req('DASHBOARD_PASSWORD'),
   authSecret: () => process.env.AUTH_SECRET ?? '',
+  // First-deploy bootstrap only (plans/RBAC.md section 7). Once the admin
+  // exists these are ignored and can be removed from the environment.
+  seedAdminEmail: () => process.env.SEED_ADMIN_EMAIL ?? '',
+  seedAdminPassword: () => process.env.SEED_ADMIN_PASSWORD ?? '',
   syncSecret: () => process.env.SYNC_SECRET ?? '',
   apiClientsJson: () => process.env.API_CLIENTS_JSON ?? '[]',
 

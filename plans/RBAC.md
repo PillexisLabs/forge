@@ -75,9 +75,14 @@ is fetched per request for role + status; it is one indexed primary-key read.
 
 ## 5. Enforcement (server is the boundary, UI is a convenience)
 
-- **Middleware** (`src/middleware.ts`): verifies the cookie, loads the user,
-  rejects disabled users, attaches `x-forge-user` headers for handlers.
-  Public paths (webhooks, health, login) are unchanged.
+- **Middleware** (`src/middleware.ts`): verifies the cookie signature and
+  expiry, then redirects to `/login` on failure. Public paths (webhooks,
+  health, login) are unchanged. *Amended during PR A (2026-08-21): the Edge
+  runtime cannot reach Postgres, so the middleware stays stateless. The
+  database-backed checks — user exists, status is active, session_version
+  matches — live in `getSessionUser()` (`src/core/session.ts`) and run in
+  every route handler that acts. The route layer is the security boundary,
+  which section 5 already required.*
 - **Route guards**: one helper, `requirePermission(request, 'crm:write')`,
   used at the top of every mutating API route. Returns 403 with a plain
   message. Read routes get `requirePermission(request, '<module>:read')`.

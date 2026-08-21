@@ -1,17 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { SESSION_COOKIE, verifyToken } from '@/core/auth';
+import { getSessionUser } from '@/core/session';
 import { addCrmActivity } from '@/modules/crm/crm-data';
-import { env } from '@/core/env';
+
+export const runtime = 'nodejs';
 
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } },
 ) {
-  const authenticated = await verifyToken(
-    request.cookies.get(SESSION_COOKIE)?.value,
-    env.authSecret(),
-  );
-  if (!authenticated) {
+  const user = await getSessionUser(request);
+  if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -24,7 +22,7 @@ export async function POST(
 
   await addCrmActivity({
     dealId,
-    actor: typeof body.actor === 'string' ? body.actor : 'Founder',
+    actor: user.name,
     type: typeof body.type === 'string' ? body.type : 'note',
     direction: body.direction === 'inbound' || body.direction === 'outbound' ? body.direction : undefined,
     subject,

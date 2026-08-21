@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 
 export default function LoginPage() {
   const router = useRouter();
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -17,14 +18,15 @@ export default function LoginPage() {
     const res = await fetch('/api/login', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ password }),
+      body: JSON.stringify({ email, password }),
     });
     setLoading(false);
     if (res.ok) {
       router.replace('/');
       router.refresh();
     } else {
-      setError('Wrong password');
+      const data = await res.json().catch(() => null);
+      setError(data?.error ?? 'Invalid email or password');
     }
   }
 
@@ -40,23 +42,23 @@ export default function LoginPage() {
         </div>
         <p className="mb-6 mt-2 text-sm text-[var(--color-muted)]">Sign in to the Pillexis workspace.</p>
         <input
-          className="sr-only"
-          type="text"
-          name="username"
-          value="forge"
+          type="email"
           autoComplete="username"
-          readOnly
-          tabIndex={-1}
-          aria-hidden="true"
+          autoFocus
+          required
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="Email"
+          className="forge-control w-full px-3 py-2.5 text-sm outline-none"
         />
         <input
           type="password"
           autoComplete="current-password"
-          autoFocus
+          required
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           placeholder="Password"
-          className="forge-control w-full px-3 py-2.5 text-sm outline-none"
+          className="forge-control mt-3 w-full px-3 py-2.5 text-sm outline-none"
         />
         {error && <p className="mt-2 text-sm text-[var(--color-critical)]">{error}</p>}
         <button

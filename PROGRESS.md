@@ -171,6 +171,25 @@ build SUCCESS):
 `asliashutosh` adding a migration runner, opened 2026-08-20. Both need
 Anurag's review.
 
+**Merged later the same day:** PR 3 (manifests, after a conflict resolution
+merge of staging into the branch) and PR 4 (the migration runner). The
+setup notice was repointed from the removed `db/schema.sql` to
+`npm run db:migrate`.
+
+**RBAC PR A built** (branch `platform/rbac-pr-a`, per `plans/RBAC.md`
+section 9): the `users` table migration (`0002`), bcryptjs, session tokens
+carrying `uid.session_version.issued_at` with a 30-day expiry, email +
+password login with a 5-per-15-minutes rate limit, first-login admin
+seeding from `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD`, and CRM/sync
+routes that resolve the acting user and write real names into the activity
+trail. One plan amendment: the Edge middleware stays stateless (it cannot
+reach Postgres); `getSessionUser()` in the Node layer is the boundary and
+rejects deleted, disabled, and revoked sessions. Verified end to end
+locally: seed login, wrong password 401, revocation via `session_version`
+bump 401, disabled user 401, sixth login attempt 429, migration adoption
+on a populated database. `DASHBOARD_PASSWORD` dies at this cutover —
+Railway needs the two seed vars before the deploy.
+
 **Next steps, in order:**
 
 1. Anurag: merge PR 3 (review PR 4 while there); add the WhatsApp number
