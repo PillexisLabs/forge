@@ -11,8 +11,13 @@
 //
 // Run: see README.md in this folder.
 
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { WebSocketServer, type WebSocket } from 'ws';
+
+const TRANSCRIPT_DIR = join(dirname(fileURLToPath(import.meta.url)), 'transcripts');
 
 // ---------- config ----------
 
@@ -207,6 +212,7 @@ function handleStream(ws: WebSocket) {
   let peakRms = 0;
   let lastMicLog = Date.now();
   let capturing = false;
+  const turnLatencies: number[] = [];
 
   const sendAudio = (pcm: Int16Array, withMark = true) => {
     // 20 ms frames, paced by Twilio's jitter buffer — send in one go is fine.
@@ -298,6 +304,7 @@ function handleStream(ws: WebSocket) {
           const firstAudio = await audioJobs[0];
           const ttsMs = Date.now() - t2;
           const totalMs = Date.now() - endOfSpeech;
+          turnLatencies.push(totalMs);
           console.log(
             `TURN ${turn} latency: ${totalMs} ms ${totalMs <= 1200 ? 'PASS' : 'FAIL'} `
             + `(stt ${sttMs} + llm ${llmMs} + tts-first ${ttsMs}; budget 1200)`,
@@ -317,7 +324,21 @@ function handleStream(ws: WebSocket) {
 
     if (msg.event === 'stop') {
       console.log('stream stopped — call over. Transcript:');
-      for (const m of history.slice(1)) console.log(`  ${m.role}: ${m.content}`);
+      const lines = history.slice(1).map((m) => `${m.role}: ${m.content}`);
+      for (const line of lines) console.log(`  ${line}`);
+      // Persist every call so transcripts survive the terminal.
+      mkdirSync(TRANSCRIPT_DIR, { recursive: true });
+      const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const file = join(TRANSCRIPT_DIR, `${stamp}.txt`);
+      writeFileSync(file, [
+        `call to ${TO_NUMBER} — ${new Date().toISOString()}`,
+        `models: stt=${STT_MODEL} llm=${LLM_MODEL} tts=${TTS_MODEL}/${TTS_SPEAKER}`,
+        `turn latencies (ms): ${turnLatencies.join(', ') || 'none measured'}`,
+        '',
+        ...lines,
+        '',
+      ].join('\n'));
+      console.log(`transcript saved: ${file}`);
       process.exit(0);
     }
   });
