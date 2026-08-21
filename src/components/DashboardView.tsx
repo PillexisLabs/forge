@@ -544,6 +544,7 @@ export default function DashboardView({
   campaigns,
   campaignId,
   initialView,
+  canSync = true,
 }: {
   summary: DailySummaryRow[];
   ads: AdRow[];
@@ -556,6 +557,8 @@ export default function DashboardView({
   campaigns: CampaignOption[];
   campaignId: string | null;
   initialView?: string;
+  /** False for viewers: hides the manual sync trigger. The API rejects regardless. */
+  canSync?: boolean;
 }) {
   const router = useRouter();
   const [view, setView] = useState<ViewId>(
@@ -775,7 +778,7 @@ export default function DashboardView({
         url.searchParams.set('view', next);
         window.history.replaceState(null, '', url);
       }}
-      actions={<RefreshButton from={from} to={to} />}
+      actions={canSync ? <RefreshButton from={from} to={to} /> : undefined}
       status={
         <div>
           <p className="mt-2 text-sm text-[var(--color-muted)]">

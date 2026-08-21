@@ -1,3 +1,4 @@
+import { cookies } from 'next/headers';
 import type { NextRequest } from 'next/server';
 import { SESSION_COOKIE, verifySessionToken } from './auth';
 import { env } from './env';
@@ -10,10 +11,16 @@ import { getUserById, type SessionUser } from './users';
 // disabled user, and a token whose session_version was bumped (revocation).
 
 export async function getSessionUser(request: NextRequest): Promise<SessionUser | null> {
-  const claims = await verifySessionToken(
-    request.cookies.get(SESSION_COOKIE)?.value,
-    env.authSecret(),
-  );
+  return resolveSessionUser(request.cookies.get(SESSION_COOKIE)?.value);
+}
+
+/** The same check for server components, which have no request object. */
+export async function getSessionUserFromCookies(): Promise<SessionUser | null> {
+  return resolveSessionUser(cookies().get(SESSION_COOKIE)?.value);
+}
+
+async function resolveSessionUser(token: string | undefined): Promise<SessionUser | null> {
+  const claims = await verifySessionToken(token, env.authSecret());
   if (!claims) return null;
 
   const user = await getUserById(claims.userId);

@@ -21,6 +21,7 @@ export const crmManifest: ModuleManifest = {
     emits: ['booking.created'],
     consumes: [],
   },
+  permissions: [],
   configKeys: [
     'CAL_WEBHOOK_SECRET',
     'FIREFLIES_API_KEY',

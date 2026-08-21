@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSessionUser } from '@/core/session';
+import { requirePermission } from '@/core/permissions';
 import { isCrmOwner, isCrmStage, updateCrmDeal } from '@/modules/crm/crm-data';
 
 export const runtime = 'nodejs';
@@ -8,10 +8,9 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } },
 ) {
-  const user = await getSessionUser(request);
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const auth = await requirePermission(request, 'crm:write');
+  if (!auth.ok) return auth.response;
+  const { user } = auth;
 
   const id = Number(params.id);
   const body = await request.json();

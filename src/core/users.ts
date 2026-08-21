@@ -20,8 +20,10 @@ export type SessionUser = {
 
 type UserRow = SessionUser & { passwordHash: string };
 
+// postgres.js returns bigint columns as strings; the ::int cast keeps ids as
+// JS numbers so identity comparisons (self.id === id) behave.
 const USER_COLUMNS = `
-  id, email, name, password_hash as "passwordHash", role, modules,
+  id::int as id, email, name, password_hash as "passwordHash", role, modules,
   session_version as "sessionVersion", status
 `;
 
@@ -55,6 +57,69 @@ export async function hashPassword(password: string): Promise<string> {
 export async function recordLogin(id: number): Promise<void> {
   const sql = getSql();
   await sql`update users set last_login_at = now() where id = ${id}`;
+}
+
+export type UserListRow = SessionUser & { createdAt: string; lastLoginAt: string | null };
+
+export async function listUsers(): Promise<UserListRow[]> {
+  const sql = getSql();
+  return sql<UserListRow[]>`
+    select id::int as id, email, name, role, modules,
+           session_version as "sessionVersion", status,
+           created_at as "createdAt", last_login_at as "lastLoginAt"
+    from users
+    order by created_at
+  `;
+}
+
+export async function createUser(input: {
+  email: string;
+  name: string;
+  password: string;
+  role: UserRole;
+  modules: string[];
+}): Promise<{ id: number } | { error: 'email_taken' }> {
+  const sql = getSql();
+  const passwordHash = await hashPassword(input.password);
+  const rows = await sql<{ id: number }[]>`
+    insert into users (email, name, password_hash, role, modules)
+    values (${input.email.trim().toLowerCase()}, ${input.name.trim()},
+            ${passwordHash}, ${input.role}, ${input.modules})
+    on conflict (email) do nothing
+    returning id::int as id
+  `;
+  return rows[0] ?? { error: 'email_taken' };
+}
+
+/**
+ * Role, allowlist, status, and password changes must take effect on the
+ * user's next request, not their next login — so every change here bumps
+ * session_version, which invalidates the tokens they already hold.
+ */
+export async function updateUser(
+  id: number,
+  changes: {
+    name?: string;
+    role?: UserRole;
+    modules?: string[];
+    status?: 'active' | 'disabled';
+    password?: string;
+  },
+): Promise<boolean> {
+  const sql = getSql();
+  const passwordHash = changes.password ? await hashPassword(changes.password) : undefined;
+  const rows = await sql<{ id: number }[]>`
+    update users set
+      name = coalesce(${changes.name ?? null}, name),
+      role = coalesce(${changes.role ?? null}, role),
+      modules = coalesce(${changes.modules ?? null}, modules),
+      status = coalesce(${changes.status ?? null}, status),
+      password_hash = coalesce(${passwordHash ?? null}, password_hash),
+      session_version = session_version + 1
+    where id = ${id}
+    returning id
+  `;
+  return rows.length > 0;
 }
 
 /**

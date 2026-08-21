@@ -3,7 +3,8 @@ import type { Metadata } from 'next';
 import type { Viewport } from 'next';
 import { Suspense, type ReactNode } from 'react';
 import PwaRegistration from '@/components/PwaRegistration';
-import WorkspaceChrome from '@/components/WorkspaceChrome';
+import WorkspaceChrome, { type ChromeUser } from '@/components/WorkspaceChrome';
+import { getSessionUserFromCookies } from '@/core/session';
 
 export const metadata: Metadata = {
   title: 'Forge',
@@ -29,13 +30,20 @@ export const viewport: Viewport = {
 
 export const dynamic = 'force-dynamic';
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default async function RootLayout({ children }: { children: ReactNode }) {
+  // The chrome only needs what the nav filter uses. A null user means the
+  // login page (or an expired session mid-redirect) — the chrome hides itself.
+  const sessionUser = await getSessionUserFromCookies().catch(() => null);
+  const user: ChromeUser | null = sessionUser
+    ? { name: sessionUser.name, role: sessionUser.role, modules: sessionUser.modules }
+    : null;
+
   return (
     <html lang="en">
       <body className="min-h-screen antialiased">
         <PwaRegistration />
         <Suspense fallback={children}>
-          <WorkspaceChrome>{children}</WorkspaceChrome>
+          <WorkspaceChrome user={user}>{children}</WorkspaceChrome>
         </Suspense>
       </body>
     </html>
