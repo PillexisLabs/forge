@@ -205,7 +205,10 @@ scoped to `[crm, whatsapp]` writes CRM but gets 403 on sync and the
 access notice on analytics, password change revokes old sessions. One
 bug found and fixed during verification: postgres.js returns bigserial
 ids as strings, which silently broke the `self.id === id` identity
-checks — ids are now cast to int in `src/core/users.ts`.
+checks — ids are now cast to int in `src/core/users.ts`. Sign-in is
+restricted to `@pillexislabs.com` addresses (`AUTH_EMAIL_DOMAIN`,
+fail-closed default; a client copy sets its own domain, `*` disables) —
+enforced at login, user creation, and admin seeding.
 
 **Voice module scaffolded** (branch `platform/voice-module`, stacked on
 PR B): `src/modules/voice/` on the event spine per `plans/PLATFORM.md`

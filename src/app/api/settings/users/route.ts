@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { env } from '@/core/env';
 import { requirePermission } from '@/core/permissions';
-import { createUser, listUsers, type UserRole } from '@/core/users';
+import { createUser, emailDomainAllowed, listUsers, type UserRole } from '@/core/users';
 import { MODULES } from '@/modules/registry';
 
 export const runtime = 'nodejs';
@@ -30,6 +31,12 @@ export async function POST(request: NextRequest) {
 
   if (!email.includes('@') || !name) {
     return NextResponse.json({ error: 'A name and a valid email are required' }, { status: 400 });
+  }
+  if (!emailDomainAllowed(email)) {
+    return NextResponse.json(
+      { error: `Only @${env.authEmailDomain()} emails can sign in to this workspace` },
+      { status: 400 },
+    );
   }
   if (password.length < 8) {
     return NextResponse.json({ error: 'The temporary password needs at least 8 characters' }, { status: 400 });

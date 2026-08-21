@@ -1,5 +1,6 @@
 import AccessNotice from '@/components/AccessNotice';
 import UsersAdmin from '@/components/settings/UsersAdmin';
+import { env } from '@/core/env';
 import { hasPermission } from '@/core/permissions';
 import { getSessionUserFromCookies } from '@/core/session';
 import { listUsers } from '@/core/users';
@@ -19,6 +20,7 @@ export default async function UsersSettingsPage() {
       initialUsers={users}
       moduleNames={MODULES.map((mod) => mod.name)}
       selfId={user.id}
+      emailDomain={env.authEmailDomain()}
     />
   );
 }

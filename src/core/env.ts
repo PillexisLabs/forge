@@ -12,6 +12,10 @@ export const env = {
   databaseSsl: () => (process.env.DATABASE_SSL === 'disable' ? false : ('require' as const)),
 
   authSecret: () => process.env.AUTH_SECRET ?? '',
+  // Only emails on this domain can be created or sign in. Fail-closed default
+  // for the Pillexis deployment; a client copy sets its own domain, and '*'
+  // disables the restriction entirely.
+  authEmailDomain: () => (process.env.AUTH_EMAIL_DOMAIN ?? 'pillexislabs.com').trim().toLowerCase(),
   // First-deploy bootstrap only (plans/RBAC.md section 7). Once the admin
   // exists these are ignored and can be removed from the environment.
   seedAdminEmail: () => process.env.SEED_ADMIN_EMAIL ?? '',
