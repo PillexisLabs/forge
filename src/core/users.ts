@@ -27,6 +27,17 @@ const USER_COLUMNS = `
   session_version as "sessionVersion", status
 `;
 
+/**
+ * The workspace only admits emails on its own domain (AUTH_EMAIL_DOMAIN,
+ * '*' = any). Checked at login, at user creation, and at admin seeding, so a
+ * stray personal address can neither be added nor sign in.
+ */
+export function emailDomainAllowed(email: string): boolean {
+  const domain = env.authEmailDomain();
+  if (!domain || domain === '*') return true;
+  return email.trim().toLowerCase().endsWith(`@${domain}`);
+}
+
 export async function getUserById(id: number): Promise<SessionUser | null> {
   const sql = getSql();
   const rows = await sql<UserRow[]>`
@@ -133,6 +144,10 @@ export async function seedAdminIfEmpty(): Promise<void> {
   const email = env.seedAdminEmail();
   const password = env.seedAdminPassword();
   if (!email || !password) return;
+  if (!emailDomainAllowed(email)) {
+    console.error(`seed admin skipped: ${email} is not on the allowed domain (@${env.authEmailDomain()})`);
+    return;
+  }
 
   const sql = getSql();
   const [{ count }] = await sql<{ count: string }[]>`select count(*) as count from users`;

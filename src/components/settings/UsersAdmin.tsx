@@ -29,11 +29,15 @@ export default function UsersAdmin({
   initialUsers,
   moduleNames,
   selfId,
+  emailDomain,
 }: {
   initialUsers: UserListRow[];
   moduleNames: string[];
   selfId: number;
+  /** The allowed sign-in domain (AUTH_EMAIL_DOMAIN); '*' means any. */
+  emailDomain: string;
 }) {
+  const domainRestricted = emailDomain && emailDomain !== '*';
   const router = useRouter();
   const [users, setUsers] = useState(initialUsers);
   const [error, setError] = useState('');
@@ -195,10 +199,14 @@ export default function UsersAdmin({
               onChange={(e) => setCreate({ ...create, name: e.target.value })}
             />
           </UiField>
-          <UiField label="Email">
+          <UiField
+            label="Email"
+            hint={domainRestricted ? `Must be an @${emailDomain} address.` : undefined}
+          >
             <input
               type="email"
               required
+              pattern={domainRestricted ? `.+@${emailDomain.replace(/\./g, '\\.')}` : undefined}
               value={create.email}
               onChange={(e) => setCreate({ ...create, email: e.target.value })}
             />
