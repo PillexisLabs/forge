@@ -1,11 +1,11 @@
 # Progress & Changelog
 
 Running log of what's built, what's known-broken, and what's next.
-_Last updated: 2026-08-20._
+_Last updated: 2026-08-21._
 
 ## Current state
 
-- Railway production is live at `https://forge-production-fc70.up.railway.app` from `master`.
+- Railway production is live at `https://forge.pillexislabs.com` from `master` (Railway fallback URL: `forge-production-fc70.up.railway.app`).
 - Railway staging is live at `https://forge-staging-7d05.up.railway.app` from `staging` and is the default environment for ongoing work.
 - Each environment has isolated `forge`, `forge-sync`, and Postgres services. The web service runs schema migration before deploy and uses `/api/health`; the sync service runs daily at 07:00 IST.
 - The local analytics server and sync launchd jobs are retired. Their disabled definitions are archived under `../archive/launchd/`; Railway is the only scheduled runtime.
@@ -129,18 +129,61 @@ moved to the `PillexisLabs` GitHub organization on 2026-08-18.
 Cloud upstream) — deployments were paused/queued for hours. The deploy
 triggers themselves are correctly configured post-transfer.
 
+**Next steps, in order:** superseded by the 2026-08-21 list below.
+(Done from the old list: staging verified 2026-08-20 23:05 IST — deploy
+SUCCESS, events tables migrated, inline worker started, booking consumer
+cursor created, health/login/analytics all 200.)
+
+## Added 2026-08-21
+
+**CRM and analytics UI fixes** (commit `39e7f85`, deployed to staging,
+build SUCCESS):
+
+- Every tall list and table now scrolls inside its own panel instead of
+  the page: Today queue, follow-up groups, pipeline columns, ads and
+  traffic tables (sticky headers), sync log. Mobile keeps page scroll.
+- The table toolbar groups the stage filter and search on the right; the
+  left side is reserved for future bulk-select actions.
+- Removed the "N leads, M calls recorded" header line (same numbers on
+  every view, read as placeholder data) and the Pipeline health panel on
+  Today (it repeated the four stat chips).
+- Fixed the stat chips not recomputing on the All/Live/Demo scope toggle.
+
+**Two new plans** (commit `3cf05a6`):
+
+- `plans/RBAC.md` — roles and permissions, **top priority** by decision
+  on 2026-08-20. Today any valid session grants everything. Plan: three
+  roles (admin/member/viewer) + per-user module allowlist + permission
+  strings checked at the route. Two PRs; lands after PR 3, before the
+  voice module. Also added to the `PLATFORM.md` checklist as item 4.
+- `plans/CRM_BACKFILL.md` — replay the Cal.com bookings into the
+  **production** CRM and attach Fireflies summaries. Verified via both
+  APIs on 2026-08-20: 78 intro-call bookings (74 unique emails, 66 past
+  accepted, 8+ upcoming, 37 in July and 37 in August — the pipeline is
+  active), 50 with a matched Fireflies recording, **zero bookings carry
+  a phone number** (the WhatsApp form field is still missing). Both CRM
+  databases are empty of real leads today.
+- Standing rule recorded with the backfill plan: **staging never
+  receives real data values.** Fixtures only; data-writing scripts must
+  refuse non-production targets.
+
+**Open PRs:** #3 (manifests) and #4 — an external contribution from
+`asliashutosh` adding a migration runner, opened 2026-08-20. Both need
+Anurag's review.
+
 **Next steps, in order:**
 
-1. Anurag: merge PR 3; create Twilio (voice number + ~USD 10 credit +
-   India geo permission) and Sarvam (API key + ~INR 2k) accounts; put the
-   five keys in `../keys/.env` per `spikes/voice-call/README.md`.
-2. ~~Verify staging after the deploy goes green~~ — done 2026-08-20
-   23:05 IST: deploy SUCCESS, app Ready, deploy-time migration applied
-   the events tables, inline worker started, booking consumer created
-   its cursor row, `/api/health` 200, login 200, authenticated
-   analytics API 200 with data.
-3. Run the voice spike; pass = under 1.2 s per turn.
-4. Build `src/modules/voice/` on the event spine → sets the Milap demo
+1. Anurag: merge PR 3 (review PR 4 while there); add the WhatsApp number
+   field to the Cal booking form; register the Cal → Forge production
+   webhook (commands in `plans/WHATSAPP_PRODUCTION_SETUP.md`); create the
+   Twilio and Sarvam accounts and put the keys in `../keys/.env` per
+   `spikes/voice-call/README.md`.
+2. Build and run the CRM backfill script against production
+   (`plans/CRM_BACKFILL.md`), then hand-set the judgment stages.
+3. RBAC PR A (users + sessions) and PR B (permission guards) per
+   `plans/RBAC.md`.
+4. Run the voice spike; pass = under 1.2 s per turn. Not blocked by RBAC.
+5. Build `src/modules/voice/` on the event spine → sets the Milap demo
    date.
-5. Then: lead-qual split, `/docs` route, demo workspace, Foundry
+6. Then: lead-qual split, `/docs` route, demo workspace, Foundry
    (order in `plans/PLATFORM.md` section 10).
