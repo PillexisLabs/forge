@@ -54,7 +54,8 @@ const PORT = Number(process.env.SPIKE_PORT ?? 8090);
 const STT_MODEL = process.env.SARVAM_STT_MODEL ?? 'saaras:v3-realtime';
 const LLM_MODEL = process.env.SARVAM_LLM_MODEL ?? 'sarvam-105b-conversations';
 const TTS_MODEL = process.env.SARVAM_TTS_MODEL ?? 'bulbul:v3';
-const TTS_SPEAKER = process.env.SARVAM_TTS_SPEAKER ?? 'priya';
+// ritu chosen by Anurag from a six-voice audition on 2026-08-22.
+const TTS_SPEAKER = process.env.SARVAM_TTS_SPEAKER ?? 'ritu';
 const MAX_CALL_MS = 3 * 60_000;
 const LATENCY_BUDGET_MS = 1200;
 
