@@ -56,4 +56,10 @@ export const env = {
   voiceDryRun: () => process.env.VOICE_DRY_RUN === '1',
   voiceCallWindow: () => process.env.VOICE_CALL_WINDOW, // "10-19" IST hours
   voicePublicUrl: () => process.env.VOICE_PUBLIC_URL ?? '',
+  voiceDefaultFlow: () => process.env.VOICE_FLOW ?? 'stub',
+  bolnaApiKey: () => process.env.BOLNA_API_KEY ?? '',
+  bolnaAgentId: () => process.env.BOLNA_AGENT_ID ?? '',
+  plivoAuthId: () => process.env.PLIVO_AUTH_ID ?? '',
+  plivoAuthToken: () => process.env.PLIVO_AUTH_TOKEN ?? '',
+  plivoFromNumber: () => process.env.PLIVO_FROM_NUMBER ?? '',
 };

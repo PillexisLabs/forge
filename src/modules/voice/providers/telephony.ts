@@ -1,4 +1,5 @@
 import { env } from '@/core/env';
+import { bolnaProvider } from './bolna';
 import { stubTelephony } from './stub';
 import { twilioTelephony } from './twilio';
 
@@ -31,5 +32,26 @@ export type TelephonyProvider = {
 /** Dry-run unless the real stack is configured AND dry-run is off. */
 export function getTelephonyProvider(): TelephonyProvider {
   if (env.voiceDryRun() || !env.twilioAccountSid()) return stubTelephony;
+  return twilioTelephony;
+}
+
+// A flow names the full provider chain for a call (core feature, 2026-08-22):
+//   stub            dry-run, no real call
+//   sarvam-twilio   own pipeline, Twilio carries the call
+//   sarvam-plivo    own pipeline, Plivo carries the call (Indian rates)
+//   bolna           Bolna's hosted platform end to end
+// The sarvam-* flows need the realtime media bridge, which still lives in
+// spikes/voice-call until its latency test passes — until then they resolve
+// to the plain Twilio dial (or the stub in dry-run).
+export const VOICE_FLOWS = ['stub', 'sarvam-twilio', 'sarvam-plivo', 'bolna'] as const;
+export type VoiceFlow = (typeof VOICE_FLOWS)[number];
+
+export function isVoiceFlow(value: unknown): value is VoiceFlow {
+  return typeof value === 'string' && (VOICE_FLOWS as readonly string[]).includes(value);
+}
+
+export function getProviderForFlow(flow: VoiceFlow): TelephonyProvider {
+  if (env.voiceDryRun() || flow === 'stub') return stubTelephony;
+  if (flow === 'bolna') return bolnaProvider;
   return twilioTelephony;
 }

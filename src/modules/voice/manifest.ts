@@ -14,12 +14,18 @@ export const voiceManifest: ModuleManifest = {
   // Placing a call is the module's special action (plans/RBAC.md section 6).
   permissions: ['call'],
   configKeys: [
-    'TWILIO_ACCOUNT_SID',
-    'TWILIO_AUTH_TOKEN',
-    'TWILIO_FROM_NUMBER',
-    'SARVAM_API_KEY',
+    'VOICE_FLOW',
     'VOICE_DRY_RUN',
     'VOICE_CALL_WINDOW',
     'VOICE_PUBLIC_URL',
+    'TWILIO_ACCOUNT_SID',
+    'TWILIO_AUTH_TOKEN',
+    'TWILIO_FROM_NUMBER',
+    'PLIVO_AUTH_ID',
+    'PLIVO_AUTH_TOKEN',
+    'PLIVO_FROM_NUMBER',
+    'SARVAM_API_KEY',
+    'BOLNA_API_KEY',
+    'BOLNA_AGENT_ID',
   ],
 };

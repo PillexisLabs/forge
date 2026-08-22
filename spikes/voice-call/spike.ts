@@ -37,12 +37,18 @@ const need = (key: string): string => {
   return v;
 };
 
-const TWILIO_SID = need('TWILIO_ACCOUNT_SID');
-const TWILIO_TOKEN = need('TWILIO_AUTH_TOKEN');
-const TWILIO_FROM = need('TWILIO_FROM_NUMBER');
+// Telephony carrier: 'twilio' (US number, international rates) or 'plivo'.
+const TELEPHONY = (process.env.SPIKE_TELEPHONY ?? 'twilio') as 'twilio' | 'plivo';
+
 const SARVAM_KEY = need('SARVAM_API_KEY');
 const TO_NUMBER = need('SPIKE_TO_NUMBER');
 const PUBLIC_URL = need('PUBLIC_URL').replace(/\/$/, ''); // https tunnel to this machine
+const TWILIO_SID = TELEPHONY === 'twilio' ? need('TWILIO_ACCOUNT_SID') : '';
+const TWILIO_TOKEN = TELEPHONY === 'twilio' ? need('TWILIO_AUTH_TOKEN') : '';
+const TWILIO_FROM = TELEPHONY === 'twilio' ? need('TWILIO_FROM_NUMBER') : '';
+const PLIVO_AUTH_ID = TELEPHONY === 'plivo' ? need('PLIVO_AUTH_ID') : '';
+const PLIVO_AUTH_TOKEN = TELEPHONY === 'plivo' ? need('PLIVO_AUTH_TOKEN') : '';
+const PLIVO_FROM = TELEPHONY === 'plivo' ? need('PLIVO_FROM_NUMBER') : '';
 
 const PORT = Number(process.env.SPIKE_PORT ?? 8090);
 const STT_MODEL = process.env.SARVAM_STT_MODEL ?? 'saaras:v3-realtime';
@@ -186,6 +192,8 @@ function openTtsSession(): Promise<TtsSession> {
           // 30 is the floor — smaller values fail the config validation.
           min_buffer_size: 30,
           max_chunk_length: 120,
+          // Normalizes numbers, times, and mixed English before synthesis.
+          enable_preprocessing: true,
         },
       }));
       resolve({
@@ -208,6 +216,7 @@ async function ttsSarvam(text: string): Promise<Int16Array> {
       speaker: TTS_SPEAKER,
       target_language_code: 'hi-IN',
       speech_sample_rate: 8000,
+      enable_preprocessing: true,
     }),
   });
   if (!res.ok) throw new Error(`TTS ${res.status}: ${await res.text()}`);
@@ -254,9 +263,15 @@ const GREETING = 'नमस्ते! मैं आशा बोल रही �
 // Kick off greeting synthesis at boot, in parallel with the dial + ring.
 const greetingAudio = ttsSarvam(GREETING);
 
-type TwilioMediaMsg = {
+// Twilio and Plivo speak nearly the same media-stream dialect: base64
+// mulaw/8k frames as JSON. Differences the shim below absorbs:
+//   - start message: Twilio carries streamSid, Plivo carries streamId.
+//   - sending audio: Twilio wants {event:'media'}, Plivo {event:'playAudio'}.
+//   - playback completion: Twilio echoes a 'mark'; Plivo has none, so the
+//     unmute is scheduled from the byte count (mulaw/8k = 8 bytes per ms).
+type MediaMsg = {
   event: 'connected' | 'start' | 'media' | 'stop' | 'mark';
-  start?: { streamSid: string };
+  start?: { streamSid?: string; streamId?: string };
   media?: { payload: string };
   streamSid?: string;
 };
@@ -270,11 +285,50 @@ function handleStream(ws: WebSocket) {
   let turn = 1;
   let lastPartial = '';
   let speechEndAt = 0;
+  let replyBytes = 0;     // plivo: audio bytes sent since the reply started
+  let replyStartedAt = 0; // plivo: when the first chunk of the reply went out
+  let plivoUnmute: ReturnType<typeof setTimeout> | null = null;
 
-  const sendAudio = (pcm: Int16Array, withMark: boolean) => {
-    const payload = Buffer.from(mulawEncode(pcm)).toString('base64');
-    ws.send(JSON.stringify({ event: 'media', streamSid, media: { payload } }));
-    if (withMark) ws.send(JSON.stringify({ event: 'mark', streamSid, mark: { name: `turn-${turn}` } }));
+  const sendPayload = (payloadB64: string) => {
+    if (TELEPHONY === 'plivo') {
+      const bytes = Buffer.from(payloadB64, 'base64').length;
+      if (!replyStartedAt) replyStartedAt = Date.now();
+      replyBytes += bytes;
+      ws.send(JSON.stringify({
+        event: 'playAudio',
+        media: { contentType: 'audio/x-mulaw', sampleRate: 8000, payload: payloadB64 },
+      }));
+    } else {
+      ws.send(JSON.stringify({ event: 'media', streamSid, media: { payload: payloadB64 } }));
+    }
+  };
+
+  // Called after the LAST chunk of a reply. Twilio: a mark that echoes back
+  // when playback reaches it. Plivo: schedule the unmute from audio length.
+  const finishReply = () => {
+    if (TELEPHONY === 'plivo') {
+      const playbackMs = replyBytes / 8; // 8000 samples/s, 1 byte each
+      const elapsed = replyStartedAt ? Date.now() - replyStartedAt : 0;
+      const waitMs = Math.max(0, playbackMs - elapsed) + 300;
+      if (plivoUnmute) clearTimeout(plivoUnmute);
+      plivoUnmute = setTimeout(() => onPlaybackDone(), waitMs);
+      replyBytes = 0;
+      replyStartedAt = 0;
+    } else {
+      ws.send(JSON.stringify({ event: 'mark', streamSid, mark: { name: `turn-${turn}` } }));
+    }
+  };
+
+  const onPlaybackDone = () => {
+    speaking = false;
+    speechEndAt = 0;
+    lastPartial = '';
+    console.log('listening…');
+  };
+
+  const sendAudio = (pcm: Int16Array, last: boolean) => {
+    sendPayload(Buffer.from(mulawEncode(pcm)).toString('base64'));
+    if (last) finishReply();
   };
 
   // One in-flight speculative LLM run per turn.
@@ -357,8 +411,8 @@ function handleStream(ws: WebSocket) {
               + `(speculation ${speculationHit ? 'hit' : 'miss'}; budget ${LATENCY_BUDGET_MS})`,
             );
           }
-          // Sarvam's mulaw/8k chunks forward to Twilio byte-for-byte.
-          ws.send(JSON.stringify({ event: 'media', streamSid, media: { payload: mulawB64 } }));
+          // Sarvam's mulaw/8k chunks forward to the carrier byte-for-byte.
+          sendPayload(mulawB64);
         },
         onFinal: () => ttsDone(),
       });
@@ -377,7 +431,7 @@ function handleStream(ws: WebSocket) {
       console.log(`reply: "${fullReply}"`);
 
       await ttsFinal; // all audio chunks forwarded
-      ws.send(JSON.stringify({ event: 'mark', streamSid, mark: { name: `turn-${turn}` } }));
+      finishReply();
       turn += 1;
     } catch (e) {
       console.error('turn failed:', e);
@@ -415,11 +469,11 @@ function handleStream(ws: WebSocket) {
   });
 
   ws.on('message', async (raw) => {
-    const msg = JSON.parse(String(raw)) as TwilioMediaMsg;
+    const msg = JSON.parse(String(raw)) as MediaMsg;
 
     if (msg.event === 'start' && msg.start) {
-      streamSid = msg.start.streamSid;
-      console.log(`stream started: ${streamSid}`);
+      streamSid = msg.start.streamSid ?? msg.start.streamId ?? '';
+      console.log(`stream started (${TELEPHONY}): ${streamSid}`);
       history.push({ role: 'assistant', content: GREETING });
       try {
         // Synthesized while the phone was still ringing — plays immediately.
@@ -434,10 +488,7 @@ function handleStream(ws: WebSocket) {
     }
 
     if (msg.event === 'mark') {
-      speaking = false; // bot finished talking; listen again
-      speechEndAt = 0;
-      lastPartial = '';
-      console.log('listening…');
+      onPlaybackDone(); // twilio echoes the mark when playback finishes
       return;
     }
 
@@ -477,11 +528,17 @@ function handleStream(ws: WebSocket) {
 
 // ---------- server + outbound call ----------
 
+const wsMediaUrl = `${PUBLIC_URL.replace(/^http/, 'ws')}/media`;
+
 const server = createServer((req, res) => {
   if (req.url === '/twiml') {
     res.writeHead(200, { 'Content-Type': 'text/xml' });
-    const wsUrl = `${PUBLIC_URL.replace(/^http/, 'ws')}/media`;
-    res.end(`<?xml version="1.0" encoding="UTF-8"?><Response><Connect><Stream url="${wsUrl}" /></Connect></Response>`);
+    res.end(`<?xml version="1.0" encoding="UTF-8"?><Response><Connect><Stream url="${wsMediaUrl}" /></Connect></Response>`);
+    return;
+  }
+  if (req.url?.startsWith('/plivo-answer')) {
+    res.writeHead(200, { 'Content-Type': 'text/xml' });
+    res.end(`<?xml version="1.0" encoding="UTF-8"?><Response><Stream keepCallAlive="true" bidirectional="true" contentType="audio/x-mulaw;rate=8000">${wsMediaUrl}</Stream></Response>`);
     return;
   }
   res.writeHead(200).end('voice spike up');
@@ -490,25 +547,45 @@ const server = createServer((req, res) => {
 const wss = new WebSocketServer({ server, path: '/media' });
 wss.on('connection', handleStream);
 
-server.listen(PORT, async () => {
-  console.log(`spike server on :${PORT}, public: ${PUBLIC_URL}`);
-  const body = new URLSearchParams({
-    To: TO_NUMBER,
-    From: TWILIO_FROM,
-    Url: `${PUBLIC_URL}/twiml`,
-  });
+async function dialTwilio(): Promise<string> {
   const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${TWILIO_SID}/Calls.json`, {
     method: 'POST',
     headers: {
       Authorization: `Basic ${Buffer.from(`${TWILIO_SID}:${TWILIO_TOKEN}`).toString('base64')}`,
       'Content-Type': 'application/x-www-form-urlencoded',
     },
-    body,
+    body: new URLSearchParams({ To: TO_NUMBER, From: TWILIO_FROM, Url: `${PUBLIC_URL}/twiml` }),
   });
-  if (!res.ok) {
-    console.error(`Twilio call failed ${res.status}: ${await res.text()}`);
+  if (!res.ok) throw new Error(`Twilio call failed ${res.status}: ${await res.text()}`);
+  return ((await res.json()) as { sid: string }).sid;
+}
+
+async function dialPlivo(): Promise<string> {
+  const res = await fetch(`https://api.plivo.com/v1/Account/${PLIVO_AUTH_ID}/Call/`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Basic ${Buffer.from(`${PLIVO_AUTH_ID}:${PLIVO_AUTH_TOKEN}`).toString('base64')}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      to: TO_NUMBER.replace(/^\+/, ''),
+      from: PLIVO_FROM.replace(/^\+/, ''),
+      answer_url: `${PUBLIC_URL}/plivo-answer`,
+      answer_method: 'GET',
+    }),
+  });
+  if (!res.ok) throw new Error(`Plivo call failed ${res.status}: ${await res.text()}`);
+  const data = (await res.json()) as { request_uuid?: string; message?: string };
+  return data.request_uuid ?? data.message ?? 'queued';
+}
+
+server.listen(PORT, async () => {
+  console.log(`spike server on :${PORT}, public: ${PUBLIC_URL}, telephony: ${TELEPHONY}`);
+  try {
+    const id = TELEPHONY === 'plivo' ? await dialPlivo() : await dialTwilio();
+    console.log(`dialing ${TO_NUMBER} via ${TELEPHONY} — ${id}. Answer your phone.`);
+  } catch (e) {
+    console.error(e instanceof Error ? e.message : e);
     process.exit(1);
   }
-  const call = (await res.json()) as { sid: string };
-  console.log(`dialing ${TO_NUMBER} — call sid ${call.sid}. Answer your phone.`);
 });

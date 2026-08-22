@@ -12,8 +12,8 @@ async function main() {
   do {
     const started = new Date().toISOString();
     try {
-      const { queued, dialed } = await runVoicePass();
-      console.log(`[${started}] pass complete — ${queued} event(s) consumed, ${dialed} call(s) dialed`);
+      const { queued, dialed, settled } = await runVoicePass();
+      console.log(`[${started}] pass complete — ${queued} event(s) consumed, ${dialed} call(s) dialed, ${settled} settled`);
     } catch (error) {
       console.error(`[${started}] pass failed:`, error);
     }

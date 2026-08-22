@@ -6,7 +6,12 @@ import {
   nextCallTime,
   parseCallWindow,
 } from './voice-rules';
-import { getTelephonyProvider } from './providers/telephony';
+import {
+  getProviderForFlow,
+  isVoiceFlow,
+  type VoiceFlow,
+} from './providers/telephony';
+import { fetchBolnaResult } from './providers/bolna';
 
 // The queue worker (plans/PLATFORM.md section 8). Two halves, one pass:
 //  1. consume lead.qualified -> queue an eligible call (or record why not);
@@ -35,16 +40,18 @@ export async function queueCallsFromEvents(): Promise<number> {
     const eligibility = callEligibility(candidate);
     const window = parseCallWindow(env.voiceCallWindow());
     const dueAt = nextCallTime(new Date(), window);
+    const flow = isVoiceFlow(env.voiceDefaultFlow()) ? env.voiceDefaultFlow() : 'stub';
 
     await sql`
-      insert into vc_calls (deal_id, phone, status, skip_reason, next_attempt_at, source_event_id)
+      insert into vc_calls (deal_id, phone, status, skip_reason, next_attempt_at, source_event_id, flow)
       values (
         ${dealId},
         ${candidate.phone ?? ''},
         ${eligibility.eligible ? 'queued' : 'skipped'},
         ${eligibility.eligible ? null : eligibility.reason},
         ${eligibility.eligible ? dueAt : null},
-        ${event.id}
+        ${event.id},
+        ${flow}
       )
       on conflict (source_event_id) do nothing
     `;
@@ -54,23 +61,26 @@ export async function queueCallsFromEvents(): Promise<number> {
 export async function dialDueCalls(): Promise<number> {
   const sql = getSql();
   const window = parseCallWindow(env.voiceCallWindow());
-  if (!callWindowOpen(window)) return 0;
+  const windowOpen = callWindowOpen(window);
 
-  const provider = getTelephonyProvider();
   let dialed = 0;
 
   // One call at a time: a qualification call takes minutes, and dialing the
   // whole queue at once would need one media bridge per concurrent call.
+  // Lead calls respect the IST window; ad-hoc demo calls (no deal) are
+  // founder-initiated and dial whenever they are due.
   for (;;) {
     const claimed = await sql.begin(async (tx) => {
-      const rows = await tx<{ id: number; deal_id: number; phone: string }[]>`
-        select id, deal_id, phone from vc_calls
+      const rows = await tx<{ id: number; deal_id: number | null; phone: string; flow: string }[]>`
+        select id, deal_id, phone, flow from vc_calls
         where status = 'queued' and next_attempt_at <= now()
+          and (deal_id is null or ${windowOpen})
         order by next_attempt_at
         limit 1
         for update skip locked
       `;
       if (!rows.length) return null;
+      const provider = getProviderForFlow(isVoiceFlow(rows[0].flow) ? rows[0].flow : 'stub');
       await tx`
         update vc_calls
         set status = 'dialing', attempts = attempts + 1,
@@ -81,6 +91,7 @@ export async function dialDueCalls(): Promise<number> {
     });
     if (!claimed) break;
 
+    const provider = getProviderForFlow(isVoiceFlow(claimed.flow) ? claimed.flow : 'stub');
     try {
       const placed = await provider.placeCall({ callId: Number(claimed.id), phone: claimed.phone });
       if (placed.immediate) {
@@ -120,7 +131,7 @@ export async function recordCallResult(
 ): Promise<void> {
   const sql = getSql();
   await sql.begin(async (tx) => {
-    const rows = await tx<{ deal_id: number; provider: string }[]>`
+    const rows = await tx<{ deal_id: number | null; provider: string }[]>`
       update vc_calls
       set status = ${result.status}, outcome = ${result.outcome},
           transcript = ${tx.json(result.transcript as never)},
@@ -131,6 +142,10 @@ export async function recordCallResult(
       returning deal_id, provider
     `;
     if (!rows.length) return;
+
+    // Ad-hoc demo calls have no deal behind them: the vc_calls row is their
+    // whole record. CRM activity and events are lead concerns.
+    if (rows[0].deal_id == null) return;
 
     // The activity trail is the CRM's surface for call outcomes until the
     // module grows its own screen.
@@ -153,12 +168,62 @@ export async function recordCallResult(
   });
 }
 
+/**
+ * Settle pass for hosted-platform calls: bolna rows sit in_progress while
+ * their platform runs the conversation; poll each execution and record the
+ * result when it lands. Idempotent — a settled row leaves in_progress.
+ */
+export async function settleHostedCalls(): Promise<number> {
+  const sql = getSql();
+  const rows = await sql<{ id: number; provider_call_id: string }[]>`
+    select id, provider_call_id from vc_calls
+    where status = 'in_progress' and flow = 'bolna' and provider_call_id is not null
+    order by started_at
+    limit 10
+  `;
+  let settled = 0;
+  for (const row of rows) {
+    try {
+      const result = await fetchBolnaResult(row.provider_call_id);
+      if (result) {
+        await recordCallResult(Number(row.id), result);
+        settled += 1;
+      }
+    } catch (error) {
+      console.error(`settle failed for vc_calls#${row.id}:`, error);
+    }
+  }
+  return settled;
+}
+
+/**
+ * Queue one ad-hoc call outside the lead flow — the demo path ("give a
+ * number and a flow"). Founder-initiated, so the consent gate is the caller;
+ * the calling-window rule still applies unless dueNow forces it.
+ */
+export async function queueAdHocCall(input: {
+  phone: string;
+  flow: VoiceFlow;
+  dueNow?: boolean;
+}): Promise<number> {
+  const sql = getSql();
+  const window = parseCallWindow(env.voiceCallWindow());
+  const dueAt = input.dueNow ? new Date() : nextCallTime(new Date(), window);
+  const rows = await sql<{ id: number }[]>`
+    insert into vc_calls (deal_id, phone, status, next_attempt_at, flow)
+    values (null, ${input.phone}, 'queued', ${dueAt}, ${input.flow})
+    returning id
+  `;
+  return Number(rows[0].id);
+}
+
 function callWindowOpen(window: { startHour: number; endHour: number }): boolean {
   return nextCallTime(new Date(), window).getTime() <= Date.now();
 }
 
-export async function runVoicePass(): Promise<{ queued: number; dialed: number }> {
+export async function runVoicePass(): Promise<{ queued: number; dialed: number; settled: number }> {
   const queued = await queueCallsFromEvents();
   const dialed = await dialDueCalls();
-  return { queued, dialed };
+  const settled = await settleHostedCalls();
+  return { queued, dialed, settled };
 }
