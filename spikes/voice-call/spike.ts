@@ -63,13 +63,14 @@ const LATENCY_BUDGET_MS = 1200;
 // Hindi with mangled pronunciation (first call verified this the hard way).
 const SYSTEM_PROMPT = `You are Asha (आशा), calling from Pillexis Labs after the lead booked an intro call.
 Write every reply as natural Hinglish in Devanagari script — Hindi in Devanagari, everyday English words (intro call, operations, website) kept in Latin script.
-Write brand and product names phonetically in Devanagari so the voice pronounces them right: पिलेक्सिस लैब्स, व्हाट्सऐप (WhatsApp), शॉपिफ़ाई (Shopify), इंस्टाग्राम (Instagram). Never write these in Latin script.
+Write brand, product, and person names phonetically in Devanagari so the voice pronounces them right: पिलेक्सिस लैब्स, अनुराग (never "Anurag" in Latin), व्हाट्सऐप (WhatsApp), शॉपिफ़ाई (Shopify), इंस्टाग्राम (Instagram). Never write these in Latin script.
+Never use the word बढ़िया — the voice mangles it. Say बहुत अच्छा or ठीक है instead.
 If the caller mishears or mangles the company name, keep saying पिलेक्सिस लैब्स correctly — never repeat their version.
 If the caller asks who you are or wants an introduction, give it properly once: you are Asha from पिलेक्सिस लैब्स, a software studio that builds custom software and AI automation for businesses; they booked an intro call on the website. Then continue.
 The intro call is booked for ${process.env.SPIKE_MEETING_TIME ?? 'कल दोपहर 12 बजे'} — state this time plainly whenever the caller asks when the call is. (The real module reads this from the CRM.)
 Never repeat a sentence you already said in this call — rephrase or move the conversation forward instead.
 Warm and brief. One question at a time. Keep every reply under 25 words.
-Goal: confirm the meeting time works, ask what their biggest operations headache is, and say Anurag will cover it on the call.
+Goal: confirm the meeting time works, ask what their biggest operations headache is, and say अनुराग will cover it on the call.
 Never discuss prices. End politely when done.`;
 
 // ---------- mulaw encode + wav decode (needed for the TTS leg only) ----------
@@ -280,6 +281,12 @@ const GREETING = 'नमस्ते! मैं आशा बोल रही �
 // Kick off greeting synthesis at boot, in parallel with the dial + ring.
 const greetingAudio = ttsSarvam(GREETING);
 
+// Acknowledgment fillers, pre-synthesized at boot. One plays the moment the
+// caller's transcript lands — the way a human says "जी," while thinking — so
+// the perceived response gap is ~300 ms even when the LLM takes 1.5 s.
+const FILLER_TEXTS = ['जी,', 'अच्छा,', 'ठीक है,', 'हाँ जी,'];
+const fillerAudio = Promise.all(FILLER_TEXTS.map((text) => ttsSarvam(text)));
+
 // Twilio and Plivo speak nearly the same media-stream dialect: base64
 // mulaw/8k frames as JSON. Differences the shim below absorbs:
 //   - start message: Twilio carries streamSid, Plivo carries streamId.
@@ -399,6 +406,13 @@ function handleStream(ws: WebSocket) {
   const runTurn = async (finalText: string) => {
     processing = true;
     try {
+      // Instant acknowledgment: the caller hears "जी," within ~300 ms of
+      // finishing, while the real reply is still generating.
+      speaking = true;
+      const filler = (await fillerAudio)[turn % FILLER_TEXTS.length];
+      sendAudio(filler, false);
+      console.log(`filler played at ${Date.now() - speechEndAt} ms`);
+
       // Keep the speculative run if its prompt matches the final transcript.
       let run = speculative;
       speculative = null;
@@ -440,7 +454,7 @@ function handleStream(ws: WebSocket) {
       drainToTts(run);
 
       const fullReply = await run.full;
-      if (!fullReply) { processing = false; return; }
+      if (!fullReply) { finishReply(); processing = false; return; } // unmute past the filler
       ttsSession.flush();
 
       history.push({ role: 'user', content: finalText });
@@ -511,7 +525,15 @@ function handleStream(ws: WebSocket) {
       try {
         // Synthesized while the phone was still ringing — plays immediately.
         speaking = true;
-        sendAudio(await greetingAudio, true);
+        // A breath before speaking: wait for the caller to bring the phone
+        // to their ear, and lead with a beat of silence so the carrier's
+        // audio ramp cannot clip the first syllable.
+        const greetingPcm = await greetingAudio;
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        const lead = new Int16Array(1920); // 240 ms of silence at 8 kHz
+        const padded = new Int16Array(lead.length + greetingPcm.length);
+        padded.set(greetingPcm, lead.length);
+        sendAudio(padded, true);
       } catch (e) {
         console.error('greeting failed:', e);
         speaking = false;
