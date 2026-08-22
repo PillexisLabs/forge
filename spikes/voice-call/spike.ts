@@ -1,13 +1,20 @@
 // Throwaway voice spike (plans/PLATFORM.md section 10, item 4).
 // One outbound AI call on the decided stack: Twilio Programmable Voice with
-// Media Streams carries the call; Sarvam listens (Saarika STT), thinks
-// (sarvam-m), and speaks (Bulbul TTS) in Hinglish.
+// Media Streams carries the call; Sarvam listens, thinks, and speaks.
 //
 // Pass/fail: turn latency (caller stops speaking → first reply audio frame)
 // under 1.2 seconds, and demo-grade voice quality. Latency prints per turn.
 //
-// This file is a spike: hardcoded script, no data spine, no events. The real
-// module builds its prompt from the knowledge pack.
+// v2 — the streaming pipeline (2026-08-22). The REST-sequential version
+// measured 2.0–3.9 s per turn; the stages now overlap:
+//   1. Twilio's mulaw/8k frames forward RAW into Sarvam's realtime STT
+//      websocket while the caller is still speaking (no decode, no local VAD —
+//      the server's VAD emits speech_end and transcript events).
+//   2. At vad.speech_end the LLM starts SPECULATIVELY on the latest partial
+//      transcript; when transcript.final lands (~350 ms later) it is kept if
+//      the text matches, restarted if not (rare).
+//   3. The LLM streams; at the first clause boundary the fragment goes to
+//      TTS immediately, so first audio never waits for the full reply.
 //
 // Run: see README.md in this folder.
 
@@ -15,7 +22,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { WebSocketServer, type WebSocket } from 'ws';
+import WebSocket, { WebSocketServer } from 'ws';
 
 const TRANSCRIPT_DIR = join(dirname(fileURLToPath(import.meta.url)), 'transcripts');
 
@@ -38,16 +45,15 @@ const TO_NUMBER = need('SPIKE_TO_NUMBER');
 const PUBLIC_URL = need('PUBLIC_URL').replace(/\/$/, ''); // https tunnel to this machine
 
 const PORT = Number(process.env.SPIKE_PORT ?? 8090);
-const STT_MODEL = process.env.SARVAM_STT_MODEL ?? 'saarika:v2.5'; // v2 deprecated by Sarvam (verified 2026-08-21)
-const LLM_MODEL = process.env.SARVAM_LLM_MODEL ?? 'sarvam-105b-conversations'; // sarvam-m deprecated (verified 2026-08-21)
-// bulbul:v3 has its own speaker roster (anushka is v2-only); priya verified 2026-08-21.
+const STT_MODEL = process.env.SARVAM_STT_MODEL ?? 'saaras:v3-realtime';
+const LLM_MODEL = process.env.SARVAM_LLM_MODEL ?? 'sarvam-105b-conversations';
 const TTS_MODEL = process.env.SARVAM_TTS_MODEL ?? 'bulbul:v3';
 const TTS_SPEAKER = process.env.SARVAM_TTS_SPEAKER ?? 'priya';
 const MAX_CALL_MS = 3 * 60_000;
+const LATENCY_BUDGET_MS = 1200;
 
 // Replies must be written in Devanagari: the hi-IN TTS voice reads romanized
 // Hindi with mangled pronunciation (first call verified this the hard way).
-// The company name gets a phonetic Devanagari spelling for the same reason.
 const SYSTEM_PROMPT = `You are Asha (आशा), calling from Pillexis Labs after the lead booked an intro call.
 Write every reply as natural Hinglish in Devanagari script — Hindi in Devanagari, everyday English words (intro call, operations, website) kept in Latin script.
 Write brand and product names phonetically in Devanagari so the voice pronounces them right: पिलेक्सिस लैब्स, व्हाट्सऐप (WhatsApp), शॉपिफ़ाई (Shopify), इंस्टाग्राम (Instagram). Never write these in Latin script.
@@ -56,22 +62,9 @@ Warm and brief. One question at a time. Keep every reply under 25 words.
 Goal: confirm the meeting time works, ask what their biggest operations headache is, and say Anurag will cover it on the call.
 Never discuss prices. End politely when done.`;
 
-// ---------- mulaw <-> pcm (G.711, 8 kHz) ----------
+// ---------- mulaw encode + wav decode (needed for the TTS leg only) ----------
 
 const BIAS = 0x84;
-function mulawDecode(u8: Uint8Array): Int16Array {
-  const out = new Int16Array(u8.length);
-  for (let i = 0; i < u8.length; i++) {
-    let u = ~u8[i] & 0xff;
-    const sign = u & 0x80;
-    const exp = (u >> 4) & 0x07;
-    const mant = u & 0x0f;
-    let sample = ((mant << 3) + BIAS) << exp;
-    sample -= BIAS;
-    out[i] = sign ? -sample : sample;
-  }
-  return out;
-}
 function mulawEncode(pcm: Int16Array): Uint8Array {
   const out = new Uint8Array(pcm.length);
   for (let i = 0; i < pcm.length; i++) {
@@ -86,24 +79,6 @@ function mulawEncode(pcm: Int16Array): Uint8Array {
     out[i] = ~(sign | (exp << 4) | mant) & 0xff;
   }
   return out;
-}
-
-// 8 kHz -> 16 kHz linear upsample, then wrap as WAV for STT.
-function pcm8kToWav16k(pcm: Int16Array): Buffer {
-  const up = new Int16Array(pcm.length * 2);
-  for (let i = 0; i < pcm.length; i++) {
-    up[i * 2] = pcm[i];
-    up[i * 2 + 1] = i + 1 < pcm.length ? Math.round((pcm[i] + pcm[i + 1]) / 2) : pcm[i];
-  }
-  const dataLen = up.length * 2;
-  const buf = Buffer.alloc(44 + dataLen);
-  buf.write('RIFF', 0); buf.writeUInt32LE(36 + dataLen, 4); buf.write('WAVE', 8);
-  buf.write('fmt ', 12); buf.writeUInt32LE(16, 16); buf.writeUInt16LE(1, 20);
-  buf.writeUInt16LE(1, 22); buf.writeUInt32LE(16000, 24); buf.writeUInt32LE(32000, 28);
-  buf.writeUInt16LE(2, 32); buf.writeUInt16LE(16, 34);
-  buf.write('data', 36); buf.writeUInt32LE(dataLen, 40);
-  Buffer.from(up.buffer, up.byteOffset, dataLen).copy(buf, 44);
-  return buf;
 }
 
 // WAV (from Bulbul, any pcm16 mono rate) -> 8 kHz pcm16.
@@ -126,33 +101,101 @@ function wavToPcm8k(wav: Buffer): Int16Array {
   throw new Error('WAV data chunk not found');
 }
 
-// ---------- Sarvam ----------
-
-async function sttSarvam(pcm: Int16Array): Promise<string> {
-  const form = new FormData();
-  form.append('file', new Blob([new Uint8Array(pcm8kToWav16k(pcm))], { type: 'audio/wav' }), 'utterance.wav');
-  form.append('model', STT_MODEL);
-  form.append('language_code', 'unknown');
-  const res = await fetch('https://api.sarvam.ai/speech-to-text', {
-    method: 'POST',
-    headers: { 'api-subscription-key': SARVAM_KEY },
-    body: form,
-  });
-  if (!res.ok) throw new Error(`STT ${res.status}: ${await res.text()}`);
-  const data = (await res.json()) as { transcript?: string };
-  return (data.transcript ?? '').trim();
-}
+// ---------- Sarvam: LLM (streaming) + TTS (REST) ----------
 
 type ChatMsg = { role: 'system' | 'user' | 'assistant'; content: string };
-async function chatSarvam(messages: ChatMsg[]): Promise<string> {
+
+/**
+ * Stream the chat completion, emitting every text delta as it arrives.
+ * Resolves with the full reply text.
+ */
+async function chatSarvamStream(
+  messages: ChatMsg[],
+  onDelta: (delta: string) => void,
+  signal: AbortSignal,
+): Promise<string> {
   const res = await fetch('https://api.sarvam.ai/v1/chat/completions', {
     method: 'POST',
     headers: { Authorization: `Bearer ${SARVAM_KEY}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model: LLM_MODEL, messages, max_tokens: 60, temperature: 0.6 }),
+    body: JSON.stringify({ model: LLM_MODEL, messages, max_tokens: 60, temperature: 0.6, stream: true }),
+    signal,
   });
-  if (!res.ok) throw new Error(`LLM ${res.status}: ${await res.text()}`);
-  const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
-  return (data.choices?.[0]?.message?.content ?? '').trim();
+  if (!res.ok || !res.body) throw new Error(`LLM ${res.status}: ${await res.text()}`);
+
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let text = '';
+
+  for await (const chunk of res.body) {
+    buffer += decoder.decode(chunk as Uint8Array, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop() ?? '';
+    for (const line of lines) {
+      if (!line.startsWith('data: ') || line.includes('[DONE]')) continue;
+      const delta = (JSON.parse(line.slice(6)) as { choices?: { delta?: { content?: string } }[] })
+        .choices?.[0]?.delta?.content ?? '';
+      if (!delta) continue;
+      text += delta;
+      onDelta(delta);
+    }
+  }
+  return text.trim();
+}
+
+// ---------- Sarvam streaming TTS session (bulbul over websocket) ----------
+//
+// LLM deltas go straight in as text messages; mulaw/8k audio chunks come
+// straight back out and forward to Twilio untouched. First audio arrives
+// ~200 ms after enough text buffers (min_buffer_size), instead of the
+// 0.9-1.8 s a whole-utterance REST render costs.
+
+type TtsSession = {
+  sendText: (text: string) => void;
+  flush: () => void;
+  close: () => void;
+  setHandlers: (h: { onAudio: (mulawB64: string) => void; onFinal: () => void }) => void;
+};
+
+function openTtsSession(): Promise<TtsSession> {
+  const url = `wss://api.sarvam.ai/text-to-speech/ws?model=${TTS_MODEL}&send_completion_event=true`;
+  const ws = new WebSocket(url, { headers: { 'Api-Subscription-Key': SARVAM_KEY } });
+  let handlers: { onAudio: (mulawB64: string) => void; onFinal: () => void } = {
+    onAudio: () => {},
+    onFinal: () => {},
+  };
+
+  ws.on('message', (raw) => {
+    const msg = JSON.parse(String(raw)) as { type: string; data?: { audio?: string; event_type?: string; message?: string } };
+    if (msg.type === 'audio' && msg.data?.audio) handlers.onAudio(msg.data.audio);
+    else if (msg.type === 'event' || msg.data?.event_type === 'final') handlers.onFinal();
+    else if (msg.type === 'error') console.error('tts ws error:', msg.data?.message ?? JSON.stringify(msg));
+  });
+  ws.on('error', (e) => console.error('tts ws error:', e.message));
+
+  return new Promise((resolve, reject) => {
+    ws.once('error', reject);
+    ws.on('open', () => {
+      ws.send(JSON.stringify({
+        type: 'config',
+        data: {
+          model: TTS_MODEL,
+          language_code: 'hi-IN',
+          speaker: TTS_SPEAKER,
+          speech_sample_rate: 8000,
+          output_audio_codec: 'mulaw',
+          // 30 is the floor — smaller values fail the config validation.
+          min_buffer_size: 30,
+          max_chunk_length: 120,
+        },
+      }));
+      resolve({
+        sendText: (text) => ws.send(JSON.stringify({ type: 'text', data: { text } })),
+        flush: () => ws.send(JSON.stringify({ type: 'flush' })),
+        close: () => ws.close(),
+        setHandlers: (h) => { handlers = h; },
+      });
+    });
+  });
 }
 
 async function ttsSarvam(text: string): Promise<Int16Array> {
@@ -173,6 +216,38 @@ async function ttsSarvam(text: string): Promise<Int16Array> {
   return wavToPcm8k(Buffer.from(data.audios[0], 'base64'));
 }
 
+// ---------- Sarvam realtime STT session ----------
+
+type SttEvents = {
+  onPartial: (text: string) => void;
+  onSpeechEnd: () => void;
+  onFinal: (text: string) => void;
+};
+
+function openSttSession(events: SttEvents): WebSocket {
+  const url = 'wss://api.sarvam.ai/speech-to-text-realtime/ws'
+    + `?language_code=hi-IN&model=${STT_MODEL}&encoding=mulaw&sample_rate=8000`
+    + '&stream_type=fast&silence_duration_ms=400';
+  const ws = new WebSocket(url, { headers: { 'API-SUBSCRIPTION-KEY': SARVAM_KEY } });
+  ws.on('message', (raw) => {
+    const msg = JSON.parse(String(raw)) as { event: string; text?: string; message?: string };
+    if (msg.event === 'transcript.partial' && msg.text) events.onPartial(msg.text);
+    else if (msg.event === 'vad.speech_end') events.onSpeechEnd();
+    else if (msg.event === 'transcript.final') events.onFinal(msg.text ?? '');
+    else if (msg.event === 'error') console.error('stt error:', msg.message);
+  });
+  ws.on('error', (e) => console.error('stt ws error:', e.message));
+  const keepalive = setInterval(() => {
+    if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ event: 'ping' }));
+  }, 10_000);
+  ws.on('close', () => clearInterval(keepalive));
+  return ws;
+}
+
+// Speculative-start reconciliation: the partial at speech_end and the final
+// differ only in punctuation almost every time.
+const normalize = (s: string) => s.replace(/[\s।,.?!'"''""-]+/g, '').toLowerCase();
+
 // ---------- call session ----------
 
 const GREETING = 'नमस्ते! मैं आशा बोल रही हूँ, पिलेक्सिस लैब्स से। आपने intro call book किया था — क्या अभी दो minute बात कर सकते हैं?';
@@ -186,42 +261,158 @@ type TwilioMediaMsg = {
   streamSid?: string;
 };
 
-// Simple energy VAD over 20 ms mulaw frames (160 samples at 8 kHz).
-// 700 missed real speech on the first live call; 350 is the new default and
-// SPIKE_VAD_RMS tunes it without an edit. The mic-level log line every 2 s
-// shows what to set it to: comfortably below your speech peaks, above the
-// idle noise floor.
-const SPEECH_RMS = Number(process.env.SPIKE_VAD_RMS ?? 350);
-const END_SILENCE_MS = 500;
-const MIN_UTTERANCE_MS = 300;
-
-function rms(pcm: Int16Array): number {
-  let sum = 0;
-  for (let i = 0; i < pcm.length; i++) sum += pcm[i] * pcm[i];
-  return Math.sqrt(sum / pcm.length);
-}
-
 function handleStream(ws: WebSocket) {
   let streamSid = '';
   const history: ChatMsg[] = [{ role: 'system', content: SYSTEM_PROMPT }];
-  let utterance: Int16Array[] = [];
-  let speechMs = 0;
-  let silenceMs = 0;
-  let speaking = false; // the bot is talking; ignore input (no barge-in in the spike)
-  let turn = 0;
-  let peakRms = 0;
-  let lastMicLog = Date.now();
-  let capturing = false;
   const turnLatencies: number[] = [];
+  let speaking = false;   // bot audio is playing; mic input is dropped (no barge-in)
+  let processing = false; // a turn is mid-pipeline; ignore new speech events
+  let turn = 1;
+  let lastPartial = '';
+  let speechEndAt = 0;
 
-  const sendAudio = (pcm: Int16Array, withMark = true) => {
-    // 20 ms frames, paced by Twilio's jitter buffer — send in one go is fine.
-    // The mark comes back when playback reaches it; only the LAST chunk of a
-    // reply carries one, so the mic stays muted until the whole reply played.
+  const sendAudio = (pcm: Int16Array, withMark: boolean) => {
     const payload = Buffer.from(mulawEncode(pcm)).toString('base64');
     ws.send(JSON.stringify({ event: 'media', streamSid, media: { payload } }));
     if (withMark) ws.send(JSON.stringify({ event: 'mark', streamSid, mark: { name: `turn-${turn}` } }));
   };
+
+  // One in-flight speculative LLM run per turn.
+  // Deltas buffer in memory until the final transcript confirms the
+  // speculative prompt; only then do they flow to TTS. A wrong speculation
+  // is aborted before any audio exists.
+  type LlmRun = {
+    promptText: string;
+    controller: AbortController;
+    deltas: string[];
+    pending: string;
+    committed: boolean;
+    full: Promise<string>;
+  };
+  let speculative: LlmRun | null = null;
+  let ttsSession: TtsSession | null = null;
+
+  // Sarvam's TTS socket 400s on text without at least one letter (the LLM's
+  // first delta is often a bare newline, and punctuation can split into its
+  // own delta), so deltas accumulate until a real letter is present; leading
+  // whitespace and punctuation ride along with the next words.
+  const drainToTts = (run: LlmRun) => {
+    while (run.deltas.length) run.pending += run.deltas.shift();
+    if (/\p{L}/u.test(run.pending)) {
+      ttsSession?.sendText(run.pending);
+      run.pending = '';
+    }
+  };
+
+  const startLlm = (promptText: string): LlmRun => {
+    const controller = new AbortController();
+    const messages = [...history, { role: 'user' as const, content: promptText }];
+    const run: LlmRun = {
+      promptText,
+      controller,
+      deltas: [],
+      pending: '',
+      committed: false,
+      full: Promise.resolve(''),
+    };
+    run.full = chatSarvamStream(messages, (delta) => {
+      run.deltas.push(delta);
+      if (run.committed) drainToTts(run);
+    }, controller.signal).catch((e) => {
+      if (!controller.signal.aborted) console.error('llm failed:', e);
+      return '';
+    });
+    return run;
+  };
+
+  const runTurn = async (finalText: string) => {
+    processing = true;
+    try {
+      // Keep the speculative run if its prompt matches the final transcript.
+      let run = speculative;
+      speculative = null;
+      let speculationHit = false;
+      if (run && normalize(run.promptText) === normalize(finalText)) {
+        speculationHit = true;
+      } else {
+        run?.controller.abort();
+        run = startLlm(finalText);
+      }
+
+      // The TTS socket opens once per call, lazily; ~160 ms, only on first use.
+      if (!ttsSession) ttsSession = await openTtsSession();
+
+      let firstAudioAt = 0;
+      let ttsDone!: () => void;
+      const ttsFinal = new Promise<void>((resolve) => { ttsDone = resolve; });
+      ttsSession.setHandlers({
+        onAudio: (mulawB64) => {
+          if (!firstAudioAt) {
+            firstAudioAt = Date.now();
+            speaking = true;
+            const totalMs = firstAudioAt - speechEndAt;
+            turnLatencies.push(totalMs);
+            console.log(
+              `TURN ${turn} latency: ${totalMs} ms ${totalMs <= LATENCY_BUDGET_MS ? 'PASS' : 'FAIL'} `
+              + `(speculation ${speculationHit ? 'hit' : 'miss'}; budget ${LATENCY_BUDGET_MS})`,
+            );
+          }
+          // Sarvam's mulaw/8k chunks forward to Twilio byte-for-byte.
+          ws.send(JSON.stringify({ event: 'media', streamSid, media: { payload: mulawB64 } }));
+        },
+        onFinal: () => ttsDone(),
+      });
+
+      // Release the buffered speculative deltas, then pipe live ones.
+      run.committed = true;
+      drainToTts(run);
+
+      const fullReply = await run.full;
+      if (!fullReply) { processing = false; return; }
+      ttsSession.flush();
+
+      history.push({ role: 'user', content: finalText });
+      history.push({ role: 'assistant', content: fullReply });
+      console.log(`heard: "${finalText}"`);
+      console.log(`reply: "${fullReply}"`);
+
+      await ttsFinal; // all audio chunks forwarded
+      ws.send(JSON.stringify({ event: 'mark', streamSid, mark: { name: `turn-${turn}` } }));
+      turn += 1;
+    } catch (e) {
+      console.error('turn failed:', e);
+      speaking = false;
+    } finally {
+      processing = false;
+    }
+  };
+
+  const stt = openSttSession({
+    onPartial: (text) => { lastPartial = text; },
+    onSpeechEnd: () => {
+      if (speaking || processing) return;
+      speechEndAt = Date.now();
+      // Partials keep landing for ~100 ms after speech_end and the final is
+      // almost always identical to the LAST of them — so wait 80 ms, then
+      // speculate exactly once on the settled partial. Restarting on every
+      // partial churn pays the LLM's startup cost repeatedly and loses the
+      // whole head start (measured, not theory).
+      setTimeout(() => {
+        if (speaking || processing || !speechEndAt) return;
+        if (lastPartial.trim()) {
+          speculative?.controller.abort();
+          speculative = startLlm(lastPartial.trim());
+        }
+      }, 80);
+    },
+    onFinal: (text) => {
+      if (speaking || processing) return;
+      if (!text.trim()) { speculative?.controller.abort(); speculative = null; return; }
+      if (!speechEndAt) speechEndAt = Date.now();
+      void runTurn(text.trim());
+      lastPartial = '';
+    },
+  });
 
   ws.on('message', async (raw) => {
     const msg = JSON.parse(String(raw)) as TwilioMediaMsg;
@@ -229,12 +420,11 @@ function handleStream(ws: WebSocket) {
     if (msg.event === 'start' && msg.start) {
       streamSid = msg.start.streamSid;
       console.log(`stream started: ${streamSid}`);
-      turn += 1;
       history.push({ role: 'assistant', content: GREETING });
       try {
         // Synthesized while the phone was still ringing — plays immediately.
         speaking = true;
-        sendAudio(await greetingAudio);
+        sendAudio(await greetingAudio, true);
       } catch (e) {
         console.error('greeting failed:', e);
         speaking = false;
@@ -245,79 +435,16 @@ function handleStream(ws: WebSocket) {
 
     if (msg.event === 'mark') {
       speaking = false; // bot finished talking; listen again
+      speechEndAt = 0;
+      lastPartial = '';
       console.log('listening…');
       return;
     }
 
-    if (msg.event === 'media' && msg.media && !speaking) {
-      const pcm = mulawDecode(Buffer.from(msg.media.payload, 'base64'));
-      const frameMs = (pcm.length / 8000) * 1000;
-      const level = rms(pcm);
-      const loud = level > SPEECH_RMS;
-      // Live tuning aid: the caller's actual levels vs the threshold.
-      peakRms = Math.max(peakRms, level);
-      if (Date.now() - lastMicLog > 2000) {
-        console.log(`mic level: peak rms ${Math.round(peakRms)} (threshold ${SPEECH_RMS})`);
-        peakRms = 0;
-        lastMicLog = Date.now();
-      }
-      if (loud && !capturing) {
-        capturing = true;
-        console.log('speech detected, capturing…');
-      }
-      if (loud) {
-        utterance.push(pcm);
-        speechMs += frameMs;
-        silenceMs = 0;
-      } else if (speechMs > 0) {
-        utterance.push(pcm);
-        silenceMs += frameMs;
-      }
-
-      if (speechMs >= MIN_UTTERANCE_MS && silenceMs >= END_SILENCE_MS) {
-        const endOfSpeech = Date.now();
-        const full = new Int16Array(utterance.reduce((n, c) => n + c.length, 0));
-        let off = 0;
-        for (const c of utterance) { full.set(c, off); off += c.length; }
-        utterance = []; speechMs = 0; silenceMs = 0; capturing = false;
-        speaking = true; // hold the mic while we think
-        turn += 1;
-        try {
-          const t0 = Date.now();
-          const heard = await sttSarvam(full);
-          const sttMs = Date.now() - t0;
-          console.log(`heard: "${heard}"`);
-          if (!heard) { speaking = false; return; }
-          history.push({ role: 'user', content: heard });
-          const t1 = Date.now();
-          const reply = await chatSarvam(history);
-          const llmMs = Date.now() - t1;
-          history.push({ role: 'assistant', content: reply });
-          console.log(`reply: "${reply}"`);
-
-          // Sentence-split TTS: synthesize all sentences in parallel, play the
-          // first the moment it is ready. Latency to first audio becomes
-          // TTS(first sentence) instead of TTS(whole reply).
-          const t2 = Date.now();
-          const sentences = reply.split(/(?<=[।!?.])\s+/).filter(Boolean);
-          const audioJobs = sentences.map((sentence) => ttsSarvam(sentence));
-          const firstAudio = await audioJobs[0];
-          const ttsMs = Date.now() - t2;
-          const totalMs = Date.now() - endOfSpeech;
-          turnLatencies.push(totalMs);
-          console.log(
-            `TURN ${turn} latency: ${totalMs} ms ${totalMs <= 1200 ? 'PASS' : 'FAIL'} `
-            + `(stt ${sttMs} + llm ${llmMs} + tts-first ${ttsMs}; budget 1200)`,
-          );
-          speaking = true;
-          sendAudio(firstAudio, audioJobs.length === 1);
-          for (let i = 1; i < audioJobs.length; i++) {
-            sendAudio(await audioJobs[i], i === audioJobs.length - 1);
-          }
-        } catch (e) {
-          console.error('turn failed:', e);
-          speaking = false;
-        }
+    if (msg.event === 'media' && msg.media && !speaking && !processing) {
+      // Twilio's payload is already base64 mulaw/8k — Sarvam takes it raw.
+      if (stt.readyState === WebSocket.OPEN) {
+        stt.send(JSON.stringify({ event: 'audio_input', audio: msg.media.payload }));
       }
       return;
     }
@@ -326,7 +453,6 @@ function handleStream(ws: WebSocket) {
       console.log('stream stopped — call over. Transcript:');
       const lines = history.slice(1).map((m) => `${m.role}: ${m.content}`);
       for (const line of lines) console.log(`  ${line}`);
-      // Persist every call so transcripts survive the terminal.
       mkdirSync(TRANSCRIPT_DIR, { recursive: true });
       const stamp = new Date().toISOString().replace(/[:.]/g, '-');
       const file = join(TRANSCRIPT_DIR, `${stamp}.txt`);
@@ -339,6 +465,11 @@ function handleStream(ws: WebSocket) {
         '',
       ].join('\n'));
       console.log(`transcript saved: ${file}`);
+      try {
+        stt.send(JSON.stringify({ event: 'end' }));
+        stt.close();
+        ttsSession?.close();
+      } catch { /* closing anyway */ }
       process.exit(0);
     }
   });
