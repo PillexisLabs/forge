@@ -65,6 +65,9 @@ const SYSTEM_PROMPT = `You are Asha (आशा), calling from Pillexis Labs afte
 Write every reply as natural Hinglish in Devanagari script — Hindi in Devanagari, everyday English words (intro call, operations, website) kept in Latin script.
 Write brand and product names phonetically in Devanagari so the voice pronounces them right: पिलेक्सिस लैब्स, व्हाट्सऐप (WhatsApp), शॉपिफ़ाई (Shopify), इंस्टाग्राम (Instagram). Never write these in Latin script.
 If the caller mishears or mangles the company name, keep saying पिलेक्सिस लैब्स correctly — never repeat their version.
+If the caller asks who you are or wants an introduction, give it properly once: you are Asha from पिलेक्सिस लैब्स, a software studio that builds custom software and AI automation for businesses; they booked an intro call on the website. Then continue.
+The intro call is booked for ${process.env.SPIKE_MEETING_TIME ?? 'कल दोपहर 12 बजे'} — state this time plainly whenever the caller asks when the call is. (The real module reads this from the CRM.)
+Never repeat a sentence you already said in this call — rephrase or move the conversation forward instead.
 Warm and brief. One question at a time. Keep every reply under 25 words.
 Goal: confirm the meeting time works, ask what their biggest operations headache is, and say Anurag will cover it on the call.
 Never discuss prices. End politely when done.`;
@@ -161,6 +164,7 @@ type TtsSession = {
   flush: () => void;
   close: () => void;
   setHandlers: (h: { onAudio: (mulawB64: string) => void; onFinal: () => void }) => void;
+  isOpen: () => boolean;
 };
 
 function openTtsSession(): Promise<TtsSession> {
@@ -178,6 +182,12 @@ function openTtsSession(): Promise<TtsSession> {
     else if (msg.type === 'error') console.error('tts ws error:', msg.data?.message ?? JSON.stringify(msg));
   });
   ws.on('error', (e) => console.error('tts ws error:', e.message));
+  // The TTS socket idles out during long caller pauses without a keepalive
+  // (verified live: "Websocket was left open without any messages for too long").
+  const keepalive = setInterval(() => {
+    if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'ping' }));
+  }, 10_000);
+  ws.on('close', () => clearInterval(keepalive));
 
   return new Promise((resolve, reject) => {
     ws.once('error', reject);
@@ -202,6 +212,7 @@ function openTtsSession(): Promise<TtsSession> {
         flush: () => ws.send(JSON.stringify({ type: 'flush' })),
         close: () => ws.close(),
         setHandlers: (h) => { handlers = h; },
+        isOpen: () => ws.readyState === WebSocket.OPEN,
       });
     });
   });
@@ -244,7 +255,12 @@ function openSttSession(events: SttEvents): WebSocket {
     if (msg.event === 'transcript.partial' && msg.text) events.onPartial(msg.text);
     else if (msg.event === 'vad.speech_end') events.onSpeechEnd();
     else if (msg.event === 'transcript.final') events.onFinal(msg.text ?? '');
-    else if (msg.event === 'error') console.error('stt error:', msg.message);
+    else if (msg.event === 'error') {
+      console.error('stt error:', msg.message);
+      // Sarvam reports fatal backend errors as messages while leaving the
+      // socket half-open — terminate so the close handler reconnects.
+      ws.terminate();
+    }
   });
   ws.on('error', (e) => console.error('stt ws error:', e.message));
   const keepalive = setInterval(() => {
@@ -394,8 +410,9 @@ function handleStream(ws: WebSocket) {
         run = startLlm(finalText);
       }
 
-      // The TTS socket opens once per call, lazily; ~160 ms, only on first use.
-      if (!ttsSession) ttsSession = await openTtsSession();
+      // The TTS socket opens lazily (~160 ms) and reopens if the previous one
+      // idled out or errored between turns.
+      if (!ttsSession || !ttsSession.isOpen()) ttsSession = await openTtsSession();
 
       let firstAudioAt = 0;
       let ttsDone!: () => void;
@@ -442,8 +459,8 @@ function handleStream(ws: WebSocket) {
     }
   };
 
-  const stt = openSttSession({
-    onPartial: (text) => { lastPartial = text; },
+  const sttEvents = {
+    onPartial: (text: string) => { lastPartial = text; },
     onSpeechEnd: () => {
       if (speaking || processing) return;
       speechEndAt = Date.now();
@@ -460,14 +477,29 @@ function handleStream(ws: WebSocket) {
         }
       }, 80);
     },
-    onFinal: (text) => {
+    onFinal: (text: string) => {
       if (speaking || processing) return;
       if (!text.trim()) { speculative?.controller.abort(); speculative = null; return; }
       if (!speechEndAt) speechEndAt = Date.now();
       void runTurn(text.trim());
       lastPartial = '';
     },
-  });
+  };
+
+  // The STT backend occasionally drops the socket mid-call (seen live:
+  // "Backend: INTERNAL"). Utterances are independent, so a fresh session
+  // resumes the call transparently.
+  let callOver = false;
+  let stt = openSttSession(sttEvents);
+  const attachSttReconnect = () => {
+    stt.on('close', () => {
+      if (callOver) return;
+      console.log('stt session dropped — reconnecting…');
+      stt = openSttSession(sttEvents);
+      attachSttReconnect();
+    });
+  };
+  attachSttReconnect();
 
   ws.on('message', async (raw) => {
     const msg = JSON.parse(String(raw)) as MediaMsg;
@@ -518,6 +550,7 @@ function handleStream(ws: WebSocket) {
       ].join('\n'));
       console.log(`transcript saved: ${file}`);
       try {
+        callOver = true;
         stt.send(JSON.stringify({ event: 'end' }));
         stt.close();
         ttsSession?.close();
