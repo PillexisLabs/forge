@@ -241,13 +241,18 @@ How the platform work changes it:
    Emit `booking.created`, `lead.replied` (inbound WhatsApp), and sync
    completion.
 3. [x] PR 3 — manifests per module. Build nav from manifests.
-4. [ ] **RBAC** (decided 2026-08-20, top priority): users, roles, and
-   per-module permissions. Full plan in `plans/RBAC.md`. Lands after
-   PR 3, before the voice module.
-5. [ ] Voice spike (throwaway): one AI call to our own phone on the
-   Twilio + Sarvam stack. Pass: latency under 1.2 s and demo quality.
-   Not blocked by RBAC; runs as soon as the keys exist.
-6. [ ] `src/modules/voice/` on the event spine.
+4. [x] **RBAC** (decided 2026-08-20, top priority): users, roles, and
+   per-module permissions. Full plan in `plans/RBAC.md`. Shipped in
+   PRs 5 and 6, verified on staging 2026-08-21.
+5. [x] Voice spike: one AI call on the Twilio + Sarvam stack. Grew into
+   the streamed pipeline in `spikes/voice-call/` (Sarvam realtime STT,
+   streamed LLM, TTS websocket, Plivo or Twilio media streams). Best
+   turns pass the 1.2 s target; the LLM leg is the remaining variance.
+6. [x] `src/modules/voice/` on the event spine. Shipped in PR 7 with
+   selectable flows (stub, sarvam-twilio, sarvam-plivo, bolna) and the
+   ad-hoc call path (`npm run voice:call`). Still open: the sarvam-*
+   media bridge lives in the spike, not the module, and the module has
+   no screens yet.
 7. [ ] Split lead-qual out of crm.
 8. [ ] `/docs` route (decided 2026-08-20, resequenced 2026-08-20 to
    after the module work). Forge renders the repo's `docs/` folder
