@@ -205,6 +205,24 @@ export const quoteJob: JobDefinition = {
       },
     },
 
+    sendReply: {
+      label: 'Reply to the buyer',
+      from: OPEN_STATES,
+      to: OPEN_STATES,
+      permission: 'sales:write',
+      parse(raw) {
+        const input = inputObject(raw);
+        return { text: requiredText(input, 'text', 'The reply', 4000), via: input.via === 'email' ? 'email' : 'whatsapp' };
+      },
+      async run({ current }, input) {
+        return {
+          to: current!.state,
+          data: { attention: null },
+          summary: `Replied on ${input.via === 'email' ? 'email' : 'WhatsApp'}: "${input.text.slice(0, 160)}${input.text.length > 160 ? '…' : ''}"`,
+        };
+      },
+    },
+
     draftQuote: {
       label: 'Save quote draft',
       from: ['enquiry', 'draft', 'approved'],

@@ -5,10 +5,12 @@ import { SourceLabel, StateChip } from '@/components/lf/Chips';
 import { clock, displayPhone, timeAgo } from '@/components/lf/format';
 import { CopyButton, PromptStepButton, StepButton } from '@/components/jobs/StepControls';
 import QuoteEditor from '@/components/sales/QuoteEditor';
+import ReplyBox from '@/components/jobs/ReplyBox';
 import { caseMessages } from '@/core/intake';
 import { ASSIGNEE_LABELS, availableSteps, getCaseSteps, listCases } from '@/core/jobs';
 import { formatPaise } from '@/core/money';
 import { productSource } from '@/core/products';
+import { replyOptionFor } from '@/core/replies';
 import type { SessionUser } from '@/core/users';
 import { replyRoute } from '@/modules/sales/quote-automation';
 import { CHANNEL_LABELS, quoteJob, type QuoteCase } from '@/modules/sales/quote-job';
@@ -33,13 +35,14 @@ function waLink(phone: string | null, text: string): string | null {
 // One quote, opened over the quote list. The strip at the top says what
 // Forge did and what it needs from a person; everything below is the record.
 export default async function QuoteSheet({ current, user, closeHref }: { current: QuoteCase; user: SessionUser; closeHref: string }) {
-  const [steps, messages, products, rules, route, children] = await Promise.all([
+  const [steps, messages, products, rules, route, children, reply] = await Promise.all([
     getCaseSteps(current.id),
     caseMessages(current.id),
     productSource().list(),
     getSalesRules(),
     replyRoute(current),
     listCases({ parentCaseId: current.id }),
+    replyOptionFor(current.subject),
   ]);
   const can = new Set(availableSteps(quoteJob, current.state, user).map((s) => s.name));
   const quote = current.data.quote ?? null;
@@ -73,9 +76,9 @@ export default async function QuoteSheet({ current, user, closeHref }: { current
         {current.data.attention && (
           <div className="lf-review" data-tone="amber">
             <div className="lf-review-head"><Icon name="message" /><span className="lf-grow">{current.data.attention.reason}</span></div>
+            {can.has('sendReply') && <ReplyBox job="quote" caseId={current.id} version={current.version} option={reply} phone={current.subject.phone ?? null} />}
             <div className="lf-review-actions">
-              {current.subject.phone && <a className="lf-btn" href={`https://wa.me/${current.subject.phone}`} target="_blank" rel="noreferrer"><Icon name="whatsapp" />Reply on WhatsApp</a>}
-              {can.has('markHandled') && <StepButton {...common} step="markHandled" icon="check">Mark as answered</StepButton>}
+              {can.has('markHandled') && <StepButton {...common} step="markHandled" icon="check" variant="ghost">Answered another way</StepButton>}
             </div>
           </div>
         )}

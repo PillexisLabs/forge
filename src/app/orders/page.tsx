@@ -12,6 +12,8 @@ import { ASSIGNEE_LABELS, availableSteps, getCaseByRef, getCaseSteps, listCases 
 import { formatPaise } from '@/core/money';
 import { guardModulePage } from '@/core/page-guard';
 import { productSource } from '@/core/products';
+import { replyOptionFor } from '@/core/replies';
+import ReplyBox from '@/components/jobs/ReplyBox';
 import type { SessionUser } from '@/core/users';
 import '@/modules/jobs';
 import { balanceOf, instalmentsOf, orderJob, paymentStatus, type OrderCase } from '@/modules/orders/order-job';
@@ -24,10 +26,11 @@ import { clock } from '@/components/lf/format';
 export const dynamic = 'force-dynamic';
 
 async function OrderSheet({ current, user, closeHref }: { current: OrderCase; user: SessionUser; closeHref: string }) {
-  const [steps, stock, orderRules] = await Promise.all([
+  const [steps, stock, orderRules, reply] = await Promise.all([
     getCaseSteps(current.id),
     productSource().get(current.data.lines.map((line) => line.sku)),
     getOrderRules(),
+    replyOptionFor(current.subject),
   ]);
   const instalments = instalmentsOf(current.data);
   const DOC_NAMES = { order_confirmation: 'Order confirmation', payment_request: 'Payment request', tax_invoice: 'Tax invoice' } as const;
@@ -53,9 +56,9 @@ async function OrderSheet({ current, user, closeHref }: { current: OrderCase; us
         <div className="lf-section">
           <div className="lf-review" data-tone="amber">
             <div className="lf-review-head"><Icon name="message" /><span className="lf-grow">{current.data.attention.reason}</span></div>
+            {can.has('sendReply') && <ReplyBox job="order" caseId={current.id} version={current.version} option={reply} phone={current.subject.phone ?? null} />}
             <div className="lf-review-actions">
-              {current.subject.phone && <a className="lf-btn" href={`https://wa.me/${current.subject.phone}`} target="_blank" rel="noreferrer"><Icon name="whatsapp" />Reply on WhatsApp</a>}
-              {can.has('markHandled') && <StepButton {...common} step="markHandled" icon="check">Mark as handled</StepButton>}
+              {can.has('markHandled') && <StepButton {...common} step="markHandled" icon="check" variant="ghost">Handled another way</StepButton>}
             </div>
           </div>
         </div>
