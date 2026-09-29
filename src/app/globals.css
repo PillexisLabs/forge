@@ -3214,3 +3214,8 @@ textarea:disabled {
   .forge-bottom-nav { font-family: var(--ds-font); background: var(--ds-elevated); border-top-color: var(--ds-border-subtle); }
   .forge-bottom-nav a[aria-current='page'] { background: var(--ds-primary-subtle); color: var(--ds-primary); }
 }
+/* No outer frame: the workspace fills the window edge to edge. */
+:root { --lf-frame-gap: 0px; }
+.forge-shell { padding: 0; background: var(--ds-elevated); }
+.side { border: 0; border-right: 1px solid var(--ds-border-subtle); border-radius: 0; }
+.forge-main { border: 0; border-radius: 0; }
