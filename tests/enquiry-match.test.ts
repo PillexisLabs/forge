@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { Product } from '../src/core/products';
-import { findPincode, isConfirmation, matchEnquiry } from '../src/modules/sales/enquiry-match';
+import { findPincode, isConfirmation, matchConversation, matchEnquiry } from '../src/modules/sales/enquiry-match';
 
 const p = (sku: string, name: string, unit = 'pcs'): Product => ({
   sku, name, unit, ratePaise: 100, gstRateBp: 1800, hsn: null, onHand: 0, incomingLocal: 0, incomingImport: 0, incomingLocalEta: null, incomingImportEta: null, committed: 0, available: 0,
@@ -57,4 +57,21 @@ test('confirmation replies', () => {
   assert.ok(!isConfirmation('not confirmed yet, can you reduce the rate?'));
   assert.ok(!isConfirmation('Please wait, I will confirm tomorrow'));
   assert.ok(!isConfirmation('What is the delivery time?'));
+});
+
+test('a buyer who repeats a request gets the quantity once, not the sum', () => {
+  const m = matchConversation(['Need 2000 stand-up pouch 250 ml 2 colour. Delivery 560001', 'Stand-up pouch 250 ml 2 colour, 2000 pcs. Delivery 560001'], CATALOGUE);
+  assert.deepEqual(m.lines.map((l) => [l.sku, l.quantity]), [['SUP-250-2C', 2000]]);
+});
+
+test('a later message corrects the quantity and the pincode', () => {
+  const m = matchConversation(['Need 5000 stand-up pouches 250 ml, 2 colour. Delivery 560058', 'Sorry, make it 3000 stand-up pouch 250 ml 2 colour. Deliver to 560001'], CATALOGUE);
+  assert.deepEqual(m.lines.map((l) => [l.sku, l.quantity]), [['SUP-250-2C', 3000]]);
+  assert.equal(m.pincode, '560001');
+});
+
+test('an item in one message and its quantity in the next still match', () => {
+  const m = matchConversation(['Need stand-up pouches 250 ml, 2 colour for masala', 'Quantity 5000. Delivery 560058'], CATALOGUE);
+  assert.deepEqual(m.lines.map((l) => [l.sku, l.quantity]), [['SUP-250-2C', 5000]]);
+  assert.equal(m.pincode, '560058');
 });

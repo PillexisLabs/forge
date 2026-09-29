@@ -5,7 +5,7 @@ import { consumeEvents, emitEvent } from '@/core/events';
 import { getInbound, lastWhatsAppFrom, linkInbound, type InboundRecord, type IntakeSource } from '@/core/intake';
 import { createCase, getCaseById, ruleActor, runStep, StepError, type CaseRecord } from '@/core/jobs';
 import { productSource } from '@/core/products';
-import { isConfirmation, matchEnquiry } from './enquiry-match';
+import { isConfirmation, matchConversation, matchEnquiry } from './enquiry-match';
 import { renderQuotePdf } from './quote-pdf';
 import { CHANNEL_LABELS, quoteJob, type QuoteCase, type QuoteChannel, type QuoteData } from './quote-job';
 import { quoteMessage } from './quote-rules';
@@ -73,25 +73,25 @@ export async function replyRoute(current: QuoteCase): Promise<{ channel: Channel
 }
 
 /**
- * The text the matching rule reads: every message the buyer sent on this
- * case, once each. The first email keeps its subject. A case typed in by a
- * person (no messages) uses the enquiry text.
+ * The messages the matching rule reads: every message the buyer sent on this
+ * case, once each, oldest first. The first email keeps its subject. A case
+ * typed in by a person (no messages) uses the enquiry text.
  */
-async function caseText(caseId: number, typed: string): Promise<string> {
+async function caseMessagesText(caseId: number, typed: string): Promise<string[]> {
   const sql = getSql();
   const rows = await sql<{ body: string; subject: string | null; source: string }[]>`
     select body, subject, source from inbound_messages where case_id = ${caseId} order by received_at
   `;
-  if (!rows.length) return typed;
-  return rows.map((row, i) => (i === 0 && row.source === 'email' && row.subject ? `${row.subject}\n${row.body}` : row.body)).join('\n');
+  if (!rows.length) return [typed];
+  return rows.map((row, i) => (i === 0 && row.source === 'email' && row.subject ? `${row.subject}\n${row.body}` : row.body));
 }
 
 /** Match the case's messages to the catalogue; draft the quote or ask for what is missing. */
 async function draftOrAsk(current: QuoteCase): Promise<void> {
   const rules = await getSalesRules();
   if (!rules.autoDraft) return;
-  const text = await caseText(current.id, current.data.enquiry.message);
-  const match = matchEnquiry(text, await productSource().list());
+  const messages = await caseMessagesText(current.id, current.data.enquiry.message);
+  const match = matchConversation(messages, await productSource().list());
   const pincode = match.pincode ?? current.data.quote?.pincode ?? null;
 
   if (match.lines.length && pincode) {

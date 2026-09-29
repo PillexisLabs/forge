@@ -147,6 +147,28 @@ export function matchEnquiry(text: string, products: Product[]): EnquiryMatch {
   return { lines, pincode: findPincode(text), unmatched };
 }
 
+/**
+ * Match a whole conversation: every buyer message on the case, oldest first.
+ * The messages are read together, so an item in one message and its
+ * quantity in the next still match. When a later message names an item with
+ * its own quantity, the buyer restated or corrected it: that quantity wins,
+ * never the sum of both messages. The latest pincode wins too.
+ */
+export function matchConversation(messages: string[], products: Product[]): EnquiryMatch {
+  const combined = matchEnquiry(messages.join('\n'), products);
+  const latest = new Map<string, MatchedLine>();
+  let pincode: string | null = null;
+  for (const message of messages) {
+    for (const line of matchEnquiry(message, products).lines) latest.set(line.sku, line);
+    pincode = findPincode(message) ?? pincode;
+  }
+  const lines = combined.lines.map((line) => {
+    const restated = latest.get(line.sku);
+    return restated ? { ...line, quantity: restated.quantity, text: restated.text } : line;
+  });
+  return { lines, pincode: pincode ?? combined.pincode, unmatched: combined.unmatched };
+}
+
 /** A buyer's reply that confirms the order. A negative word anywhere wins. */
 export function isConfirmation(text: string): boolean {
   const t = ` ${text.toLowerCase().replace(/[^a-z\s']/g, ' ')} `;
