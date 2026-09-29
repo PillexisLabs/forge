@@ -3505,9 +3505,18 @@ a.db-stat:hover { background: var(--ds-surface-subtle); }
   .forge-shell > .forge-main:has(> .lf-page > .lf-table-wrap, > .lf-page > .un2, > .lf-page > .db) { overflow: hidden; }
   .forge-main .lf-page:has(> .lf-table-wrap, > .un2, > .db) { height: 100%; min-height: 0; }
   .forge-main .lf-page:has(> .lf-table-wrap, > .un2, > .db) > * { flex: none; }
-  .forge-main .lf-page > .lf-table-wrap, .forge-main .lf-page > .un2, .forge-main .lf-page > .db { flex: 1 1 0; min-height: 0; overflow: auto; }
+  .forge-main .lf-page > .un2, .forge-main .lf-page > .db { flex: 1 1 0; min-height: 0; overflow: auto; }
+  /* A table box hugs its rows and scrolls only when the rows do not fit. */
+  .forge-main .lf-page > .lf-table-wrap { flex: 0 1 auto; min-height: 0; overflow: auto; }
+  .forge-main .lf-page > .lf-table-wrap .lf-count-foot { position: sticky; bottom: 0; z-index: 1; }
   /* Settings: the title stays at the top while the cards scroll under it. */
   .st > .st-head { position: sticky; top: 0; z-index: 5; margin-top: -2rem; padding-top: 2rem; padding-bottom: 1.25rem; margin-bottom: 0.25rem; background: var(--ds-elevated); border-bottom: 1px dashed var(--ds-border-subtle); }
   .forge-main .lf-page > .lf-table-wrap { margin-bottom: 1.25rem; }
   .un2-day h2 { position: sticky; top: 0; z-index: 1; margin: 0; padding: 0.5rem 0; background: var(--ds-elevated); }
 }
+/* The count row draws the line under the last row; no double border. */
+.lf-table tbody tr:last-child td { border-bottom: 0; }
+/* Up next: the time sits in a fixed column at the right, so rows line up. */
+.un2-row { grid-template-columns: 2rem minmax(0, 1fr) auto 3.5rem; }
+.un2-row > .un2-action { order: 3; }
+.un2-row > .un2-when { order: 4; text-align: right; }
