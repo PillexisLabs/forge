@@ -5,6 +5,7 @@ import type { Viewport } from 'next';
 import { Suspense, type ReactNode } from 'react';
 import PwaRegistration from '@/components/PwaRegistration';
 import WorkspaceChrome, { type ChromeUser } from '@/components/WorkspaceChrome';
+import { brandPalette, getAppearance, TEXT_SIZES } from '@/core/appearance';
 import { attentionCount } from '@/core/attention';
 import { enabledModuleNames, switchedOffModules } from '@/core/modules';
 import { MODULES } from '@/modules/registry';
@@ -42,6 +43,9 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   // login page (or an expired session mid-redirect) — the chrome hides itself.
   const sessionUser = await getSessionUserFromCookies().catch(() => null);
   const attention = sessionUser ? await attentionCount(sessionUser).catch(() => 0) : 0;
+  // Settings → Appearance: brand color tokens and the root text size.
+  const appearance = await getAppearance();
+  const look = { ...brandPalette(appearance.brandColor), fontSize: `${TEXT_SIZES[appearance.textSize].px}px` } as React.CSSProperties;
   // Installed modules (FORGE_MODULES) minus the ones switched off in Settings → Modules.
   const off = sessionUser ? await switchedOffModules() : [];
   const installed = enabledModuleNames() ?? MODULES.map((mod) => mod.name);
@@ -51,7 +55,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     : null;
 
   return (
-    <html lang="en" className={noto.variable}>
+    <html lang="en" className={noto.variable} style={look}>
       <body className="min-h-screen antialiased">
         <PwaRegistration />
         <Suspense fallback={children}>

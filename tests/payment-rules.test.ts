@@ -75,3 +75,14 @@ test('financial years run April to March in IST', () => {
   assert.equal(financialYear(new Date('2027-03-31T17:00:00Z')), '2026-27');
   assert.equal(financialYear(new Date('2027-03-31T19:00:00Z')), '2027-28');
 });
+
+import { brandPalette, parseAppearance } from '../src/core/appearance';
+
+test('one brand color becomes the primary palette', () => {
+  const p = brandPalette('#b9444c');
+  assert.equal(p['--ds-primary'], '#b9444c');
+  assert.match(p['--ds-primary-subtle'], /^#f[0-9a-f]{5}$/);
+  assert.throws(() => parseAppearance({ brandColor: '#fafafa' }), /too light/);
+  assert.throws(() => parseAppearance({ brandColor: 'red' }), /hex/);
+  assert.deepEqual(parseAppearance({ brandColor: '#2563EB', textSize: 'small' }), { brandColor: '#2563eb', textSize: 'small' });
+});

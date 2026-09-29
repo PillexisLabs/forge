@@ -1,250 +1,226 @@
 import Link from 'next/link';
 import AccessNotice from '@/components/AccessNotice';
 import { PromptStepButton, StepButton } from '@/components/jobs/StepControls';
-import { Chip, type Tone } from '@/components/lf/Chips';
 import Icon from '@/components/lf/Icon';
 import PageBar from '@/components/lf/PageBar';
 import { timeAgo } from '@/components/lf/format';
+import RecordPaymentButton from '@/components/orders/RecordPaymentButton';
+import ReviewSheet, { type ReviewItem } from '@/components/work/ReviewSheet';
 import SetupNotice from '@/components/SetupNotice';
 import { getSql } from '@/core/db';
-import { assigneeRolesFor, availableSteps, listCases, type CaseRecord } from '@/core/jobs';
+import { assigneeRolesFor, availableSteps, listCases, type CaseRecord, type JobDefinition } from '@/core/jobs';
 import { formatPaise } from '@/core/money';
 import { getSessionUserFromCookies } from '@/core/session';
 import { casePath } from '@/modules/jobs';
 import { balanceOf, orderJob, paymentStatus, type OrderCase } from '@/modules/orders/order-job';
-import RecordPaymentButton from '@/components/orders/RecordPaymentButton';
-import { CHANNEL_LABELS, quoteJob, type QuoteCase } from '@/modules/sales/quote-job';
 import { purchaseJob, type PoCase } from '@/modules/purchasing/purchase-job';
+import { CHANNEL_LABELS, quoteJob, type QuoteCase } from '@/modules/sales/quote-job';
 import { getSalesRules } from '@/modules/sales/sales-settings';
 
 export const dynamic = 'force-dynamic';
 
-type Item = {
+// Up next is a signal layer: catch, act, clear. One list of things that
+// need a person, most urgent first, each with the one action that clears
+// it. Work Forge has already prepared (drafts, POs) is reviewed in one
+// batch panel. Waiting items and Forge's own steps sit in their own tabs.
+
+type Row = {
   key: string;
   href: string;
-  kind: string;
-  tone: Tone;
   icon: string;
+  tone: 'red' | 'amber' | 'blue' | 'green' | 'grey';
   title: string;
-  ref: string;
-  detail: string;
+  meta: string;
   when: string;
+  rank: number;
   action?: React.ReactNode;
 };
 
-function itemsText(q: QuoteCase): string {
+function lines(q: QuoteCase): string {
   const ls = q.data.quote?.lines ?? [];
   if (!ls.length) return '';
   const first = `${ls[0].quantity.toLocaleString('en-IN')} × ${ls[0].name}`;
-  return ls.length > 1 ? `${first} and ${ls.length - 1} more` : first;
+  return ls.length > 1 ? `${first} +${ls.length - 1}` : first;
 }
 
-function Row({ item }: { item: Item }) {
+function List({ rows }: { rows: Row[] }) {
   return (
-    <div className="un-row">
-      <span className="un-kind" data-tone={item.tone}><Icon name={item.icon} /></span>
-      <div className="un-body">
-        <div className="un-line">
-          <Link href={item.href} className="un-title">{item.title}</Link>
-          <span className="lf-ref">{item.ref}</span>
-          <Chip tone={item.tone}>{item.kind}</Chip>
-        </div>
-        <p className="un-sub">{item.detail}<span className="un-when"> · {item.when}</span></p>
-      </div>
-      <div className="un-actions">
-        <Link href={item.href} className="lf-btn lf-btn-ghost">Open</Link>
-        {item.action}
-      </div>
-    </div>
+    <ul className="un2-list">
+      {rows.map((r) => (
+        <li key={r.key} className="un2-row">
+          <span className="un2-icon" data-tone={r.tone}><Icon name={r.icon} size={15} /></span>
+          <Link href={r.href} className="un2-main">
+            <span className="un2-title">{r.title}</span>
+            <span className="un2-meta">{r.meta}</span>
+          </Link>
+          <span className="un2-when">{r.when}</span>
+          <span className="un2-action">{r.action}</span>
+        </li>
+      ))}
+    </ul>
   );
 }
 
-function Group({ title, items, empty }: { title: string; items: Item[]; empty: string }) {
-  return (
-    <section className="un-group">
-      <div className="un-group-head">
-        <h2>{title}</h2>
-        <span className="un-count">{items.length}</span>
-      </div>
-      {items.length === 0
-        ? <p className="un-empty"><Icon name="check" />{empty}</p>
-        : <div className="un-list">{items.map((item) => <Row key={item.key} item={item} />)}</div>}
-    </section>
-  );
-}
-
-// Up next: the work that needs a person, each item with the action that
-// finishes it. Forge's own work sits at the side, so the page reads as
-// "what I must do" first and "what Forge did" second.
-export default async function UpNextPage() {
+export default async function UpNextPage({ searchParams }: { searchParams: { tab?: string; review?: string } }) {
   const user = await getSessionUserFromCookies();
   if (!user) return <AccessNotice area="Up next" />;
+  const tab = searchParams.tab === 'waiting' || searchParams.tab === 'done' ? searchParams.tab : 'todo';
   const roles = assigneeRolesFor(user);
 
   let open: CaseRecord[];
-  let ruleSteps: { summary: string; actor_name: string; created_at: string; ref: string; job: string; title: string }[];
-  let ruleCount = 0;
-  const rules = await getSalesRules();
+  let forgeSteps: { summary: string; created_at: string; ref: string; job: string; title: string }[];
   try {
     open = await listCases({ openOnly: true, limit: 300 });
     const sql = getSql();
-    ruleSteps = await sql`
-      select s.summary, s.actor_name, s.created_at, c.ref, c.job, c.title
+    forgeSteps = await sql`
+      select s.summary, s.created_at, c.ref, c.job, c.title
       from case_steps s join cases c on c.id = s.case_id
       where s.actor_kind in ('rule', 'employee') and s.created_at > now() - interval '7 days'
-      order by s.created_at desc
-      limit 8
+      order by s.created_at desc limit 60
     `;
-    const [count] = await sql<{ n: string }[]>`
-      select count(*) as n from case_steps where actor_kind in ('rule', 'employee') and created_at > now() - interval '7 days'
-    `;
-    ruleCount = Number(count?.n ?? 0);
   } catch (error) {
     return <SetupNotice message={error instanceof Error ? error.message : String(error)} />;
   }
+  const rules = await getSalesRules();
+  const limit = rules.approvalLimitRupees * 100;
 
   const quotes = open.filter((c) => c.job === 'quote') as QuoteCase[];
   const orders = open.filter((c) => c.job === 'order') as OrderCase[];
   const pos = open.filter((c) => c.job === 'purchase') as PoCase[];
-  const canRun = (c: CaseRecord, step: string, def = quoteJob) => availableSteps(def, c.state, user).some((s) => s.name === step);
-  const base = (c: CaseRecord) => ({ key: `${c.id}`, href: casePath(c.job, c.ref), ref: c.ref, title: c.title, when: timeAgo(c.updated_at) });
-  const step = (c: CaseRecord) => ({ job: c.job, caseId: c.id, version: c.version });
+  const can = (c: CaseRecord, step: string, def: JobDefinition) => availableSteps(def, c.state, user).some((s) => s.name === step);
+  const at = (c: CaseRecord) => ({ key: `${c.job}-${c.id}`, href: casePath(c.job, c.ref), when: timeAgo(c.updated_at).replace(' ago', '') });
+  const stepOf = (c: CaseRecord) => ({ job: c.job, caseId: c.id, version: c.version });
 
-  const check: Item[] = [
-    ...quotes.filter((q) => q.state === 'draft' && q.data.quote).map((q): Item => {
-      const over = rules.approvalMode === 'always' || q.data.quote!.totalPaise > rules.approvalLimitRupees * 100;
+  // ---- prepared work, reviewed in one batch ----
+  const review: ReviewItem[] = [
+    ...quotes.filter((q) => q.state === 'draft' && q.data.quote && can(q, 'submitQuote', quoteJob)).map((q): ReviewItem => {
+      const over = rules.approvalMode === 'always' || q.data.quote!.totalPaise > limit;
       return {
-        ...base(q),
-        kind: q.data.draftedBy === 'rule' ? 'Forge draft' : 'Draft',
-        tone: 'blue',
-        icon: 'bolt',
-        detail: `${itemsText(q)} · ${formatPaise(q.data.quote!.totalPaise)} · from ${CHANNEL_LABELS[q.data.enquiry.channel]}`,
-        action: canRun(q, 'submitQuote')
-          ? <StepButton {...step(q)} step="submitQuote" variant="primary" icon={over ? 'check' : 'send'}>{over ? 'Send for approval' : 'Approve and send'}</StepButton>
-          : undefined,
+        key: `q${q.id}`, job: 'quote', caseId: q.id, version: q.version, step: 'submitQuote', input: {}, href: casePath('quote', q.ref),
+        kind: q.data.draftedBy === 'rule' ? 'Quote drafted by Forge' : 'Quote draft', ref: q.ref, title: q.title,
+        detail: `${lines(q)} · from ${CHANNEL_LABELS[q.data.enquiry.channel]}`,
+        why: q.data.draftedBy === 'rule' && q.data.match ? `Read “${Object.values(q.data.match.matchedOn).flat().map((w) => w.replace(/(\d)([a-z])/g, '$1 $2')).join(' ')}”` : null,
+        amount: formatPaise(q.data.quote!.totalPaise),
+        actionLabel: over ? 'Send for approval' : 'Approve and send',
+        batch: !over,
       };
     }),
-    ...quotes.filter((q) => q.state === 'awaiting_approval').map((q): Item => ({
-      ...base(q),
-      kind: 'Needs approval',
-      tone: 'amber',
-      icon: 'check',
-      detail: `${itemsText(q)} · ${formatPaise(q.data.quote?.totalPaise ?? 0)}${rules.approvalMode === 'above' ? `, above the ${formatPaise(rules.approvalLimitRupees * 100)} limit` : ''}`,
-      action: canRun(q, 'approveQuote') && q.data.quote
-        ? <StepButton {...step(q)} step="approveQuote" input={{ version: q.data.quote.version }} variant="primary" icon="send">Approve and send</StepButton>
-        : undefined,
+    ...quotes.filter((q) => q.state === 'awaiting_approval' && q.data.quote && can(q, 'approveQuote', quoteJob)).map((q): ReviewItem => ({
+      key: `a${q.id}`, job: 'quote', caseId: q.id, version: q.version, step: 'approveQuote', input: { version: q.data.quote!.version }, href: casePath('quote', q.ref),
+      kind: 'Above your approval limit', ref: q.ref, title: q.title, detail: lines(q), why: null,
+      amount: formatPaise(q.data.quote!.totalPaise), actionLabel: 'Approve and send', batch: false,
+    })),
+    ...pos.filter((p) => p.state === 'draft' && p.data.supplier && can(p, 'approveAndSend', purchaseJob)).map((p): ReviewItem => ({
+      key: `p${p.id}`, job: 'purchase', caseId: p.id, version: p.version, step: 'approveAndSend', input: { supplierId: p.data.supplier!.id }, href: casePath('purchase', p.ref),
+      kind: 'Purchase order drafted by Forge', ref: p.ref, title: p.data.supplier!.name,
+      detail: p.data.lines.map((l) => `${l.quantity.toLocaleString('en-IN')} ${l.unit} ${l.name}`).join(', '),
+      why: p.data.forOrder ? `Short on order ${p.data.forOrder}` : null, amount: null, actionLabel: 'Approve and send', batch: false,
     })),
   ];
 
-  check.push(...pos.filter((p) => p.state === 'draft').map((p): Item => ({
-    ...base(p), kind: 'Purchase order', tone: 'blue', icon: 'send', title: p.data.supplier?.name ?? 'Supplier to choose',
-    detail: `${p.data.lines.map((l) => `${l.quantity.toLocaleString('en-IN')} ${l.unit} ${l.name}`).join(', ')}${p.data.forOrder ? ` · short on ${p.data.forOrder}` : ''}`,
-    action: p.data.supplier && canRun(p, 'approveAndSend', purchaseJob)
-      ? <StepButton {...step(p)} step="approveAndSend" input={{ supplierId: p.data.supplier.id }} variant="primary" icon="send">Approve and send</StepButton>
-      : undefined,
-  })));
-
-  const person: Item[] = [
-    ...quotes.filter((q) => q.data.attention).map((q): Item => ({
-      ...base(q),
-      kind: 'Reply to buyer',
-      tone: 'amber',
-      icon: 'message',
-      detail: q.data.attention!.reason,
-      action: canRun(q, 'markHandled') ? <StepButton {...step(q)} step="markHandled" icon="check">Mark as answered</StepButton> : undefined,
+  // ---- to do: things only a person can clear, most urgent first ----
+  const todo: Row[] = [
+    ...orders.filter((o) => paymentStatus(o.data, o.state).key === 'overdue').map((o): Row => {
+      const p = paymentStatus(o.data, o.state);
+      return {
+        ...at(o), icon: 'upnext', tone: 'red', rank: 0 - p.daysOverdue / 1000,
+        title: `Collect ${formatPaise(p.balancePaise)} from ${o.title}`,
+        meta: `${o.ref} · ${p.label.toLowerCase()} · ${o.data.payment?.reminders.filter((r) => r.sent).length ?? 0} reminders sent`,
+        action: can(o, 'recordPayment', orderJob) ? <RecordPaymentButton caseId={o.id} version={o.version} balanceRupees={balanceOf(o.data) / 100} /> : undefined,
+      };
+    }),
+    ...[...quotes, ...orders].filter((c) => (c.data as { attention?: { reason: string } | null }).attention).map((c): Row => ({
+      ...at(c), icon: 'message', tone: 'amber', rank: 1,
+      title: `Reply to ${c.title}`,
+      meta: `${c.ref} · ${(c.data as { attention: { reason: string } }).attention.reason}`,
+      action: can(c, 'markHandled', c.job === 'quote' ? quoteJob : orderJob) ? <StepButton {...stepOf(c)} step="markHandled">Mark as answered</StepButton> : undefined,
     })),
-    ...quotes.filter((q) => q.state === 'enquiry' && !q.data.awaiting?.length && !q.data.attention).map((q): Item => ({
-      ...base(q), kind: 'Build quote', tone: 'amber', icon: 'edit',
-      detail: `Forge could not match the items in the ${CHANNEL_LABELS[q.data.enquiry.channel]} message.`,
+    ...pos.filter((p) => p.state === 'draft' && !p.data.supplier).map((p): Row => ({
+      ...at(p), icon: 'send', tone: 'amber', rank: 2, title: 'Choose a supplier for a purchase order',
+      meta: `${p.ref} · ${p.data.lines.map((l) => `${l.quantity.toLocaleString('en-IN')} ${l.name}`).join(', ')}`,
     })),
-    ...quotes.filter((q) => q.state === 'approved').map((q): Item => ({
-      ...base(q), kind: 'Send quote', tone: 'blue', icon: 'send',
-      detail: `${formatPaise(q.data.quote?.totalPaise ?? 0)} approved. Forge cannot message this buyer now, so send it yourself.`,
+    ...quotes.filter((q) => q.state === 'enquiry' && !q.data.awaiting?.length && !q.data.attention).map((q): Row => ({
+      ...at(q), icon: 'edit', tone: 'amber', rank: 3, title: `Build the quote for ${q.title}`,
+      meta: `${q.ref} · Forge could not match the items in the ${CHANNEL_LABELS[q.data.enquiry.channel]} message`,
     })),
-    ...orders.filter((o) => o.data.attention).map((o): Item => ({
-      ...base(o), kind: 'Reply to buyer', tone: 'amber', icon: 'message',
-      detail: o.data.attention!.reason,
-      action: canRun(o, 'markHandled', orderJob) ? <StepButton {...step(o)} step="markHandled" icon="check">Mark as handled</StepButton> : undefined,
+    ...quotes.filter((q) => q.state === 'approved').map((q): Row => ({
+      ...at(q), icon: 'send', tone: 'blue', rank: 4, title: `Send the quote to ${q.title}`,
+      meta: `${q.ref} · ${formatPaise(q.data.quote?.totalPaise ?? 0)} approved · Forge cannot message this buyer now`,
     })),
-    ...(roles.includes('operations') ? orders.filter((o) => o.state === 'confirmed').map((o): Item => ({
-      ...base(o), kind: 'Dispatch', tone: 'green', icon: 'order',
-      detail: `${o.data.lines.map((l) => `${l.quantity.toLocaleString('en-IN')} × ${l.name}`).join(', ')} · from ${o.data.quoteRef}`,
-      action: canRun(o, 'dispatchOrder', orderJob)
-        ? <PromptStepButton {...step(o)} step="dispatchOrder" field="vehicle" required={false} label="Vehicle number (optional)" title="Mark as dispatched" icon="order" variant="primary" confirmLabel="Dispatch">Dispatch</PromptStepButton>
+    ...(roles.includes('operations') ? orders.filter((o) => o.state === 'confirmed').map((o): Row => ({
+      ...at(o), icon: 'order', tone: 'green', rank: 5, title: `Dispatch ${o.title}’s order`,
+      meta: `${o.ref} · ${o.data.lines.map((l) => `${l.quantity.toLocaleString('en-IN')} × ${l.name}`).join(', ')}`,
+      action: can(o, 'dispatchOrder', orderJob)
+        ? <PromptStepButton {...stepOf(o)} step="dispatchOrder" field="vehicle" required={false} label="Vehicle number (optional)" title="Mark as dispatched" icon="order" variant="primary" confirmLabel="Dispatch">Dispatch</PromptStepButton>
         : undefined,
     })) : []),
-  ];
+  ].sort((a, b) => a.rank - b.rank);
 
-  const collect: Item[] = orders
-    .filter((o) => o.state === 'dispatched' && paymentStatus(o.data, o.state).key === 'overdue')
-    .sort((a, b) => paymentStatus(b.data, b.state).daysOverdue - paymentStatus(a.data, a.state).daysOverdue)
-    .map((o): Item => {
-      const p = paymentStatus(o.data, o.state);
-      const sent = o.data.payment?.reminders.filter((r) => r.sent).length ?? 0;
-      return {
-        ...base(o), kind: p.label, tone: 'red', icon: 'upnext',
-        detail: `${formatPaise(p.balancePaise)} to collect · ${sent} ${sent === 1 ? 'reminder' : 'reminders'} sent by Forge`,
-        action: canRun(o, 'recordPayment', orderJob) ? <RecordPaymentButton caseId={o.id} version={o.version} balanceRupees={balanceOf(o.data) / 100} /> : undefined,
-      };
-    });
-
-  const waiting = [
-    ...quotes.filter((q) => q.state === 'enquiry' && q.data.awaiting?.length).map((q) => ({ ...base(q), text: `Asked for the ${q.data.awaiting!.join(' and ')}` })),
-    ...quotes.filter((q) => q.state === 'sent' && !q.data.attention).map((q) => ({ ...base(q), text: `Quote sent, ${formatPaise(q.data.quote?.totalPaise ?? 0)}` })),
-    ...orders.filter((o) => o.state === 'dispatched' && !o.data.attention && paymentStatus(o.data, o.state).key === 'due')
-      .map((o) => ({ ...base(o), text: `Payment ${formatPaise(balanceOf(o.data))}, ${paymentStatus(o.data, o.state).label.toLowerCase()}` })),
+  const waiting: Row[] = [
+    ...quotes.filter((q) => q.state === 'enquiry' && q.data.awaiting?.length).map((q): Row => ({ ...at(q), icon: 'message', tone: 'grey', rank: 0, title: q.title, meta: `${q.ref} · Forge asked for the ${q.data.awaiting!.join(' and ')}` })),
+    ...quotes.filter((q) => q.state === 'sent' && !q.data.attention).map((q): Row => ({ ...at(q), icon: 'quote', tone: 'grey', rank: 1, title: q.title, meta: `${q.ref} · quote of ${formatPaise(q.data.quote?.totalPaise ?? 0)} sent, waiting for “confirm”` })),
+    ...orders.filter((o) => o.state === 'dispatched' && ['due', 'none', 'advance'].includes(paymentStatus(o.data, o.state).key)).map((o): Row => ({ ...at(o), icon: 'upnext', tone: 'grey', rank: 2, title: o.title, meta: `${o.ref} · ${formatPaise(balanceOf(o.data))}, ${paymentStatus(o.data, o.state).label.toLowerCase()}` })),
+    ...pos.filter((p) => p.state === 'sent').map((p): Row => ({ ...at(p), icon: 'send', tone: 'grey', rank: 3, title: p.title, meta: `${p.ref} · stock expected by ${p.data.expectedAt}` })),
   ];
 
   const today = new Intl.DateTimeFormat('en-IN', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Asia/Kolkata' }).format(new Date());
-  const needYou = check.length + person.length + collect.length;
+  const dayOf = (iso: string) => new Intl.DateTimeFormat('en-IN', { weekday: 'long', day: 'numeric', month: 'short', timeZone: 'Asia/Kolkata' }).format(new Date(iso));
+  const doneByDay = forgeSteps.reduce<Record<string, typeof forgeSteps>>((acc, s) => { (acc[dayOf(s.created_at)] ||= []).push(s); return acc; }, {});
+  const quoteCount = review.filter((r) => r.job === 'quote').length;
+  const poCount = review.filter((r) => r.job === 'purchase').length;
 
   return (
     <main className="lf-page">
       <PageBar
         icon="upnext"
         title="Up next"
-        description={`${today}. ${needYou ? `${needYou} ${needYou === 1 ? 'item needs' : 'items need'} you.` : 'Nothing needs you now.'} Forge did ${ruleCount} ${ruleCount === 1 ? 'step' : 'steps'} on its own this week.`}
+        description={today}
+        views={[
+          { label: 'To do', href: '/work', current: tab === 'todo', count: todo.length + review.length },
+          { label: 'Waiting on buyers', href: '/work?tab=waiting', current: tab === 'waiting', count: waiting.length },
+          { label: 'Done by Forge', href: '/work?tab=done', current: tab === 'done', count: forgeSteps.length },
+        ]}
       />
-      <div className="un-grid">
-        <div className="un-main">
-          <Group title="Check and approve" items={check} empty="No drafts or approvals wait for you." />
-          <Group title="Needs a person" items={person} empty="No exceptions. Forge handled the rest." />
-          {collect.length > 0 && <Group title="Overdue payments" items={collect} empty="" />}
-        </div>
-
-        <aside className="un-side">
-          <section className="un-card">
-            <div className="un-card-head"><h3>Waiting on buyers</h3><span className="un-count">{waiting.length}</span></div>
-            {waiting.length === 0 ? <p className="un-card-empty">Nothing is waiting on a buyer.</p> : (
-              <ul className="un-mini">
-                {waiting.map((w) => (
-                  <li key={w.key}>
-                    <Link href={w.href}><span className="un-mini-title">{w.title}</span><span className="lf-ref">{w.ref}</span></Link>
-                    <span className="un-mini-sub">{w.text} · {w.when}</span>
+      <div className="un2">
+        {tab === 'todo' && (
+          <>
+            {review.length > 0 && (
+              <Link href="/work?review=1" scroll={false} className="un2-review">
+                <span className="un2-review-icon"><Icon name="bolt" /></span>
+                <span className="un2-review-text">
+                  <strong>Forge prepared {review.length} {review.length === 1 ? 'item' : 'items'} for you to approve</strong>
+                  <span>{[quoteCount && `${quoteCount} ${quoteCount === 1 ? 'quote' : 'quotes'}`, poCount && `${poCount} ${poCount === 1 ? 'purchase order' : 'purchase orders'}`].filter(Boolean).join(' and ')}. Check each one, then approve.</span>
+                </span>
+                <span className="lf-btn lf-btn-primary">Review</span>
+              </Link>
+            )}
+            {todo.length === 0
+              ? <div className="un2-empty"><Icon name="check" size={20} /><strong>{review.length ? 'Nothing else needs you' : 'You are all caught up'}</strong><span>Forge handles intake, drafts, sending and reminders. Items appear here only when a person must act.</span></div>
+              : <List rows={todo} />}
+          </>
+        )}
+        {tab === 'waiting' && (waiting.length === 0
+          ? <div className="un2-empty"><Icon name="check" size={20} /><strong>Nothing is waiting on a buyer</strong></div>
+          : <List rows={waiting} />)}
+        {tab === 'done' && (forgeSteps.length === 0
+          ? <div className="un2-empty"><Icon name="bolt" size={20} /><strong>No automatic steps this week</strong><span>Connect an integration in Settings → Integrations.</span></div>
+          : Object.entries(doneByDay).map(([day, steps]) => (
+            <section key={day} className="un2-day">
+              <h2>{day}</h2>
+              <ul className="un2-list">
+                {steps.map((s, i) => (
+                  <li key={i} className="un2-row">
+                    <span className="un2-icon" data-tone="grey"><Icon name="bolt" size={15} /></span>
+                    <Link href={casePath(s.job, s.ref)} className="un2-main"><span className="un2-title un2-title-plain">{s.summary}</span><span className="un2-meta">{s.title} · {s.ref}</span></Link>
+                    <span className="un2-when">{new Intl.DateTimeFormat('en-IN', { hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Kolkata' }).format(new Date(s.created_at))}</span>
+                    <span className="un2-action" />
                   </li>
                 ))}
               </ul>
-            )}
-          </section>
-
-          <section className="un-card">
-            <div className="un-card-head"><h3>Forge did this</h3><span className="un-count">{ruleCount}</span></div>
-            {ruleSteps.length === 0 ? <p className="un-card-empty">No automatic steps yet. Connect an integration in Settings.</p> : (
-              <ul className="un-feed">
-                {ruleSteps.map((s, i) => (
-                  <li key={i}>
-                    <span className="un-feed-dot"><Icon name="bolt" size={12} /></span>
-                    <Link href={casePath(s.job, s.ref)}>
-                      <span className="un-feed-text">{s.summary}</span>
-                      <span className="un-mini-sub">{s.title} · {s.ref} · {timeAgo(s.created_at)}</span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-        </aside>
+            </section>
+          )))}
       </div>
+      {searchParams.review === '1' && review.length > 0 && <ReviewSheet items={review} closeHref="/work" />}
     </main>
   );
 }

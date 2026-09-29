@@ -80,6 +80,7 @@ export default function WorkspaceChrome({
     ...(allowed.some((m) => m.name === 'sales') ? [{ id: 'sales-rules', label: 'Sales rules', icon: 'sliders', href: '/settings/sales-rules' }] : []),
     ...(allowed.some((m) => m.name === 'orders') ? [{ id: 'orders-payments', label: 'Orders & payments', icon: 'order', href: '/settings/orders' }] : []),
     { id: 'modules', label: 'Modules', icon: 'stock', href: '/settings/modules' },
+    { id: 'appearance', label: 'Appearance', icon: 'sliders', href: '/settings/appearance' },
     { id: 'users', label: 'Members', icon: 'users', href: '/settings/users' },
   ];
 
