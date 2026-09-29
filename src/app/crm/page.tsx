@@ -1,6 +1,8 @@
+import { notFound } from 'next/navigation';
 import AccessNotice from '@/components/AccessNotice';
 import CrmDashboard from '@/components/crm/CrmDashboard';
 import SetupNotice from '@/components/SetupNotice';
+import { isModuleEnabled } from '@/core/modules';
 import { hasPermission } from '@/core/permissions';
 import { getSessionUserFromCookies } from '@/core/session';
 import { getCrmWorkspace } from '@/modules/crm/crm-data';
@@ -8,6 +10,7 @@ import { getCrmWorkspace } from '@/modules/crm/crm-data';
 export const dynamic = 'force-dynamic';
 
 export default async function CrmPage() {
+  if (!isModuleEnabled('crm')) notFound();
   const user = await getSessionUserFromCookies();
   if (!user || !hasPermission(user, 'crm:read')) {
     return <AccessNotice area="CRM" />;

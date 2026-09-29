@@ -3,8 +3,6 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 
-type ForgeArea = 'analytics' | 'crm';
-
 type ForgeTab<T extends string> = {
   id: T;
   label: string;
@@ -19,18 +17,18 @@ export default function ForgeShell<T extends string>({
   activeArea,
   title,
   description,
-  tabs,
+  tabs = [],
   activeTab,
   onTabChange,
   actions,
   status,
   children,
 }: {
-  activeArea: ForgeArea;
+  activeArea: string;
   title: string;
-  description: string;
-  tabs: ForgeTab<T>[];
-  activeTab: T;
+  description?: string;
+  tabs?: ForgeTab<T>[];
+  activeTab?: T;
   onTabChange?: (tab: T) => void;
   actions?: ReactNode;
   status?: ReactNode;
@@ -41,13 +39,13 @@ export default function ForgeShell<T extends string>({
       <section className="forge-page-heading">
         <div className="min-w-0">
           <h1>{title}</h1>
-          <p>{description}</p>
+          {description && <p>{description}</p>}
           {status}
         </div>
         {actions && <div className="forge-page-actions">{actions}</div>}
       </section>
 
-      <nav className="forge-tabs" aria-label={`${title} views`}>
+      {tabs.length > 0 && <nav className="forge-tabs" aria-label={`${title} views`}>
         {tabs.map((tab) => (
           tab.href ? (
             <Link
@@ -70,7 +68,7 @@ export default function ForgeShell<T extends string>({
             </button>
           )
         ))}
-      </nav>
+      </nav>}
 
       <div className="forge-content">{children}</div>
     </main>

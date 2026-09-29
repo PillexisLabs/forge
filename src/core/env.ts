@@ -62,4 +62,28 @@ export const env = {
   plivoAuthId: () => process.env.PLIVO_AUTH_ID ?? '',
   plivoAuthToken: () => process.env.PLIVO_AUTH_TOKEN ?? '',
   plivoFromNumber: () => process.env.PLIVO_FROM_NUMBER ?? '',
+
+  // The instance's module list (comma separated module names). Unset means
+  // every module in src/modules/registry.ts is on. One image serves every
+  // instance; this list decides what each instance runs.
+  forgeModules: () => process.env.FORGE_MODULES ?? '',
+
+  // The business this instance runs for. Printed on quotes.
+  businessName: () => process.env.BUSINESS_NAME ?? 'Sample Packaging Co.',
+  businessAddress: () => process.env.BUSINESS_ADDRESS ?? 'Plot 14, Peenya Industrial Area, Bengaluru 560058',
+  businessGstin: () => process.env.BUSINESS_GSTIN ?? '',
+
+  // Sales module policy and rules. Amounts in rupees.
+  salesApprovalLimitRupees: () => numberOr(process.env.SALES_APPROVAL_LIMIT_RUPEES, 50000),
+  salesFreightLocalRupees: () => numberOr(process.env.SALES_FREIGHT_LOCAL_RUPEES, 1200),
+  salesFreightOutstationRupees: () => numberOr(process.env.SALES_FREIGHT_OUTSTATION_RUPEES, 2500),
+  // Pincode prefixes that count as local delivery, e.g. "56,57" for Karnataka.
+  salesLocalPinPrefixes: () => (process.env.SALES_LOCAL_PIN_PREFIXES ?? '56,57')
+    .split(',').map((p) => p.trim()).filter(Boolean),
+  salesQuoteValidDays: () => numberOr(process.env.SALES_QUOTE_VALID_DAYS, 7),
 };
+
+function numberOr(value: string | undefined, fallback: number): number {
+  const n = Number(value);
+  return value !== undefined && value.trim() !== '' && Number.isFinite(n) ? n : fallback;
+}

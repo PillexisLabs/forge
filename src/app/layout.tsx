@@ -4,6 +4,7 @@ import type { Viewport } from 'next';
 import { Suspense, type ReactNode } from 'react';
 import PwaRegistration from '@/components/PwaRegistration';
 import WorkspaceChrome, { type ChromeUser } from '@/components/WorkspaceChrome';
+import { enabledModuleNames } from '@/core/modules';
 import { getSessionUserFromCookies } from '@/core/session';
 
 export const metadata: Metadata = {
@@ -43,7 +44,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
       <body className="min-h-screen antialiased">
         <PwaRegistration />
         <Suspense fallback={children}>
-          <WorkspaceChrome user={user}>{children}</WorkspaceChrome>
+          <WorkspaceChrome user={user} enabledModules={enabledModuleNames()}>{children}</WorkspaceChrome>
         </Suspense>
       </body>
     </html>

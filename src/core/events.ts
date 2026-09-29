@@ -13,9 +13,18 @@ export type EventName =
   | 'call.completed'
   | 'booking.created'
   | 'followup.requested'
-  | 'sync.completed';
+  | 'sync.completed'
+  // Job events (src/core/jobs.ts). Payloads carry `v: 1`; a breaking payload
+  // change gets a new name rather than a silent shape change.
+  | 'quote.sent'
+  | 'quote.accepted'
+  | 'order.confirmed'
+  | 'order.dispatched'
+  | 'order.cancelled';
 
-export type EmittedBy = 'core' | 'analytics' | 'whatsapp' | 'crm' | 'lead-qual' | 'voice';
+export type EmittedBy =
+  | 'core' | 'analytics' | 'whatsapp' | 'crm' | 'lead-qual' | 'voice'
+  | 'sales' | 'orders' | 'inventory';
 
 export type ForgeEvent = {
   id: number;

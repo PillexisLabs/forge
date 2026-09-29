@@ -8,7 +8,8 @@ import { type ForgeNavItem } from '@/core/forge-nav';
 import { NAV_MODULES } from '@/modules/registry';
 import { crmViewFromRoute } from '@/modules/crm/crm-routes';
 
-type ForgeArea = 'analytics' | 'crm' | 'settings';
+// An area is a module name, or one of the core areas 'work' and 'settings'.
+type ForgeArea = string;
 
 export type ChromeUser = {
   name: string;
@@ -16,6 +17,11 @@ export type ChromeUser = {
   /** Module allowlist. Empty = all modules. */
   modules: string[];
 };
+
+// Core screens are not a module, so they cannot come from the registry.
+const WORK_NAV: ForgeNavItem[] = [
+  { id: 'work', label: 'My work', icon: '/icons/getting-started.svg', href: '/work' },
+];
 
 // Core screens are not a module, so they cannot come from the registry.
 // Settings renders for admins only — the route guards enforce it regardless.
@@ -27,18 +33,35 @@ const SETTINGS_NAV: ForgeNavItem[] = [
 // navigations — only the page content swaps, which keeps transitions smooth.
 export default function WorkspaceChrome({
   user,
+  enabledModules,
   children,
 }: {
   user: ChromeUser | null;
+  /** The instance's module list (FORGE_MODULES). Null = every module. */
+  enabledModules: string[] | null;
   children: ReactNode;
 }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  const isCrm = pathname === '/crm' || pathname.startsWith('/crm/');
-  const isSettings = pathname === '/settings' || pathname.startsWith('/settings/');
-  const area: ForgeArea = isCrm ? 'crm' : isSettings ? 'settings' : 'analytics';
+  // The instance's modules, then the user's allowlist (empty = all). Hiding
+  // is a convenience — the page and API guards are the boundary.
+  const allowedModules = NAV_MODULES.filter(
+    (mod) => (enabledModules === null || enabledModules.includes(mod.name))
+      && (!user || user.modules.length === 0 || user.modules.includes(mod.name)),
+  );
+  const hasJobs = allowedModules.some((mod) => ['sales', 'orders', 'inventory'].includes(mod.name));
+  const segment = pathname.split('/')[1] ?? '';
+  const moduleForPath = allowedModules.find((mod) => mod.nav.some((item) => {
+    const base = item.href.split('/')[1] ?? '';
+    return base !== '' && base === segment;
+  }));
+  const area: ForgeArea = segment === 'settings'
+    ? 'settings'
+    : segment === 'work'
+      ? 'work'
+      : moduleForPath?.name ?? 'analytics';
   const [openGroup, setOpenGroup] = useState<ForgeArea | null>(area);
 
   // Entering an area always reveals its views, dropdown-style.
@@ -46,7 +69,8 @@ export default function WorkspaceChrome({
     setOpenGroup(area);
   }, [area]);
 
-  if (pathname === '/login' || !user) return <>{children}</>;
+  // Login and printable documents render without the workspace chrome.
+  if (pathname === '/login' || pathname.endsWith('/print') || !user) return <>{children}</>;
 
   const analyticsView = searchParams.get('view') ?? 'overview';
   const crmView = pathname === '/crm'
@@ -54,25 +78,30 @@ export default function WorkspaceChrome({
     : crmViewFromRoute(pathname.split('/')[2] ?? '') ?? 'today';
   const settingsView = pathname.split('/')[2] ?? 'users';
 
-  // Sidebar groups come from the module registry, filtered by the user's
-  // module allowlist (empty = all). Hiding is a convenience — the page and
-  // API guards are the boundary.
-  const allowedModules = NAV_MODULES.filter(
-    (mod) => user.modules.length === 0 || user.modules.includes(mod.name),
-  );
-  const groups: { id: ForgeArea; label: string; items: ForgeNavItem[]; activeId: string | null }[] =
-    allowedModules.map((mod) => ({
-      id: mod.name as ForgeArea,
-      label: mod.navLabel ?? mod.name,
-      items: mod.nav,
-      activeId: area === mod.name ? (mod.name === 'crm' ? crmView : analyticsView) : null,
-    }));
+  // The active nav item: analytics uses ?view=, CRM its sub-route, and every
+  // other module the nav item whose href starts the path.
+  function activeIdFor(groupId: string, items: ForgeNavItem[]): string | null {
+    if (area !== groupId) return null;
+    if (groupId === 'analytics') return analyticsView;
+    if (groupId === 'crm') return crmView;
+    if (groupId === 'settings') return settingsView;
+    const match = [...items]
+      .sort((a, b) => b.href.length - a.href.length)
+      .find((item) => pathname === item.href || pathname.startsWith(`${item.href}/`));
+    return match?.id ?? items[0]?.id ?? null;
+  }
+
+  const groups: { id: ForgeArea; label: string; items: ForgeNavItem[]; activeId: string | null }[] = [];
+  if (hasJobs) groups.push({ id: 'work', label: 'Work', items: WORK_NAV, activeId: activeIdFor('work', WORK_NAV) });
+  for (const mod of allowedModules) {
+    groups.push({ id: mod.name, label: mod.navLabel ?? mod.name, items: mod.nav, activeId: activeIdFor(mod.name, mod.nav) });
+  }
   if (user.role === 'admin') {
     groups.push({
       id: 'settings',
       label: 'Settings',
       items: SETTINGS_NAV,
-      activeId: area === 'settings' ? settingsView : null,
+      activeId: activeIdFor('settings', SETTINGS_NAV),
     });
   }
 
@@ -152,7 +181,7 @@ export default function WorkspaceChrome({
       {/* Mobile: fixed bottom navigation for the active area's views. */}
       <nav className="forge-bottom-nav" aria-label="Primary views">
         {(activeGroup?.items ?? []).map((item) => {
-          const activeId = area === 'crm' ? crmView : area === 'settings' ? settingsView : analyticsView;
+          const activeId = activeGroup?.activeId;
           return (
             <Link
               key={item.id}
@@ -179,21 +208,11 @@ export default function WorkspaceChrome({
             </Link>
 
             <nav className="forge-area-nav" aria-label="Workspace areas">
-              {allowedModules.some((mod) => mod.name === 'analytics') && (
-                <Link href="/" aria-current={area === 'analytics' ? 'page' : undefined}>
-                  Analytics
+              {groups.map((group) => (
+                <Link key={group.id} href={group.items[0].href} aria-current={area === group.id ? 'page' : undefined}>
+                  {group.label}
                 </Link>
-              )}
-              {allowedModules.some((mod) => mod.name === 'crm') && (
-                <Link href="/crm" aria-current={area === 'crm' ? 'page' : undefined}>
-                  CRM
-                </Link>
-              )}
-              {user.role === 'admin' && (
-                <Link href="/settings/users" aria-current={area === 'settings' ? 'page' : undefined}>
-                  Settings
-                </Link>
-              )}
+              ))}
             </nav>
           </div>
         </header>

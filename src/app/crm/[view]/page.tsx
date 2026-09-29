@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import AccessNotice from '@/components/AccessNotice';
 import CrmDashboard from '@/components/crm/CrmDashboard';
 import SetupNotice from '@/components/SetupNotice';
+import { isModuleEnabled } from '@/core/modules';
 import { hasPermission } from '@/core/permissions';
 import { getSessionUserFromCookies } from '@/core/session';
 import { getCrmWorkspace } from '@/modules/crm/crm-data';
@@ -13,6 +14,7 @@ export default async function CrmChildPage({ params }: { params: { view: string 
   const initialView = crmViewFromRoute(params.view);
   if (!initialView) notFound();
 
+  if (!isModuleEnabled('crm')) notFound();
   const user = await getSessionUserFromCookies();
   if (!user || !hasPermission(user, 'crm:read')) {
     return <AccessNotice area="CRM" />;
