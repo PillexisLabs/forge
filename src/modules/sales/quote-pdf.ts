@@ -1,5 +1,5 @@
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
-import type { PricedQuote } from './quote-rules';
+import { deliveryPhrase, type PricedQuote } from './quote-rules';
 import type { QuoteSubject } from './quote-job';
 
 // The quote PDF Forge attaches on WhatsApp and email. Made on the server with
@@ -81,7 +81,7 @@ export async function renderQuotePdf(input: {
     text(rs(line.amountPaise), cols.amount, y, { align: 'right' });
     text(`${rs(line.gstPaise)} (${line.gstRateBp / 100}%)`, cols.gst, y, { align: 'right' });
     y -= 11;
-    text(`${line.sku}${line.hsn ? ` · HSN ${line.hsn}` : ''}`, cols.item, y, { size: 7.5, color: muted });
+    text(`${line.sku}${line.hsn ? ` · HSN ${line.hsn}` : ''} · ${deliveryPhrase(line)}`, cols.item, y, { size: 7.5, color: muted });
     y -= 7;
     page.drawLine({ start: { x: left, y }, end: { x: right, y }, thickness: 0.4, color: rule });
   });

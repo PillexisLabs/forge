@@ -11,7 +11,8 @@ import { assigneeRolesFor, availableSteps, listCases, type CaseRecord } from '@/
 import { formatPaise } from '@/core/money';
 import { getSessionUserFromCookies } from '@/core/session';
 import { casePath } from '@/modules/jobs';
-import { orderJob, type OrderCase } from '@/modules/orders/order-job';
+import { balanceOf, orderJob, paymentStatus, type OrderCase } from '@/modules/orders/order-job';
+import RecordPaymentButton from '@/components/orders/RecordPaymentButton';
 import { CHANNEL_LABELS, quoteJob, type QuoteCase } from '@/modules/sales/quote-job';
 import { getSalesRules } from '@/modules/sales/sales-settings';
 
@@ -150,6 +151,11 @@ export default async function UpNextPage() {
       ...base(q), kind: 'Send quote', tone: 'blue', icon: 'send',
       detail: `${formatPaise(q.data.quote?.totalPaise ?? 0)} approved. Forge cannot message this buyer now, so send it yourself.`,
     })),
+    ...orders.filter((o) => o.data.attention).map((o): Item => ({
+      ...base(o), kind: 'Reply to buyer', tone: 'amber', icon: 'message',
+      detail: o.data.attention!.reason,
+      action: canRun(o, 'markHandled', orderJob) ? <StepButton {...step(o)} step="markHandled" icon="check">Mark as handled</StepButton> : undefined,
+    })),
     ...(roles.includes('operations') ? orders.filter((o) => o.state === 'confirmed').map((o): Item => ({
       ...base(o), kind: 'Dispatch', tone: 'green', icon: 'order',
       detail: `${o.data.lines.map((l) => `${l.quantity.toLocaleString('en-IN')} × ${l.name}`).join(', ')} · from ${o.data.quoteRef}`,
@@ -159,13 +165,28 @@ export default async function UpNextPage() {
     })) : []),
   ];
 
+  const collect: Item[] = orders
+    .filter((o) => o.state === 'dispatched' && paymentStatus(o.data, o.state).key === 'overdue')
+    .sort((a, b) => paymentStatus(b.data, b.state).daysOverdue - paymentStatus(a.data, a.state).daysOverdue)
+    .map((o): Item => {
+      const p = paymentStatus(o.data, o.state);
+      const sent = o.data.payment?.reminders.filter((r) => r.sent).length ?? 0;
+      return {
+        ...base(o), kind: p.label, tone: 'red', icon: 'upnext',
+        detail: `${formatPaise(p.balancePaise)} to collect · ${sent} ${sent === 1 ? 'reminder' : 'reminders'} sent by Forge`,
+        action: canRun(o, 'recordPayment', orderJob) ? <RecordPaymentButton caseId={o.id} version={o.version} balanceRupees={balanceOf(o.data) / 100} /> : undefined,
+      };
+    });
+
   const waiting = [
     ...quotes.filter((q) => q.state === 'enquiry' && q.data.awaiting?.length).map((q) => ({ ...base(q), text: `Asked for the ${q.data.awaiting!.join(' and ')}` })),
     ...quotes.filter((q) => q.state === 'sent' && !q.data.attention).map((q) => ({ ...base(q), text: `Quote sent, ${formatPaise(q.data.quote?.totalPaise ?? 0)}` })),
+    ...orders.filter((o) => o.state === 'dispatched' && !o.data.attention && paymentStatus(o.data, o.state).key === 'due')
+      .map((o) => ({ ...base(o), text: `Payment ${formatPaise(balanceOf(o.data))}, ${paymentStatus(o.data, o.state).label.toLowerCase()}` })),
   ];
 
   const today = new Intl.DateTimeFormat('en-IN', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Asia/Kolkata' }).format(new Date());
-  const needYou = check.length + person.length;
+  const needYou = check.length + person.length + collect.length;
 
   return (
     <main className="lf-page">
@@ -178,6 +199,7 @@ export default async function UpNextPage() {
         <div className="un-main">
           <Group title="Check and approve" items={check} empty="No drafts or approvals wait for you." />
           <Group title="Needs a person" items={person} empty="No exceptions. Forge handled the rest." />
+          {collect.length > 0 && <Group title="Overdue payments" items={collect} empty="" />}
         </div>
 
         <aside className="un-side">

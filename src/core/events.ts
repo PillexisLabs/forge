@@ -26,7 +26,11 @@ export type EventName =
   // A quote reached "approved"; the sales module sends it on its channel.
   | 'quote.approved'
   // A new enquiry exists (from intake or recorded by a person).
-  | 'quote.recorded';
+  | 'quote.recorded'
+  // An order is paid in full.
+  | 'order.paid'
+  // A buyer with an open order wrote a message that belongs to the order.
+  | 'order.message';
 
 export type EmittedBy =
   | 'core' | 'analytics' | 'whatsapp' | 'crm' | 'lead-qual' | 'voice'

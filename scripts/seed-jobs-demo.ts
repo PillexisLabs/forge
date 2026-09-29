@@ -20,6 +20,7 @@ import { createCase, runStep, userActor, type CaseRecord } from '../src/core/job
 import type { SessionUser } from '../src/core/users';
 import { runJobConsumers } from '../src/modules/jobs';
 import { orderJob } from '../src/modules/orders/order-job';
+import { runPaymentReminders } from '../src/modules/orders/payment-reminders';
 import { quoteJob } from '../src/modules/sales/quote-job';
 
 const ITEMS = [
@@ -48,6 +49,10 @@ type Plan = {
   then?: ('submit' | 'approve' | 'markSent' | 'accept' | 'dispatch' | 'lose')[];
   /** Buyer replies after the quote went out. */
   replies?: string[];
+  /** What happens to the order after that. */
+  order?: ('dispatch' | 'payInFull' | 'makeOverdue')[];
+  /** Buyer messages after the order steps. */
+  laterReplies?: string[];
   hoursAgo: number;
 };
 
@@ -63,9 +68,12 @@ const PLANS: Plan[] = [
   { source: 'whatsapp', buyer: { name: 'Arjun Shetty', company: 'Coastal Rice Mills', phone: '9448055667' },
     messages: ['Need 2000 BOPP bags 5 kg for rice', 'Pin 575001'], then: ['submit'], replies: ['Can you do Rs 13.50 per bag if we take 3000?'], hoursAgo: 6 },
   { source: 'whatsapp', buyer: { name: 'Kavya Nair', company: 'Nair Coffee Works', phone: '9845188990' },
-    messages: ['Please quote 6000 stand-up pouches 250 ml and 3000 zipper pouches 1 kg. Delivery 560037'], then: ['submit'], replies: ['Ok confirmed, go ahead'], hoursAgo: 8 },
+    messages: ['Please quote 6000 stand-up pouches 250 ml and 3000 zipper pouches 1 kg. Delivery 560037'], then: ['submit'], replies: ['Ok confirmed, go ahead'],
+    order: ['dispatch', 'makeOverdue'], laterReplies: ['Payment done by NEFT today, UTR 2026092912345'], hoursAgo: 8 },
   { source: 'manual', buyer: { name: 'Imran Khan', company: 'Khan Foods', phone: '9986012121' },
-    messages: ['Called: wants 1200 spout pouches 200 ml, urgent, delivery 560045'], then: ['submit', 'markSent', 'accept', 'dispatch'], hoursAgo: 30 },
+    messages: ['Called: wants 1200 spout pouches 200 ml, urgent, delivery 560045'], then: ['submit', 'markSent', 'accept', 'dispatch'], order: ['payInFull'], hoursAgo: 30 },
+  { source: 'whatsapp', buyer: { name: 'Pooja Rao', company: 'Rao Bakes', phone: '9980012345' },
+    messages: ['Need 2500 zipper pouches 1 kg clear. Delivery 560011'], then: ['submit'], replies: ['Confirmed'], order: ['dispatch'], hoursAgo: 12 },
   { source: 'whatsapp', buyer: { name: 'Deepa Kulkarni', company: 'Kulkarni Snacks', phone: '9731145454' },
     messages: ['10,000 stand-up pouches 250 ml 2 colour, delivery 580020. What is your best price?'], then: ['lose'], hoursAgo: 50 },
 ];
@@ -204,6 +212,26 @@ async function seed() {
       }
     }
     for (const reply of plan.replies ?? []) await inbound(plan, reply);
+
+    const [order0] = await sql<CaseRecord[]>`select * from cases where parent_case_id = ${current.id} and job = 'order'`;
+    for (const action of plan.order ?? []) {
+      const [order] = await sql<CaseRecord[]>`select * from cases where id = ${order0?.id ?? 0}`;
+      if (!order) break;
+      if (action === 'dispatch' && order.state === 'confirmed') {
+        await runStep(orderJob, order.id, 'dispatchOrder', { vehicle: 'KA 01 MX 2207' }, userActor(person('Ravi (sample)', 'member')));
+      }
+      if (action === 'payInFull' && order.state === 'dispatched') {
+        const total = (order.data as { totalPaise: number }).totalPaise / 100;
+        await runStep(orderJob, order.id, 'recordPayment', { amount: total, mode: 'NEFT', reference: 'UTR2026092800451' }, OWNER);
+      }
+      if (action === 'makeOverdue' && order.state === 'dispatched') {
+        // Move the due date 4 days back, then let the reminder rule run once.
+        await sql`update cases set data = jsonb_set(data, '{payment,dueAt}', to_jsonb((now() - interval '4 days')::text)) where id = ${order.id}`;
+        await runPaymentReminders({ force: true });
+      }
+      await runJobConsumers();
+    }
+    for (const reply of plan.laterReplies ?? []) await inbound(plan, reply);
 
     current = await reload();
     await backdate(current.id, plan.hoursAgo);

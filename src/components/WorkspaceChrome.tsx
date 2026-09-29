@@ -61,7 +61,10 @@ export default function WorkspaceChrome({
 
   const groups: NavGroup[] = [];
   if (hasJobs) {
-    groups.push({ id: 'top', label: null, items: [{ id: 'work', label: 'Up next', icon: 'upnext', href: '/work' }] });
+    groups.push({ id: 'top', label: null, items: [
+      { id: 'work', label: 'Up next', icon: 'upnext', href: '/work' },
+      { id: 'dashboard', label: 'Dashboard', icon: 'chart', href: '/dashboard' },
+    ] });
     groups.push({
       id: 'work',
       label: 'Work',

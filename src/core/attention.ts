@@ -18,7 +18,9 @@ export async function attentionCount(user: SessionUser): Promise<number> {
     where closed_at is null
       and (
         (assignee_role = any(${roles}) and state <> 'sent' and not (state = 'enquiry' and jsonb_array_length(coalesce(data->'awaiting', '[]'::jsonb)) > 0))
-        or (data->'attention') is not null and data->'attention' <> 'null'::jsonb
+        or ((data->'attention') is not null and data->'attention' <> 'null'::jsonb)
+        or (job = 'order' and state = 'dispatched' and (data->'payment'->>'dueAt') is not null
+            and (data->'payment'->>'dueAt')::timestamptz < now())
       )
   `;
   return Number(row?.n ?? 0);

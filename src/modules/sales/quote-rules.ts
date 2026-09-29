@@ -7,6 +7,19 @@ import type { Product } from '@/core/products';
 
 export type QuoteLineInput = { sku: string; quantity: number };
 
+/** Stock for one line when the quote was drafted. */
+export type LineAvailability = {
+  status: 'in_stock' | 'after_incoming' | 'short';
+  /** Free stock now (on hand minus committed), never below zero. */
+  free: number;
+  /** Stock on the way. */
+  incoming: number;
+  /** When the incoming stock that covers this line arrives, if known. */
+  eta: string | null;
+  /** Quantity no stock or incoming stock covers. */
+  shortBy: number;
+};
+
 export type QuoteLine = {
   sku: string;
   name: string;
@@ -17,6 +30,7 @@ export type QuoteLine = {
   amountPaise: number;
   gstRateBp: number;
   gstPaise: number;
+  availability?: LineAvailability;
 };
 
 export type PricedQuote = {
@@ -38,6 +52,35 @@ export type FreightRule = {
   localRupees: number;
   outstationRupees: number;
 };
+
+/** Can the stock cover this quantity now, after incoming stock arrives, or not at all? */
+export function availabilityFor(quantity: number, product: Product): LineAvailability {
+  const free = Math.max(0, product.available);
+  if (quantity <= free) return { status: 'in_stock', free, incoming: product.incomingLocal + product.incomingImport, eta: null, shortBy: 0 };
+  const afterLocal = free + product.incomingLocal;
+  if (product.incomingLocal > 0 && quantity <= afterLocal) {
+    return { status: 'after_incoming', free, incoming: product.incomingLocal + product.incomingImport, eta: product.incomingLocalEta, shortBy: 0 };
+  }
+  const afterAll = afterLocal + product.incomingImport;
+  if (product.incomingImport > 0 && quantity <= afterAll) {
+    const etas = [product.incomingLocal > 0 ? product.incomingLocalEta : null, product.incomingImportEta].filter(Boolean) as string[];
+    return { status: 'after_incoming', free, incoming: product.incomingLocal + product.incomingImport, eta: etas.sort().at(-1) ?? null, shortBy: 0 };
+  }
+  return { status: 'short', free, incoming: product.incomingLocal + product.incomingImport, eta: null, shortBy: quantity - afterAll };
+}
+
+export function formatEta(eta: string | null): string {
+  if (!eta) return 'the next arrival';
+  return new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short', timeZone: 'Asia/Kolkata' }).format(new Date(`${eta}T00:00:00+05:30`));
+}
+
+/** One short phrase for the buyer about when a line ships. */
+export function deliveryPhrase(line: QuoteLine): string {
+  const a = line.availability;
+  if (!a || a.status === 'in_stock') return 'in stock';
+  if (a.status === 'after_incoming') return `ships after ${formatEta(a.eta)}`;
+  return a.free > 0 ? `${a.free.toLocaleString('en-IN')} ${line.unit} now, balance date to be confirmed` : 'date to be confirmed';
+}
 
 export function isPincode(value: string): boolean {
   return /^[1-9][0-9]{5}$/.test(value);
@@ -78,6 +121,7 @@ export function priceQuote(
       amountPaise,
       gstRateBp: product.gstRateBp,
       gstPaise: percentOf(amountPaise, product.gstRateBp),
+      availability: availabilityFor(line.quantity, product),
     };
   });
 
@@ -112,7 +156,7 @@ export function quoteMessage(opts: {
   businessName: string;
 }): string {
   const items = opts.quote.lines
-    .map((line) => `• ${line.name}: ${line.quantity.toLocaleString('en-IN')} ${line.unit} × ${formatPaise(line.ratePaise)}`)
+    .map((line) => `• ${line.name}: ${line.quantity.toLocaleString('en-IN')} ${line.unit} × ${formatPaise(line.ratePaise)}, ${deliveryPhrase(line)}`)
     .join('\n');
   return [
     `Hello ${opts.buyerName},`,

@@ -8,9 +8,10 @@ import { useAction } from '@/components/lf/useAction';
 export type ItemValues = {
   sku: string; name: string; unit: string; rateRupees: number; gstPercent: number; hsn: string | null;
   onHand: number; incomingLocal: number; incomingImport: number;
+  incomingLocalEta: string | null; incomingImportEta: string | null;
 };
 
-const EMPTY: ItemValues = { sku: '', name: '', unit: 'pcs', rateRupees: 0, gstPercent: 18, hsn: '', onHand: 0, incomingLocal: 0, incomingImport: 0 };
+const EMPTY: ItemValues = { sku: '', name: '', unit: 'pcs', rateRupees: 0, gstPercent: 18, hsn: '', onHand: 0, incomingLocal: 0, incomingImport: 0, incomingLocalEta: null, incomingImportEta: null };
 
 export function ItemModal({ item, trigger }: { item?: ItemValues; trigger: 'add' | 'edit' }) {
   const [open, setOpen] = useState(false);
@@ -43,7 +44,10 @@ export function ItemModal({ item, trigger }: { item?: ItemValues; trigger: 'add'
             <label className="lf-field"><span>On hand</span><input id="it-onhand" name="onHand" inputMode="numeric" defaultValue={v.onHand} /></label>
             <label className="lf-field"><span>Incoming, local</span><input id="it-local" name="incomingLocal" inputMode="numeric" defaultValue={v.incomingLocal} /></label>
             <label className="lf-field"><span>Incoming, import</span><input id="it-import" name="incomingImport" inputMode="numeric" defaultValue={v.incomingImport} /></label>
+            <label className="lf-field"><span>Local stock arrives on</span><input id="it-local-eta" name="incomingLocalEta" type="date" defaultValue={v.incomingLocalEta ?? ''} /></label>
+            <label className="lf-field"><span>Import stock arrives on</span><input id="it-import-eta" name="incomingImportEta" type="date" defaultValue={v.incomingImportEta ?? ''} /></label>
           </div>
+          <small className="lf-note">Quotes use these dates to tell the buyer when an item ships.</small>
           <div className="lf-modal-foot" style={{ padding: '0.25rem 0' }}>
             <span className="lf-grow">{error}</span>
             <button type="button" className="lf-btn lf-btn-ghost" onClick={() => setOpen(false)}>Cancel</button>

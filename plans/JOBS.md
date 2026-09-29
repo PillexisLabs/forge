@@ -12,6 +12,10 @@ A manufacturer's enquiry-to-order flow where integrations and rules do the routi
 4. A person checks the draft. Above the approval limit, an approver approves it.
 5. The send rule sends the quote and its PDF on WhatsApp (inside the 24-hour window) or email.
 6. The reply rule reads "confirm" and accepts the quote. The order rule makes the order, and inventory commits the stock.
+7. At dispatch the payment falls due after the terms in Settings → Sales rules → Payments. The reminder rule sends one reminder per step (before the due date, on it, then every N days while overdue) on email, or on WhatsApp inside the 24-hour window; otherwise it hands the reminder to a person. A person records each payment; the order closes when paid in full.
+8. A buyer with an open order who writes about payment or delivery reaches that order, not a new enquiry.
+
+Each draft carries stock availability per line (in stock, ships after the next arrival date, or short), and the buyer's message and PDF state it. The Dashboard sums sales, collections, pending and overdue payments, open quote value and the win rate.
 
 Manual entry stays as a fallback in the "New enquiry" modal.
 

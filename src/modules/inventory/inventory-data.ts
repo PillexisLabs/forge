@@ -12,6 +12,8 @@ type ItemRow = {
   on_hand: number;
   incoming_local: number;
   incoming_import: number;
+  incoming_local_eta: string | null;
+  incoming_import_eta: string | null;
   committed: string;
 };
 
@@ -27,6 +29,8 @@ function toProduct(row: ItemRow): Product {
     onHand: row.on_hand,
     incomingLocal: row.incoming_local,
     incomingImport: row.incoming_import,
+    incomingLocalEta: row.incoming_local_eta,
+    incomingImportEta: row.incoming_import_eta,
     committed,
     available: row.on_hand - committed,
   };
@@ -36,6 +40,8 @@ async function selectItems(sql: Sql | TransactionSql, skus?: string[]): Promise<
   const rows = await sql<ItemRow[]>`
     select i.sku, i.name, i.unit, i.rate_paise, i.gst_rate_bp, i.hsn,
            i.on_hand, i.incoming_local, i.incoming_import,
+           to_char(i.incoming_local_eta, 'YYYY-MM-DD') as incoming_local_eta,
+           to_char(i.incoming_import_eta, 'YYYY-MM-DD') as incoming_import_eta,
            coalesce(sum(c.quantity) filter (where c.status = 'committed'), 0) as committed
     from inv_items i
     left join inv_commitments c on c.sku = i.sku
@@ -66,7 +72,16 @@ export type ItemInput = {
   onHand: number;
   incomingLocal: number;
   incomingImport: number;
+  incomingLocalEta: string | null;
+  incomingImportEta: string | null;
 };
+
+function date(value: unknown): string | null {
+  const text = String(value ?? '').trim();
+  if (!text) return null;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) throw new Error('Arrival dates must be in the form YYYY-MM-DD.');
+  return text;
+}
 
 function whole(value: unknown, label: string): number {
   const n = typeof value === 'string' ? Number(value.replace(/,/g, '').trim() || '0') : Number(value ?? 0);
@@ -92,19 +107,22 @@ export function parseItem(raw: Record<string, unknown>): ItemInput {
     onHand: whole(raw.onHand ?? raw.on_hand, `On hand for ${sku}`),
     incomingLocal: whole(raw.incomingLocal ?? raw.incoming_local, `Incoming local for ${sku}`),
     incomingImport: whole(raw.incomingImport ?? raw.incoming_import, `Incoming import for ${sku}`),
+    incomingLocalEta: date(raw.incomingLocalEta ?? raw.incoming_local_eta),
+    incomingImportEta: date(raw.incomingImportEta ?? raw.incoming_import_eta),
   };
 }
 
 export async function upsertItem(item: ItemInput) {
   const sql = getSql();
   await sql`
-    insert into inv_items (sku, name, unit, rate_paise, gst_rate_bp, hsn, on_hand, incoming_local, incoming_import, active, updated_at)
+    insert into inv_items (sku, name, unit, rate_paise, gst_rate_bp, hsn, on_hand, incoming_local, incoming_import, incoming_local_eta, incoming_import_eta, active, updated_at)
     values (${item.sku}, ${item.name}, ${item.unit}, ${Math.round(item.rateRupees * 100)}, ${Math.round(item.gstPercent * 100)}, ${item.hsn},
-            ${item.onHand}, ${item.incomingLocal}, ${item.incomingImport}, true, now())
+            ${item.onHand}, ${item.incomingLocal}, ${item.incomingImport}, ${item.incomingLocalEta}, ${item.incomingImportEta}, true, now())
     on conflict (sku) do update set
       name = excluded.name, unit = excluded.unit, rate_paise = excluded.rate_paise, gst_rate_bp = excluded.gst_rate_bp,
       hsn = excluded.hsn, on_hand = excluded.on_hand, incoming_local = excluded.incoming_local,
-      incoming_import = excluded.incoming_import, active = true, updated_at = now()
+      incoming_import = excluded.incoming_import, incoming_local_eta = excluded.incoming_local_eta,
+      incoming_import_eta = excluded.incoming_import_eta, active = true, updated_at = now()
   `;
 }
 

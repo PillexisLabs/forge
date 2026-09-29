@@ -9,6 +9,7 @@ import { guardModulePage } from '@/core/page-guard';
 import { hasPermission } from '@/core/permissions';
 import { productSource, type Product } from '@/core/products';
 import '@/modules/jobs';
+import { formatEta } from '@/modules/sales/quote-rules';
 
 export const dynamic = 'force-dynamic';
 
@@ -60,12 +61,12 @@ export default async function InventoryPage() {
                     <td className="lf-num">{n(p.onHand)}</td>
                     <td className="lf-num">{n(p.committed)}</td>
                     <td className="lf-num">{p.available < 0 ? <Chip tone="red">{p.available.toLocaleString('en-IN')} short</Chip> : p.available.toLocaleString('en-IN')}</td>
-                    <td className="lf-num">{n(p.incomingLocal)}</td>
-                    <td className="lf-num">{n(p.incomingImport)}</td>
+                    <td className="lf-num">{n(p.incomingLocal)}{p.incomingLocal > 0 && p.incomingLocalEta && <span className="lf-sku">{formatEta(p.incomingLocalEta)}</span>}</td>
+                    <td className="lf-num">{n(p.incomingImport)}{p.incomingImport > 0 && p.incomingImportEta && <span className="lf-sku">{formatEta(p.incomingImportEta)}</span>}</td>
                     <td className="lf-num">{after < 0 ? <Chip tone="red">{after.toLocaleString('en-IN')}</Chip> : after.toLocaleString('en-IN')}</td>
                     {canWrite && (
                       <td style={{ padding: '0 0.25rem', width: '2.5rem' }}>
-                        <ItemModal trigger="edit" item={{ sku: p.sku, name: p.name, unit: p.unit, rateRupees: p.ratePaise / 100, gstPercent: p.gstRateBp / 100, hsn: p.hsn, onHand: p.onHand, incomingLocal: p.incomingLocal, incomingImport: p.incomingImport }} />
+                        <ItemModal trigger="edit" item={{ sku: p.sku, name: p.name, unit: p.unit, rateRupees: p.ratePaise / 100, gstPercent: p.gstRateBp / 100, hsn: p.hsn, onHand: p.onHand, incomingLocal: p.incomingLocal, incomingImport: p.incomingImport, incomingLocalEta: p.incomingLocalEta, incomingImportEta: p.incomingImportEta }} />
                       </td>
                     )}
                   </tr>

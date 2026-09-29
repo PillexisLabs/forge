@@ -7,6 +7,7 @@ import { inventoryProductSource } from './inventory/inventory-data';
 import { consumeOrderStockEvents } from './inventory/inventory-consumer';
 import { orderJob } from './orders/order-job';
 import { consumeQuoteAccepted } from './orders/order-consumer';
+import { consumeOrderMessages, runPaymentReminders } from './orders/payment-reminders';
 import { consumeApprovedQuotes, consumeInboundMessages, consumeRecordedEnquiries } from './sales/quote-automation';
 import { quoteJob } from './sales/quote-job';
 import { pollSheet } from './sheets/sheets-intake';
@@ -53,7 +54,10 @@ export async function runJobConsumers(): Promise<void> {
     await consumeRecordedEnquiries();
     await consumeApprovedQuotes();
   }
-  if (isModuleEnabled('orders')) await consumeQuoteAccepted();
+  if (isModuleEnabled('orders')) {
+    await consumeQuoteAccepted();
+    await consumeOrderMessages();
+  }
   if (isModuleEnabled('inventory')) await consumeOrderStockEvents();
 }
 
@@ -83,6 +87,7 @@ export function startJobsLoop() {
     try {
       await runIntakePolls();
       await runJobConsumers();
+      if (isModuleEnabled('orders')) await runPaymentReminders();
     } catch (error) {
       console.error('jobs loop pass failed', error);
     } finally {

@@ -18,6 +18,9 @@ export type Product = {
   onHand: number;
   incomingLocal: number;
   incomingImport: number;
+  /** Expected arrival of the incoming stock, as YYYY-MM-DD, when known. */
+  incomingLocalEta: string | null;
+  incomingImportEta: string | null;
   /** Promised to confirmed orders, not yet dispatched. */
   committed: number;
   /** onHand minus committed. Negative means a shortfall. */

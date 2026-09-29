@@ -4,7 +4,7 @@ import type { Product } from '../src/core/products';
 import { findPincode, isConfirmation, matchEnquiry } from '../src/modules/sales/enquiry-match';
 
 const p = (sku: string, name: string, unit = 'pcs'): Product => ({
-  sku, name, unit, ratePaise: 100, gstRateBp: 1800, hsn: null, onHand: 0, incomingLocal: 0, incomingImport: 0, committed: 0, available: 0,
+  sku, name, unit, ratePaise: 100, gstRateBp: 1800, hsn: null, onHand: 0, incomingLocal: 0, incomingImport: 0, incomingLocalEta: null, incomingImportEta: null, committed: 0, available: 0,
 });
 
 const CATALOGUE = [

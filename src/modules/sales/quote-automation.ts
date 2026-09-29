@@ -1,6 +1,6 @@
 import { channelReady, sendOnChannel, type ChannelId } from '@/core/channels';
 import { getSql } from '@/core/db';
-import { consumeEvents } from '@/core/events';
+import { consumeEvents, emitEvent } from '@/core/events';
 import { getInbound, lastWhatsAppFrom, linkInbound, type InboundRecord, type IntakeSource } from '@/core/intake';
 import { createCase, getCaseById, ruleActor, runStep, StepError, type CaseRecord } from '@/core/jobs';
 import { productSource } from '@/core/products';
@@ -42,6 +42,18 @@ async function findOpenQuote(phone: string | null, email: string | null): Promis
       and ((${phone}::text is not null and subject->>'phone' = ${phone}) or (${email}::text is not null and subject->>'email' = ${email}))
     order by updated_at desc
     limit 1
+  `;
+  return rows[0] ?? null;
+}
+
+async function findOpenOrder(phone: string | null, email: string | null): Promise<{ id: number } | null> {
+  if (!phone && !email) return null;
+  const sql = getSql();
+  const rows = await sql<{ id: number }[]>`
+    select id from cases
+    where job = 'order' and closed_at is null
+      and ((${phone}::text is not null and subject->>'phone' = ${phone}) or (${email}::text is not null and subject->>'email' = ${email}))
+    order by updated_at desc limit 1
   `;
   return rows[0] ?? null;
 }
@@ -141,6 +153,21 @@ async function handleInbound(inbound: InboundRecord): Promise<void> {
       text, via, needsPerson: true, reason: `The buyer replied: “${text.replace(/\s+/g, ' ').slice(0, 140)}${text.length > 140 ? '…' : ''}”`,
     }, INTAKE);
     return;
+  }
+
+  // No open quote. A buyer with an open order who writes about payment or
+  // delivery (not a new request) is talking about that order.
+  const openOrder = await findOpenOrder(inbound.from_phone, inbound.from_email);
+  if (openOrder) {
+    const paymentTalk = /\b(paid|payment|utr|neft|rtgs|imps|upi|transfer(red)?|cheque|remit|dispatch|delivery|delivered|tracking|received)\b/i.test(text);
+    const newRequest = matchEnquiry(text, await productSource().list()).lines.length > 0;
+    if (paymentTalk || !newRequest) {
+      const sql = getSql();
+      await sql.begin(async (tx) => {
+        await emitEvent('order.message', { v: 1, inbound_id: inbound.id, order_case_id: openOrder.id }, { emittedBy: 'sales', dedupeKey: `inbound:${inbound.id}`, sql: tx });
+      });
+      return;
+    }
   }
 
   const created = await createCase(quoteJob, 'recordEnquiry', {

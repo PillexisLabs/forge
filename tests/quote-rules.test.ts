@@ -2,12 +2,12 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { Product } from '../src/core/products';
 import { formatPaise } from '../src/core/money';
-import { freightFor, isPincode, needsApproval, priceQuote } from '../src/modules/sales/quote-rules';
+import { availabilityFor, deliveryPhrase, freightFor, isPincode, needsApproval, priceQuote } from '../src/modules/sales/quote-rules';
 
 function product(sku: string, rupees: number, gstBp = 1800): Product {
   return {
     sku, name: sku, unit: 'pcs', ratePaise: Math.round(rupees * 100), gstRateBp: gstBp, hsn: '3923',
-    onHand: 0, incomingLocal: 0, incomingImport: 0, committed: 0, available: 0,
+    onHand: 0, incomingLocal: 0, incomingImport: 0, incomingLocalEta: null, incomingImportEta: null, committed: 0, available: 0,
   };
 }
 
@@ -55,4 +55,25 @@ test('freight and pincode rules', () => {
 test('the approval limit: above the limit needs an approver, at the limit does not', () => {
   assert.ok(needsApproval(5_000_001, 50_000));
   assert.ok(!needsApproval(5_000_000, 50_000));
+});
+
+test('availability: in stock, after incoming stock arrives, or short', () => {
+  const stock = { ...product('A', 1), available: 1000, incomingLocal: 500, incomingImport: 2000, incomingLocalEta: '2026-10-05', incomingImportEta: '2026-10-20' };
+  assert.equal(availabilityFor(800, stock).status, 'in_stock');
+  const local = availabilityFor(1400, stock);
+  assert.equal(local.status, 'after_incoming');
+  assert.equal(local.eta, '2026-10-05');
+  assert.equal(availabilityFor(3000, stock).eta, '2026-10-20');
+  const short = availabilityFor(4000, stock);
+  assert.equal(short.status, 'short');
+  assert.equal(short.shortBy, 500);
+  // Free stock below zero (over-committed) counts as none.
+  assert.equal(availabilityFor(10, { ...stock, available: -50, incomingLocal: 0, incomingImport: 0 }).free, 0);
+});
+
+test('the delivery phrase the buyer reads', () => {
+  const base = { sku: 'A', name: 'A', unit: 'pcs', hsn: null, quantity: 10, ratePaise: 1, amountPaise: 10, gstRateBp: 0, gstPaise: 0 };
+  assert.equal(deliveryPhrase({ ...base, availability: { status: 'in_stock', free: 20, incoming: 0, eta: null, shortBy: 0 } }), 'in stock');
+  assert.equal(deliveryPhrase({ ...base, availability: { status: 'after_incoming', free: 5, incoming: 10, eta: '2026-10-05', shortBy: 0 } }), 'ships after 5 Oct');
+  assert.equal(deliveryPhrase({ ...base, availability: { status: 'short', free: 4, incoming: 0, eta: null, shortBy: 6 } }), '4 pcs now, balance date to be confirmed');
 });

@@ -14,7 +14,10 @@ import { guardModulePage } from '@/core/page-guard';
 import { productSource } from '@/core/products';
 import type { SessionUser } from '@/core/users';
 import '@/modules/jobs';
-import { orderJob, type OrderCase } from '@/modules/orders/order-job';
+import { balanceOf, orderJob, paymentStatus, type OrderCase } from '@/modules/orders/order-job';
+import RecordPaymentButton from '@/components/orders/RecordPaymentButton';
+import { Chip } from '@/components/lf/Chips';
+import { clock } from '@/components/lf/format';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,14 +32,43 @@ async function OrderSheet({ current, user, closeHref }: { current: OrderCase; us
   const common = { job: 'order', caseId: current.id, version: current.version };
   const open = current.state === 'confirmed';
   const short = open && current.data.lines.some((line) => (bySku.get(line.sku)?.available ?? 0) < 0);
+  const pay = paymentStatus(current.data, current.state);
+  const balanceRupees = balanceOf(current.data) / 100;
+  const payTone = pay.key === 'overdue' ? 'red' : pay.key === 'paid' ? 'green' : pay.key === 'due' ? 'amber' : 'grey';
 
   return (
     <Sheet closeHref={closeHref} label={<><span className="lf-ref">{current.ref}</span>{current.title}</>}>
       <div className="lf-sheet-title"><h2>{current.title}</h2></div>
       <div className="lf-sheet-sub">
         <StateChip state={current.state} label={state.label} />
-        <span>{state.assignee ? `Waiting for ${ASSIGNEE_LABELS[state.assignee].toLowerCase()}` : 'Closed'}</span>
+        <span>{state.assignee ? `Waiting for ${ASSIGNEE_LABELS[state.assignee].toLowerCase()}` : state.terminal ? 'Closed' : 'Waiting for the buyer’s payment'}</span>
       </div>
+
+      {current.data.attention && (
+        <div className="lf-section">
+          <div className="lf-review" data-tone="amber">
+            <div className="lf-review-head"><Icon name="message" /><span className="lf-grow">{current.data.attention.reason}</span></div>
+            <div className="lf-review-actions">
+              {current.subject.phone && <a className="lf-btn" href={`https://wa.me/${current.subject.phone}`} target="_blank" rel="noreferrer"><Icon name="whatsapp" />Reply on WhatsApp</a>}
+              {can.has('markHandled') && <StepButton {...common} step="markHandled" icon="check">Mark as handled</StepButton>}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {current.state === 'dispatched' && (
+        <div className="lf-section">
+          <div className="lf-review" data-tone={pay.key === 'overdue' ? 'amber' : undefined}>
+            <div className="lf-review-head">
+              <Icon name="upnext" />
+              <span className="lf-grow">{formatPaise(pay.balancePaise)} to collect. {pay.label}. {pay.key === 'overdue' ? 'Forge keeps sending reminders.' : 'Forge sends the reminders.'}</span>
+            </div>
+            <div className="lf-review-actions">
+              {can.has('recordPayment') && <RecordPaymentButton caseId={current.id} version={current.version} balanceRupees={balanceRupees} />}
+            </div>
+          </div>
+        </div>
+      )}
 
       {open && (
         <div className="lf-section">
@@ -47,6 +79,7 @@ async function OrderSheet({ current, user, closeHref }: { current: OrderCase; us
             </div>
             <div className="lf-review-actions">
               {can.has('cancelOrder') && <PromptStepButton {...common} step="cancelOrder" field="reason" label="Why is it cancelled" title="Cancel order" icon="x" variant="ghost" confirmLabel="Cancel order">Cancel</PromptStepButton>}
+              {can.has('recordPayment') && balanceRupees > 0 && <RecordPaymentButton caseId={current.id} version={current.version} balanceRupees={balanceRupees} variant="default" />}
               {can.has('dispatchOrder') && <PromptStepButton {...common} step="dispatchOrder" field="vehicle" required={false} label="Vehicle number (optional)" title="Mark as dispatched" icon="order" variant="primary" confirmLabel="Dispatch">Mark as dispatched</PromptStepButton>}
             </div>
           </div>
@@ -59,6 +92,7 @@ async function OrderSheet({ current, user, closeHref }: { current: OrderCase; us
         <dt><Icon name="quote" />From quote</dt><dd><Link className="lf-row-link" href={`/sales?show=all&open=${current.data.quoteRef}`}>{current.data.quoteRef}</Link>&nbsp;<span className="lf-dim">v{current.data.quoteVersion}</span></dd>
         <dt><Icon name="edit" />Buyer PO</dt><dd className={current.data.buyerPo ? '' : 'lf-dim'}>{current.data.buyerPo ?? 'None'}</dd>
         <dt><Icon name="stock" />Deliver to</dt><dd>{current.data.pincode}</dd>
+        <dt><Icon name="check" />Payment</dt><dd><Chip tone={payTone}>{pay.label}</Chip>{pay.balancePaise > 0 && pay.key !== 'none' && <span className="lf-dim">&nbsp;{formatPaise(pay.balancePaise)} open</span>}</dd>
       </dl>
 
       <section className="lf-section">
@@ -86,6 +120,20 @@ async function OrderSheet({ current, user, closeHref }: { current: OrderCase; us
           <dt className="lf-total">Total</dt><dd className="lf-total">{formatPaise(current.data.totalPaise)}</dd>
         </dl>
       </section>
+
+      {(current.data.payment?.payments.length ?? 0) > 0 && (
+        <section className="lf-section">
+          <div className="lf-section-head"><span>Payments</span></div>
+          <table className="lf-lines">
+            <thead><tr><th>Received</th><th>By</th><th>Reference</th><th className="lf-num">Amount</th></tr></thead>
+            <tbody>
+              {current.data.payment!.payments.map((p, i) => (
+                <tr key={i}><td>{clock(p.at)}</td><td>{p.mode}</td><td>{p.reference ?? '—'}</td><td className="lf-num">{formatPaise(p.amountPaise)}</td></tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
 
       <section className="lf-section">
         <div className="lf-section-head"><span>Activity</span></div>
@@ -137,6 +185,7 @@ export default async function OrdersPage({ searchParams }: { searchParams: { sho
                 <th><span className="lf-th"><Icon name="quote" />From quote</span></th>
                 <th><span className="lf-th"><Icon name="stock" />Items</span></th>
                 <th className="lf-num"><span className="lf-th">Total</span></th>
+                <th><span className="lf-th"><Icon name="check" />Payment</span></th>
                 <th><span className="lf-th"><Icon name="upnext" />Last activity</span></th>
               </tr>
             </thead>
@@ -148,6 +197,7 @@ export default async function OrdersPage({ searchParams }: { searchParams: { sho
                   <td>{row.data.quoteRef}</td>
                   <td>{row.data.lines.map((l) => `${l.quantity.toLocaleString('en-IN')} × ${l.name}`).join(', ')}</td>
                   <td className="lf-num">{formatPaise(row.data.totalPaise)}</td>
+                  <td>{(() => { const p = paymentStatus(row.data, row.state); return <Chip tone={p.key === 'overdue' ? 'red' : p.key === 'paid' ? 'green' : p.key === 'due' ? 'amber' : 'grey'}>{p.label}</Chip>; })()}</td>
                   <td className="lf-dim">{timeAgo(row.updated_at)}</td>
                 </ClickRow>
               ))}

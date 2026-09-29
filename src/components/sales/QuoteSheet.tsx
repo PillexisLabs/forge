@@ -12,10 +12,18 @@ import { productSource } from '@/core/products';
 import type { SessionUser } from '@/core/users';
 import { replyRoute } from '@/modules/sales/quote-automation';
 import { CHANNEL_LABELS, quoteJob, type QuoteCase } from '@/modules/sales/quote-job';
-import { quoteMessage } from '@/modules/sales/quote-rules';
+import { deliveryPhrase, quoteMessage, type QuoteLine } from '@/modules/sales/quote-rules';
 import { getSalesRules } from '@/modules/sales/sales-settings';
 
 const ACTOR_ICON = { user: 'person', rule: 'bolt', employee: 'bolt' } as const;
+
+function StockChip({ line }: { line: QuoteLine }) {
+  const a = line.availability;
+  if (!a) return null;
+  const tone = a.status === 'in_stock' ? 'green' : a.status === 'after_incoming' ? 'amber' : 'red';
+  const label = a.status === 'in_stock' ? 'In stock' : a.status === 'after_incoming' ? deliveryPhrase(line).replace(/^ships/, 'Ships') : `Short by ${a.shortBy.toLocaleString('en-IN')}`;
+  return <span className="lf-chip" data-tone={tone}>{label}</span>;
+}
 
 function waLink(phone: string | null, text: string): string | null {
   const digits = (phone ?? '').replace(/\D/g, '');
@@ -82,12 +90,15 @@ export default async function QuoteSheet({ current, user, closeHref }: { current
               <div key={line.sku} className="lf-review-row">
                 <span className="lf-review-quote">Read “{(current.data.match?.matchedOn[line.sku] ?? []).map((w) => w.replace(/(\d)([a-z])/g, '$1 $2')).join(' ')}” and {line.quantity.toLocaleString('en-IN')}</span>
                 <span className="lf-arrow">→</span>
-                <span>{line.quantity.toLocaleString('en-IN')} × {line.name} · {formatPaise(line.ratePaise)}</span>
+                <span>{line.quantity.toLocaleString('en-IN')} × {line.name} · {formatPaise(line.ratePaise)} <StockChip line={line} /></span>
               </div>
             ))}
             {current.data.match?.unmatched.length ? (
               <div className="lf-review-row"><span className="lf-review-quote">{current.data.match.unmatched.join(' · ')}</span><span className="lf-arrow">→</span><span className="lf-error">Not matched. Add it by hand if the buyer needs it.</span></div>
             ) : null}
+            {quote.lines.some((l) => l.availability?.status === 'short') && (
+              <div className="lf-review-row"><span className="lf-error">Stock does not cover every line. The quote tells the buyer the balance date is to be confirmed. Change the quantity first if you prefer.</span></div>
+            )}
             <div className="lf-review-body">
               Total {formatPaise(quote.totalPaise)}. {overLimit ? `This is above the ${formatPaise(rules.approvalLimitRupees * 100)} limit, so an approver approves it next.` : sendNote}
             </div>
@@ -166,16 +177,17 @@ export default async function QuoteSheet({ current, user, closeHref }: { current
             <a className="lf-btn lf-btn-ghost" href={`/api/jobs/quote/cases/${current.id}/pdf`} target="_blank" rel="noreferrer"><Icon name="download" />PDF</a>
           </div>
           <table className="lf-lines">
-            <thead><tr><th>Item</th><th className="lf-num">Quantity</th><th className="lf-num">Rate</th><th className="lf-num">Amount</th></tr></thead>
+            <thead><tr><th>Item</th><th className="lf-num">Quantity</th><th className="lf-num">Rate</th><th className="lf-num">Amount</th><th>Stock</th></tr></thead>
             <tbody>
               {quote.lines.map((line) => {
                 const stock = bySku.get(line.sku);
                 return (
                   <tr key={line.sku}>
-                    <td>{line.name}<span className="lf-sku">{line.sku}{stock && stock.available < line.quantity ? ` · only ${stock.available.toLocaleString('en-IN')} free` : ''}</span></td>
+                    <td>{line.name}<span className="lf-sku">{line.sku}{!line.availability && stock && stock.available < line.quantity ? ` · only ${stock.available.toLocaleString('en-IN')} free` : ''}</span></td>
                     <td className="lf-num">{line.quantity.toLocaleString('en-IN')} {line.unit}</td>
                     <td className="lf-num">{formatPaise(line.ratePaise)}</td>
                     <td className="lf-num">{formatPaise(line.amountPaise)}</td>
+                    <td><StockChip line={line} /></td>
                   </tr>
                 );
               })}
