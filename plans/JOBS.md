@@ -55,6 +55,15 @@ To add AI employees later: add an employee record with its roles and limits, let
 - The `SALES_*` and `BUSINESS_*` env vars are only first defaults; Settings → Sales rules overrides them.
 - WhatsApp intake runs only when Settings → Integrations has WhatsApp on, so the Pillexis CRM number never creates sales enquiries.
 
+## Email
+
+Two modes, chosen in Settings → Integrations → Email. The user types the sales address; Forge reads the domain's MX records and recognises Google, Zoho, Microsoft, GoDaddy, Hostinger, Yahoo, Rediffmail or another host, then shows that provider's own steps.
+
+- **Forward (recommended, any provider, no password).** Forge gives a personal intake address. The client forwards sales@ to it. The inbound mail service for `EMAIL_INBOUND_DOMAIN` posts each mail to `POST /api/intake/email?key=EMAIL_INBOUND_KEY` (Postmark inbound JSON, or a raw message from a Cloudflare Email Worker). Gmail's forwarding code is captured and shown on the setup screen. Replies go through the relay (`EMAIL_RELAY_*`) as "Business via Forge", Reply-To and a copy to sales@. Without a relay, replies stay in test mode.
+- **Password (advanced).** IMAP reads and SMTP sends with the mailbox or app password, with the servers filled in per provider and a "Test connection" check. Microsoft does not allow it; forwarding covers Microsoft until OAuth is added.
+
+To go live with forwarding: pick the inbound and relay provider, point the inbound domain's MX at it, and set the `EMAIL_*` variables on the instance.
+
 ## Not built yet
 
 - WhatsApp outside the 24-hour window needs an approved template; until then a person sends those quotes.

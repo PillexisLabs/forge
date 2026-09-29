@@ -4,7 +4,9 @@ import { getInbound } from '@/core/intake';
 import { getCaseById } from '@/core/jobs';
 import { requirePermission } from '@/core/permissions';
 import { newToken } from '@/core/secrets';
-import { pollMailbox } from '@/modules/email/email-integration';
+import { ingestForwardedEmail, inboundConfigured, loadEmail, makeForwardAddress, pollMailbox, relayConfigured, testPasswordConnection } from '@/modules/email/email-integration';
+import { detectProvider } from '@/modules/email/providers';
+import { getSalesRules } from '@/modules/sales/sales-settings';
 import { runJobConsumers } from '@/modules/jobs';
 import { pollSheet } from '@/modules/sheets/sheets-intake';
 import { recordTestWhatsAppMessage } from '@/modules/whatsapp/whatsapp-channel';
@@ -28,6 +30,10 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   const current = await getIntegration(id);
 
   try {
+    if (id === 'email' && typeof body.action === 'string' && body.action.startsWith('email.')) {
+      return NextResponse.json(await emailAction(body, actor));
+    }
+
     if (body.action === 'save') {
       if (id === 'whatsapp') {
         await saveIntegration(id, { enabled: bool(body.enabled), config: { ...current.config, testMode: bool(body.testMode) }, status: bool(body.enabled) ? 'connected' : 'not_connected', lastError: null }, actor);
@@ -106,4 +112,77 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : 'That did not work.' }, { status: 400 });
   }
+}
+
+
+// ---------- Email setup wizard (Settings → Integrations → Email) ----------
+
+async function emailAction(body: Record<string, unknown>, actor: string): Promise<Record<string, unknown>> {
+  const { row, config } = await loadEmail();
+  const status = () => ({
+    enabled: row.enabled, mode: config.mode, address: config.address, forwardAddress: config.forwardAddress,
+    verification: row.cursor.verification ?? null, lastReceived: row.cursor.lastReceived ?? null,
+    inboundReady: inboundConfigured(), relayReady: relayConfigured(),
+  });
+
+  if (body.action === 'email.detect') {
+    const address = String(body.address ?? '').trim().toLowerCase();
+    const provider = await detectProvider(address);
+    const forwardAddress = config.forwardAddress || makeForwardAddress((await getSalesRules()).businessName);
+    await saveIntegration('email', {
+      config: { ...row.config, address, provider: provider.id, forwardAddress },
+      cursor: address !== config.address ? {} : row.cursor,
+    }, actor);
+    return { ok: true, provider, forwardAddress, inboundReady: inboundConfigured(), relayReady: relayConfigured() };
+  }
+
+  if (body.action === 'email.status') return { ok: true, ...status() };
+
+  if (body.action === 'email.useForward') {
+    if (!config.address || !config.forwardAddress) throw new Error('Enter your sales email first.');
+    await saveIntegration('email', { enabled: true, config: { ...row.config, mode: 'forward' }, secret: null, status: 'connected', lastError: null }, actor);
+    return { ok: true, message: 'Forwarding is on. Forge reads every email your sales address forwards.' };
+  }
+
+  if (body.action === 'email.testPassword' || body.action === 'email.savePassword') {
+    const input = {
+      address: String(body.address ?? config.address).trim().toLowerCase(),
+      password: String(body.password ?? ''),
+      imapHost: String(body.imapHost ?? '').trim(), imapPort: Number(body.imapPort ?? 993) || 993,
+      smtpHost: String(body.smtpHost ?? '').trim(), smtpPort: Number(body.smtpPort ?? 465) || 465,
+    };
+    if (!input.password) throw new Error('Enter the password.');
+    const result = await testPasswordConnection(input);
+    if (!result.ok) throw new Error(`${result.step === 'reading' ? 'Reading mail failed' : 'Sending mail failed'}: ${result.error}`);
+    if (body.action === 'email.testPassword') return { ok: true, message: 'Reading and sending both work.' };
+    await saveIntegration('email', {
+      enabled: true,
+      config: { ...row.config, mode: 'password', address: input.address, imapHost: input.imapHost, imapPort: input.imapPort, smtpHost: input.smtpHost, smtpPort: input.smtpPort },
+      secret: input.password, cursor: {}, status: 'connected', lastError: null,
+    }, actor);
+    await pollMailbox({ force: true });
+    return { ok: true, message: 'Connected. New emails to this address now become enquiries.' };
+  }
+
+  if (body.action === 'email.simulate') {
+    if (!config.forwardAddress) throw new Error('Enter your sales email first.');
+    const outcome = await ingestForwardedEmail({
+      messageId: `test-${Date.now()}`,
+      from: String(body.from ?? '').trim().toLowerCase(),
+      fromName: String(body.name ?? '').trim() || null,
+      to: [config.forwardAddress],
+      subject: String(body.subject ?? 'Enquiry'),
+      text: String(body.text ?? ''),
+      autoSubmitted: false,
+    });
+    await runJobConsumers();
+    return { ok: true, outcome, message: outcome === 'enquiry' ? 'Received. It is in Quotes now.' : `Not an enquiry (${outcome}).` };
+  }
+
+  if (body.action === 'email.disconnect') {
+    await saveIntegration('email', { enabled: false, secret: null, status: 'not_connected' }, actor);
+    return { ok: true, message: 'Disconnected.' };
+  }
+
+  throw new Error('Unknown email action.');
 }

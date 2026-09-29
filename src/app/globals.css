@@ -3306,3 +3306,22 @@ a.db-stat:hover { background: var(--ds-surface-subtle); }
   .db-stat:nth-child(n + 3) { border-top: 1px solid var(--ds-border-subtle); }
   .db-grid { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* ---------- Email setup ---------- */
+.em-found { display: flex; align-items: center; gap: 0.5rem; color: var(--ds-text); }
+.em-found .lf-icon { color: var(--ds-success); }
+.em-choice { display: flex; flex-direction: column; gap: 0.25rem; width: 100%; padding: 0.875rem 1rem; border: 1px solid var(--ds-border-subtle); border-radius: 0.75rem; background: var(--ds-elevated); color: var(--ds-text-2); font: inherit; font-size: 0.875rem; text-align: left; cursor: pointer; }
+.em-choice:hover:not(:disabled) { border-color: var(--ds-primary-border); background: var(--ds-surface-subtle); }
+.em-choice[data-recommended='true'] { border-color: var(--ds-primary-border); background: var(--ds-primary-subtle); }
+.em-choice:disabled { cursor: default; opacity: 0.6; }
+.em-choice-head { display: flex; align-items: center; gap: 0.5rem; color: var(--ds-text); }
+.em-copy { display: flex; align-items: center; gap: 0.5rem; }
+.em-copy code { flex: 1; min-width: 0; padding: 0.5rem 0.75rem; border: 1px solid var(--ds-border-subtle); border-radius: 0.5rem; background: var(--ds-bg-subtle); color: var(--ds-text); font-family: var(--font-mono); font-size: 0.8125rem; overflow-wrap: anywhere; }
+.em-steps { display: flex; flex-direction: column; gap: 0.375rem; margin: 0; padding-left: 1.25rem; color: var(--ds-text-2); line-height: 1.5; }
+.em-live { display: flex; align-items: center; gap: 0.5rem; padding: 0.625rem 0.75rem; border-radius: 0.5rem; background: var(--ds-bg-subtle); color: var(--ds-text-2); }
+.em-live[data-ok='true'] { background: var(--ds-success-subtle); color: var(--ds-success-text); }
+.em-pulse { width: 0.5rem; height: 0.5rem; flex: none; border-radius: 50%; background: var(--ds-warning); animation: em-pulse 1.4s ease-in-out infinite; }
+@keyframes em-pulse { 50% { opacity: 0.3; } }
+@media (prefers-reduced-motion: reduce) { .em-pulse { animation: none; } }
+.em-advanced summary { color: var(--ds-text-2); cursor: pointer; }
+.em-steps { list-style: decimal; } .em-steps li { padding-left: 0.25rem; } .em-steps li::marker { color: var(--ds-text-muted); }

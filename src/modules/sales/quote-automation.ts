@@ -71,12 +71,18 @@ export async function replyRoute(current: QuoteCase): Promise<{ channel: Channel
   return null;
 }
 
-async function caseText(caseId: number, first: string): Promise<string> {
+/**
+ * The text the matching rule reads: every message the buyer sent on this
+ * case, once each. The first email keeps its subject. A case typed in by a
+ * person (no messages) uses the enquiry text.
+ */
+async function caseText(caseId: number, typed: string): Promise<string> {
   const sql = getSql();
-  const rows = await sql<{ body: string }[]>`select body from inbound_messages where case_id = ${caseId} order by received_at`;
-  const parts = rows.map((row) => row.body);
-  if (!parts.includes(first)) parts.unshift(first);
-  return parts.join('\n');
+  const rows = await sql<{ body: string; subject: string | null; source: string }[]>`
+    select body, subject, source from inbound_messages where case_id = ${caseId} order by received_at
+  `;
+  if (!rows.length) return typed;
+  return rows.map((row, i) => (i === 0 && row.source === 'email' && row.subject ? `${row.subject}\n${row.body}` : row.body)).join('\n');
 }
 
 /** Match the case's messages to the catalogue; draft the quote or ask for what is missing. */

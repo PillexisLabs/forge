@@ -81,6 +81,19 @@ export const env = {
   salesLocalPinPrefixes: () => (process.env.SALES_LOCAL_PIN_PREFIXES ?? '56,57')
     .split(',').map((p) => p.trim()).filter(Boolean),
   salesQuoteValidDays: () => numberOr(process.env.SALES_QUOTE_VALID_DAYS, 7),
+
+  // Email forwarding intake. Mail to <anything>@EMAIL_INBOUND_DOMAIN reaches
+  // POST /api/intake/email?key=EMAIL_INBOUND_KEY from the inbound mail
+  // service (for example Postmark inbound, or a Cloudflare Email Worker).
+  emailInboundDomain: () => (process.env.EMAIL_INBOUND_DOMAIN ?? '').trim().toLowerCase(),
+  emailInboundKey: () => process.env.EMAIL_INBOUND_KEY ?? '',
+  // The relay that sends replies for forwarding clients ("Business via Forge",
+  // Reply-To the client's own address). Any SMTP relay works: Postmark, SES, Resend.
+  emailRelayHost: () => process.env.EMAIL_RELAY_HOST ?? '',
+  emailRelayPort: () => numberOr(process.env.EMAIL_RELAY_PORT, 587),
+  emailRelayUser: () => process.env.EMAIL_RELAY_USER ?? '',
+  emailRelayPassword: () => process.env.EMAIL_RELAY_PASSWORD ?? '',
+  emailRelayFrom: () => (process.env.EMAIL_RELAY_FROM ?? '').trim(),
 };
 
 function numberOr(value: string | undefined, fallback: number): number {
