@@ -1,4 +1,4 @@
-const VERSION = 'forge-pwa-v1';
+const VERSION = 'forge-pwa-v2';
 
 self.addEventListener('install', () => {
   self.skipWaiting();
@@ -13,6 +13,8 @@ self.addEventListener('activate', (event) => {
 });
 
 // Keep authenticated dashboard pages and API responses network-only.
-self.addEventListener('fetch', (event) => {
-  event.respondWith(fetch(event.request));
-});
+// The handler does not call respondWith, so the browser fetches every
+// request itself. Answering with fetch(event.request) broke navigations
+// that redirect (for example / to /work) and any request while the server
+// restarted, both shown as ERR_FAILED.
+self.addEventListener('fetch', () => {});
