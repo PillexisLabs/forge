@@ -95,6 +95,12 @@ export const quoteJob: JobDefinition = {
   module: 'sales',
   label: 'Quote',
   refPrefix: 'Q',
+  customerOf(c) {
+    const subject = c.subject as QuoteSubject;
+    const data = c.data as QuoteData;
+    if (!subject.buyerName) return null;
+    return { name: subject.buyerName, company: subject.company ?? null, phone: subject.phone ?? null, email: subject.email ?? null, gstin: null, pincode: data.quote?.pincode ?? null };
+  },
   states: {
     enquiry: { label: 'New enquiry', assignee: 'sales' },
     draft: { label: 'Quote draft', assignee: 'sales' },

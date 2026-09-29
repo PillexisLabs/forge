@@ -10,6 +10,7 @@ export const crmManifest: ModuleManifest = {
     // The WhatsApp screen lives here because the whatsapp module has no nav
     // group of its own yet — its workflow state renders inside CRM views.
     { id: 'automation', label: 'WhatsApp', icon: '/icons/whatsapp.svg', href: '/crm/whatsapp' },
+    { id: 'customers', label: 'Customers', icon: 'person', href: '/crm/customers' },
     { id: 'leads', label: 'Leads', icon: '/icons/people.svg', href: '/crm/leads' },
     { id: 'pipeline', label: 'Pipeline', icon: '/icons/kanban.svg', href: '/crm/pipeline' },
     { id: 'followups', label: 'Follow ups', shortLabel: 'Follow', icon: '/icons/bell.svg', href: '/crm/follow-ups' },
@@ -19,7 +20,7 @@ export const crmManifest: ModuleManifest = {
     // Emitted with emittedBy 'core' (the Cal.com webhook is a core intake
     // concern) but the emitting code lives in this module today.
     emits: ['booking.created'],
-    consumes: [],
+    consumes: ['customer.updated'],
   },
   permissions: [],
   configKeys: [

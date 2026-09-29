@@ -33,7 +33,9 @@ export type EventName =
   | 'order.message'
   // Purchasing: a purchase order went to the supplier, or its stock arrived.
   | 'po.sent'
-  | 'po.received';
+  | 'po.received'
+  // A case's customer details changed (src/core/customers.ts); the CRM keeps the record.
+  | 'customer.updated';
 
 export type EmittedBy =
   | 'core' | 'analytics' | 'whatsapp' | 'crm' | 'lead-qual' | 'voice'

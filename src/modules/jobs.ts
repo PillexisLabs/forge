@@ -1,7 +1,9 @@
 import { registerChannel } from '@/core/channels';
+import { registerCustomerDirectory } from '@/core/customers';
 import type { JobDefinition } from '@/core/jobs';
 import { isModuleEnabled } from '@/core/modules';
 import { registerProductSource } from '@/core/products';
+import { consumeCustomerUpdates, crmCustomerDirectory } from './crm/crm-customers';
 import { emailChannel, pollMailbox } from './email/email-integration';
 import { inventoryProductSource } from './inventory/inventory-data';
 import { consumeOrderStockEvents, consumePurchaseStockEvents } from './inventory/inventory-consumer';
@@ -28,6 +30,7 @@ const ALL_JOBS: JobDefinition[] = [quoteJob, orderJob, purchaseJob];
 if (isModuleEnabled('inventory')) registerProductSource(inventoryProductSource);
 if (isModuleEnabled('whatsapp')) registerChannel(whatsappChannel);
 if (isModuleEnabled('email')) registerChannel(emailChannel);
+if (isModuleEnabled('crm')) registerCustomerDirectory(crmCustomerDirectory);
 
 export function enabledJobs(): JobDefinition[] {
   return ALL_JOBS.filter((job) => isModuleEnabled(job.module));
@@ -65,6 +68,7 @@ export async function runJobConsumers(): Promise<void> {
   if (isModuleEnabled('orders')) await consumeOrderDocuments();
   if (isModuleEnabled('purchasing')) await consumeOrderShortages();
   if (isModuleEnabled('inventory')) await consumePurchaseStockEvents();
+  if (isModuleEnabled('crm')) await consumeCustomerUpdates();
 }
 
 const POLL_EVERY_MS = 60_000;

@@ -1,3 +1,4 @@
+import { findCustomer } from '@/core/customers';
 import { inputObject, optionalText, requiredText, StepError, type CaseRecord, type JobDefinition } from '@/core/jobs';
 import { formatPaise, rupeesToPaise } from '@/core/money';
 import { allocate, getPaymentRules, instalmentsFor, startDueDates, termsFor, type Instalment, type Terms } from './payment-settings';
@@ -114,6 +115,12 @@ export const orderJob: JobDefinition = {
   module: 'orders',
   label: 'Order',
   refPrefix: 'SO',
+  customerOf(c) {
+    const subject = c.subject as OrderSubject;
+    const data = c.data as OrderData;
+    if (!subject.buyerName) return null;
+    return { name: subject.buyerName, company: subject.company ?? null, phone: subject.phone ?? null, email: subject.email ?? null, gstin: data.buyerGstin ?? null, pincode: data.pincode ?? null };
+  },
   states: {
     confirmed: { label: 'Confirmed', assignee: 'operations' },
     // Nobody needs to act while payment is not yet overdue; reminders run on their own.
@@ -167,10 +174,12 @@ export const orderJob: JobDefinition = {
       },
       async run(_ctx, input) {
         const payment = await newPayment(input.data.totalPaise, input.subject, new Date());
+        // A GSTIN already on file for this buyer goes on the order and its invoices.
+        const known = await findCustomer({ phone: input.subject.phone, email: input.subject.email });
         return {
           title: input.subject.company ?? input.subject.buyerName,
           subject: input.subject,
-          data: { ...input.data, payment },
+          data: { ...input.data, payment, ...(known?.gstin ? { buyerGstin: known.gstin } : {}) },
           summary: `Created from quote ${input.data.quoteRef} v${input.data.quoteVersion}: ${input.data.lines.length} ${input.data.lines.length === 1 ? 'item' : 'items'}, ${formatPaise(input.data.totalPaise)}. Nobody typed the items again.`,
           events: (saved) => [{
             name: 'order.confirmed',

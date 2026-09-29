@@ -14,6 +14,7 @@
     "crm:import": "node --import ./scripts/load-env-if-present.mjs --import tsx scripts/import-crm.ts",
     "crm:sync-fireflies": "node --import ./scripts/load-env-if-present.mjs --import tsx scripts/sync-crm-fireflies.ts",
     "crm:seed-demo": "node --import ./scripts/load-env-if-present.mjs --import tsx scripts/seed-crm-demo.ts",
+    "crm:backfill-customers": "node --import ./scripts/load-env-if-present.mjs --import tsx scripts/crm-backfill-customers.ts",
     "crm:whatsapp-worker": "node --import ./scripts/load-env-if-present.mjs --import tsx scripts/whatsapp-worker.ts",
     "voice:call": "node --import ./scripts/load-env-if-present.mjs --import tsx scripts/voice-call.ts",
     "voice:worker": "node --import ./scripts/load-env-if-present.mjs --import tsx scripts/voice-worker.ts",

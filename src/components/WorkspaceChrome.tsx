@@ -99,6 +99,7 @@ export default function WorkspaceChrome({
       return (searchParams.get('view') ?? 'overview') === view;
     }
     if (path === '/crm') return pathname === '/crm';
+    if (path === '/crm/customers') return pathname === path;
     if (path.startsWith('/crm/')) return crmViewFromRoute(pathname.split('/')[2] ?? '') !== null && pathname === path;
     return pathname === path || pathname.startsWith(`${path}/`);
   }

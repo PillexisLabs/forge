@@ -1,4 +1,5 @@
 import { channelReady, sendOnChannel, type ChannelId } from '@/core/channels';
+import { findCustomer } from '@/core/customers';
 import { getSql } from '@/core/db';
 import { consumeEvents, emitEvent } from '@/core/events';
 import { getInbound, lastWhatsAppFrom, linkInbound, type InboundRecord, type IntakeSource } from '@/core/intake';
@@ -176,11 +177,14 @@ async function handleInbound(inbound: InboundRecord): Promise<void> {
     }
   }
 
+  // A buyer the CRM knows starts with the details already on file.
+  const known = await findCustomer({ phone: inbound.from_phone, email: inbound.from_email });
   const created = await createCase(quoteJob, 'recordEnquiry', {
-    buyerName: inbound.from_name,
-    company: inbound.company,
-    phone: inbound.from_phone,
-    email: inbound.from_email,
+    // The name on file wins over a WhatsApp profile name, which is often a nickname.
+    buyerName: known?.name ?? inbound.from_name,
+    company: inbound.company ?? known?.company ?? null,
+    phone: inbound.from_phone ?? known?.phone ?? null,
+    email: inbound.from_email ?? known?.email ?? null,
     channel: via,
     message: text,
     inboundId: inbound.id,

@@ -1,5 +1,6 @@
 import type { TransactionSql } from 'postgres';
 import { getSql } from './db';
+import { sameFacts, type CustomerFacts } from './customers';
 import { emitEvent, type EmittedBy, type EventName } from './events';
 import { hasPermission } from './permissions';
 import type { SessionUser } from './users';
@@ -143,6 +144,8 @@ export type JobDefinition = {
   refPrefix: string;
   states: Record<string, JobStateDefinition>;
   steps: Record<string, StepDefinition>;
+  /** The customer a case belongs to. The engine emits customer.updated when it changes. */
+  customerOf?: (c: CaseRecord) => CustomerFacts | null;
 };
 
 export class StepError extends Error {
@@ -234,10 +237,18 @@ async function recordStep(
   `;
 }
 
-async function emitAll(tx: TransactionSql, def: JobDefinition, result: StepResult, saved: CaseRecord) {
+async function emitAll(tx: TransactionSql, def: JobDefinition, result: StepResult, saved: CaseRecord, previous: CaseRecord | null) {
   const events = typeof result.events === 'function' ? result.events(saved) : result.events ?? [];
   for (const event of events) {
     await emitEvent(event.name, event.payload, { emittedBy: def.module, dedupeKey: event.dedupeKey, sql: tx });
+  }
+  if (def.customerOf) {
+    const facts = def.customerOf(saved);
+    if (facts && !sameFacts(facts, previous ? def.customerOf(previous) : null)) {
+      await emitEvent('customer.updated', { v: 1, case_id: saved.id, case_ref: saved.ref, job: def.job, facts }, {
+        emittedBy: def.module, dedupeKey: `case:${saved.id}:v${saved.version}`, sql: tx,
+      });
+    }
   }
 }
 
@@ -287,7 +298,7 @@ export async function createCase(
       returning *
     `;
     await recordStep(tx, withRef.id, stepName, actor, null, to, input, result.summary);
-    await emitAll(tx, def, result, withRef);
+    await emitAll(tx, def, result, withRef, null);
     return withRef;
   }) as Promise<CaseRecord>;
 }
@@ -336,7 +347,7 @@ export async function runStep(
       returning *
     `;
     await recordStep(tx, caseId, stepName, actor, current.state, to, input, result.summary);
-    await emitAll(tx, def, result, updated);
+    await emitAll(tx, def, result, updated, current);
     return updated;
   }) as Promise<CaseRecord>;
 }
