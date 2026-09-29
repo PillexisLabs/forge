@@ -1,5 +1,6 @@
 import './globals.css';
 import type { Metadata } from 'next';
+import { headers } from 'next/headers';
 import { Noto_Sans } from 'next/font/google';
 import type { Viewport } from 'next';
 import { Suspense, type ReactNode } from 'react';
@@ -11,22 +12,38 @@ import { enabledModuleNames, switchedOffModules } from '@/core/modules';
 import { MODULES } from '@/modules/registry';
 import { getSessionUserFromCookies } from '@/core/session';
 
-export const metadata: Metadata = {
-  title: 'Forge',
-  applicationName: 'Forge',
-  description: 'Pillexis marketing analytics and client follow-up workspace.',
-  manifest: '/manifest.webmanifest',
-  icons: {
-    icon: [{ url: '/icon.svg', type: 'image/svg+xml' }, { url: '/favicon.ico', sizes: '48x48' }],
-    apple: [{ url: '/apple-icon.png', sizes: '180x180', type: 'image/png' }],
-  },
-  appleWebApp: {
-    capable: true,
+const DESCRIPTION = 'Enquiries from WhatsApp, email and Google Sheets become quotes, orders and payment follow-ups. Your team checks and approves.';
+
+// The share preview (WhatsApp, LinkedIn, X, Slack). Links are absolute and
+// built from the host the link was shared from, so staging and production
+// each preview their own address.
+export async function generateMetadata(): Promise<Metadata> {
+  const h = headers();
+  const host = h.get('x-forwarded-host') ?? h.get('host') ?? 'localhost:3000';
+  const proto = h.get('x-forwarded-proto') ?? (host.startsWith('localhost') || host.startsWith('127.') ? 'http' : 'https');
+  const image = { url: '/og-image.png', width: 1200, height: 630, alt: 'Forge by Pillexis Labs' };
+  return {
+    metadataBase: new URL(`${proto}://${host}`),
     title: 'Forge',
-    statusBarStyle: 'default',
-  },
-  formatDetection: { telephone: false },
-};
+    applicationName: 'Forge',
+    description: DESCRIPTION,
+    manifest: '/manifest.webmanifest',
+    icons: {
+      icon: [{ url: '/icon.svg', type: 'image/svg+xml' }, { url: '/favicon.ico', sizes: '48x48' }],
+      apple: [{ url: '/apple-icon.png', sizes: '180x180', type: 'image/png' }],
+    },
+    openGraph: { type: 'website', siteName: 'Forge by Pillexis Labs', title: 'Forge by Pillexis Labs', description: DESCRIPTION, url: '/', images: [image] },
+    twitter: { card: 'summary_large_image', title: 'Forge by Pillexis Labs', description: DESCRIPTION, images: [image.url] },
+    // A private workspace: previews work, search engines do not list it.
+    robots: { index: false, follow: false },
+    appleWebApp: {
+      capable: true,
+      title: 'Forge',
+      statusBarStyle: 'default',
+    },
+    formatDetection: { telephone: false },
+  };
+}
 
 export const viewport: Viewport = {
   themeColor: '#ffffff',

@@ -20,6 +20,8 @@ export async function middleware(req: NextRequest) {
     pathname.startsWith('/icons/') ||
     pathname === '/manifest.webmanifest' ||
     pathname === '/forge-logo.png' ||
+    // The share preview image: link crawlers are never signed in.
+    pathname === '/og-image.png' ||
     pathname.startsWith('/icon') ||
     pathname === '/apple-icon.png' ||
     pathname === '/sw.js'
