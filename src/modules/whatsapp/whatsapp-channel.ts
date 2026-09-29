@@ -5,15 +5,23 @@ import { recordInbound } from '@/core/intake';
 import { toWaId } from './whatsapp-provider';
 
 // WhatsApp as a job channel (src/core/channels.ts) and as an intake source.
-// Settings → Integrations → WhatsApp switches both on. In test mode Forge
-// logs each message instead of sending it, so a demo on localhost works
-// without a live number.
+// Settings → Integrations → WhatsApp switches both on. Test mode is set by
+// the server, not by a person: on a local computer, without a number, or
+// with WHATSAPP_DRY_RUN=1, Forge logs each message instead of sending it.
+// A deployed server with a number sends for real.
+
+/** Why this server is in test mode, or null when it sends for real. */
+export function whatsappTestReason(): string | null {
+  if (!process.env.WHATSAPP_ACCESS_TOKEN || !process.env.WHATSAPP_PHONE_NUMBER_ID) return 'This server has no WhatsApp number set.';
+  if (env.whatsappDryRun()) return 'WHATSAPP_DRY_RUN is on for this server.';
+  if (process.env.NODE_ENV !== 'production') return 'Forge is running on a local computer.';
+  return null;
+}
 
 async function settings() {
   const row = await getIntegration('whatsapp');
-  const hasCredentials = Boolean(process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID);
-  const testMode = row.config.testMode === true || env.whatsappDryRun() || !hasCredentials;
-  return { enabled: row.enabled, testMode, hasCredentials };
+  const reason = whatsappTestReason();
+  return { enabled: row.enabled, testMode: reason !== null, reason, hasCredentials: Boolean(process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID) };
 }
 
 async function graph(path: string, init: RequestInit) {
@@ -30,6 +38,10 @@ export const whatsappChannel: ChannelSender = {
   id: 'whatsapp',
   async ready() {
     return (await settings()).enabled;
+  },
+  async mode() {
+    const reason = whatsappTestReason();
+    return { test: reason !== null, reason: reason ? `WhatsApp is in test mode. ${reason} Forge records messages but does not deliver them.` : null };
   },
   async send({ to, text, attachment }) {
     const mode = await settings();

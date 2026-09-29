@@ -6,6 +6,7 @@ import PageBar from '@/components/lf/PageBar';
 import { timeAgo } from '@/components/lf/format';
 import RecordPaymentButton from '@/components/orders/RecordPaymentButton';
 import ReviewSheet, { type ReviewItem } from '@/components/work/ReviewSheet';
+import { channelMode } from '@/core/channels';
 import SetupNotice from '@/components/SetupNotice';
 import { getSql } from '@/core/db';
 import { assigneeRolesFor, availableSteps, listCases, type CaseRecord, type JobDefinition } from '@/core/jobs';
@@ -220,7 +221,7 @@ export default async function UpNextPage({ searchParams }: { searchParams: { tab
             </section>
           )))}
       </div>
-      {searchParams.review === '1' && review.length > 0 && <ReviewSheet items={review} closeHref="/work" />}
+      {searchParams.review === '1' && review.length > 0 && <ReviewSheet items={review} closeHref="/work" testReason={(await channelMode('whatsapp')).reason} />}
     </main>
   );
 }

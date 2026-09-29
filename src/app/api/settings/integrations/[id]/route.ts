@@ -36,7 +36,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
     if (body.action === 'save') {
       if (id === 'whatsapp') {
-        await saveIntegration(id, { enabled: bool(body.enabled), config: { ...current.config, testMode: bool(body.testMode) }, status: bool(body.enabled) ? 'connected' : 'not_connected', lastError: null }, actor);
+        await saveIntegration(id, { enabled: bool(body.enabled), config: (({ testMode: _old, ...rest }) => rest)(current.config), status: bool(body.enabled) ? 'connected' : 'not_connected', lastError: null }, actor);
       } else if (id === 'sheets') {
         const url = String(body.url ?? '').trim();
         if (bool(body.enabled) && !/^https:\/\//.test(url)) throw new Error('Paste the full https:// link to the sheet.');

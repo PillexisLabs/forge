@@ -6,6 +6,8 @@ import { clock, displayPhone, timeAgo } from '@/components/lf/format';
 import { CopyButton, PromptStepButton, StepButton } from '@/components/jobs/StepControls';
 import QuoteEditor from '@/components/sales/QuoteEditor';
 import ReplyBox from '@/components/jobs/ReplyBox';
+import TestModeNote from '@/components/jobs/TestModeNote';
+import { channelMode } from '@/core/channels';
 import { caseMessages } from '@/core/intake';
 import { ASSIGNEE_LABELS, availableSteps, getCaseSteps, listCases } from '@/core/jobs';
 import { formatPaise } from '@/core/money';
@@ -45,6 +47,7 @@ export default async function QuoteSheet({ current, user, closeHref }: { current
     replyOptionFor(current.subject),
   ]);
   const can = new Set(availableSteps(quoteJob, current.state, user).map((s) => s.name));
+  const sendMode = route ? await channelMode(route.channel) : null;
   const quote = current.data.quote ?? null;
   const state = quoteJob.states[current.state];
   const origin = current.data.enquiry.channel;
@@ -73,6 +76,7 @@ export default async function QuoteSheet({ current, user, closeHref }: { current
       </div>
 
       <div className="lf-section">
+        {!state.terminal && <TestModeNote reason={sendMode?.reason} />}
         {current.data.attention && (
           <div className="lf-review" data-tone="amber">
             <div className="lf-review-head"><Icon name="message" /><span className="lf-grow">{current.data.attention.reason}</span></div>

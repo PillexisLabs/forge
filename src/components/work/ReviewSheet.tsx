@@ -36,7 +36,7 @@ async function run(item: ReviewItem): Promise<string | null> {
 // The batch review, like Lightfield's "record updates to review": every item
 // Forge prepared, what it read, and one approve button each, with "Approve
 // all" for the quotes that are within the approval limit.
-export default function ReviewSheet({ items, closeHref }: { items: ReviewItem[]; closeHref: string }) {
+export default function ReviewSheet({ items, closeHref, testReason }: { items: ReviewItem[]; closeHref: string; testReason?: string | null }) {
   const router = useRouter();
   const [done, setDone] = useState<Record<string, 'ok' | string>>({});
   const [busy, setBusy] = useState<string | null>(null);
@@ -87,6 +87,7 @@ export default function ReviewSheet({ items, closeHref }: { items: ReviewItem[];
           );
         })}
       </ul>
+      {testReason && <div className="rv-test"><div className="tm-note" role="note"><Icon name="bolt" size={14} /><span>{testReason}</span></div></div>}
       {batch.length > 1 && (
         <div className="rv-foot">
           <span>{batch.length} quotes are within your approval limit.</span>

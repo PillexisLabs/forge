@@ -24,17 +24,21 @@ const INFO: Record<Id, { name: string; icon: string; line: string }> = {
   email: { name: 'Email', icon: 'mail', line: 'Works with any mailbox: Gmail, Zoho, Outlook, GoDaddy and more. Emails become enquiries, and Forge replies with the quote PDF.' },
 };
 
-function statusOf(id: Id, row: Row): { key: string; label: string } {
+type Mode = { test: boolean; reason: string | null };
+
+function statusOf(row: Row, mode: Mode | undefined): { key: string; label: string } {
   if (!row.enabled) return { key: 'off', label: 'Not connected' };
   if (row.status === 'error') return { key: 'off', label: 'Error' };
-  if (id === 'whatsapp' && row.config.testMode === true) return { key: 'test', label: 'Test mode' };
+  if (mode?.test) return { key: 'test', label: 'Test mode' };
   return { key: 'connected', label: 'Connected' };
 }
 
 export default function IntegrationsPanel({
-  rows, whatsappEnv, webhookUrl, intakeUrl,
+  rows, modes, whatsappEnv, webhookUrl, intakeUrl,
 }: {
   rows: Record<Id, Row>;
+  /** Test mode per sending channel, decided by the server. */
+  modes: Partial<Record<Id, Mode>>;
   whatsappEnv: { hasCredentials: boolean; phoneNumberId: string | null };
   webhookUrl: string;
   intakeUrl: string;
@@ -46,7 +50,7 @@ export default function IntegrationsPanel({
       <div className="st-connectors">
       {(Object.keys(INFO) as Id[]).map((id) => {
         const row = rows[id];
-        const status = statusOf(id, row);
+        const status = statusOf(row, modes[id]);
         return (
           <div key={id} className="st-connector">
             <div className="st-connector-head">
@@ -55,14 +59,14 @@ export default function IntegrationsPanel({
             </div>
             <p>{INFO[id].line}</p>
             <div className="st-connector-foot">
-              <span className="lf-status" data-status={status.key} title={row.status === 'error' ? row.lastError ?? undefined : undefined}>{status.label}{row.lastActivity ? ` · ${row.lastActivity}` : ''}</span>
+              <span className="lf-status" data-status={status.key} title={row.status === 'error' ? row.lastError ?? undefined : modes[id]?.reason ?? undefined}>{status.label}{row.lastActivity ? ` · ${row.lastActivity}` : ''}</span>
               <button type="button" className={row.enabled ? 'lf-btn lf-btn-ghost' : 'lf-btn'} onClick={() => setOpen(id)}>{row.enabled ? 'Manage' : 'Connect'}</button>
             </div>
           </div>
         );
       })}
       </div>
-      {open === 'whatsapp' && <WhatsAppModal row={rows.whatsapp} env={whatsappEnv} webhookUrl={webhookUrl} onClose={() => setOpen(null)} />}
+      {open === 'whatsapp' && <WhatsAppModal row={rows.whatsapp} mode={modes.whatsapp} env={whatsappEnv} webhookUrl={webhookUrl} onClose={() => setOpen(null)} />}
       {open === 'sheets' && <SheetsModal row={rows.sheets} onClose={() => setOpen(null)} />}
       {open === 'webhook' && <WebhookModal row={rows.webhook} intakeUrl={intakeUrl} onClose={() => setOpen(null)} />}
       {open === 'email' && <EmailModal row={rows.email} onClose={() => setOpen(null)} />}
@@ -76,11 +80,10 @@ function Result({ error, message }: { error: string | null; message: string | nu
   return <span className="lf-grow" />;
 }
 
-function WhatsAppModal({ row, env, webhookUrl, onClose }: { row: Row; env: { hasCredentials: boolean; phoneNumberId: string | null }; webhookUrl: string; onClose: () => void }) {
+function WhatsAppModal({ row, mode, env, webhookUrl, onClose }: { row: Row; mode: Mode | undefined; env: { hasCredentials: boolean; phoneNumberId: string | null }; webhookUrl: string; onClose: () => void }) {
   const { post, busy, error } = useAction();
   const [message, setMessage] = useState<string | null>(null);
   const [enabled, setEnabled] = useState(row.enabled);
-  const [testMode, setTestMode] = useState(row.config.testMode === true || !env.hasCredentials);
   const [test, setTest] = useState({ name: 'Rahul Mehta', phone: '98450 11223', text: 'Hi, need 5000 stand-up pouches 250 ml, 2 colour. Delivery 560058' });
   return (
     <Modal open onClose={onClose} icon="whatsapp" title="WhatsApp" wide footer={(
@@ -88,15 +91,17 @@ function WhatsAppModal({ row, env, webhookUrl, onClose }: { row: Row; env: { has
         <Result error={error} message={message} />
         <button type="button" className="lf-btn lf-btn-ghost" onClick={onClose}>Close</button>
         <button type="button" className="lf-btn lf-btn-primary" data-busy={busy === 'save'} onClick={async () => {
-          const r = await post<{ message: string }>('save', '/api/settings/integrations/whatsapp', { action: 'save', enabled, testMode });
+          const r = await post<{ message: string }>('save', '/api/settings/integrations/whatsapp', { action: 'save', enabled });
           if (r) setMessage(r.message);
         }}>Save</button>
       </>
     )}>
       <label className="lf-check"><input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
         <span>Use WhatsApp for enquiries and replies<small>Messages to the business number become enquiries. Forge replies inside WhatsApp’s 24-hour window.</small></span></label>
-      <label className="lf-check"><input type="checkbox" checked={testMode} disabled={!env.hasCredentials} onChange={(e) => setTestMode(e.target.checked)} />
-        <span>Test mode<small>{env.hasCredentials ? 'Forge records replies but does not send them. Use it for a demo on this computer.' : 'This server has no WhatsApp number set, so replies stay in test mode.'}</small></span></label>
+      <div className="wa-mode" data-test={mode?.test ? 'true' : 'false'}>
+        <Icon name={mode?.test ? 'bolt' : 'check'} />
+        <span><strong>{mode?.test ? 'Test mode' : 'Live'}</strong>{mode?.test ? `${(mode.reason ?? '').replace(/^WhatsApp is in test mode\. /, '')}` : ' Replies and quotes go to buyers from the business number.'}<small>Set by the server: test mode on a local computer, without a number, or with WHATSAPP_DRY_RUN=1. You cannot switch it here.</small></span>
+      </div>
       <div className="lf-field">
         <span>Number</span>
         <p className="lf-note">{env.hasCredentials ? `Cloud API phone number id ${env.phoneNumberId}. Point the Meta app webhook at the URL below.` : 'No number set. Add WHATSAPP_ACCESS_TOKEN and WHATSAPP_PHONE_NUMBER_ID to the server.'}</p>

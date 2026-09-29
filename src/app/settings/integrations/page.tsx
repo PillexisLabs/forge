@@ -5,7 +5,9 @@ import IntegrationsPanel from '@/components/settings/IntegrationsPanel';
 import SettingsHeader from '@/components/settings/SettingsHeader';
 import { timeAgo } from '@/components/lf/format';
 import Icon from '@/components/lf/Icon';
+import { channelMode } from '@/core/channels';
 import { listIntegrations } from '@/core/integrations';
+import '@/modules/jobs';
 import { recentInbound } from '@/core/intake';
 import { messageLogCounts } from '@/core/message-log';
 import { hasPermission } from '@/core/permissions';
@@ -20,6 +22,7 @@ export default async function IntegrationsPage() {
 
   const rows = await listIntegrations();
   const counts = await messageLogCounts();
+  const modes = { whatsapp: await channelMode('whatsapp'), email: await channelMode('email') };
   const latest = (await recentInbound(1))[0]?.received_at ?? null;
   const host = headers().get('x-forwarded-host') ?? headers().get('host') ?? 'localhost:3000';
   const proto = headers().get('x-forwarded-proto') ?? (host.startsWith('localhost') ? 'http' : 'https');
@@ -41,6 +44,7 @@ export default async function IntegrationsPage() {
         <SettingsHeader title="Integrations" description="Where enquiries come from and how Forge replies. Messages from every source become quotes on their own." />
         <IntegrationsPanel
           rows={safe as never}
+          modes={modes}
           whatsappEnv={{
             hasCredentials: Boolean(process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID),
             phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID ? `…${process.env.WHATSAPP_PHONE_NUMBER_ID.slice(-4)}` : null,

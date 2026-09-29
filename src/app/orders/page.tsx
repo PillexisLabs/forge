@@ -14,6 +14,7 @@ import { guardModulePage } from '@/core/page-guard';
 import { productSource } from '@/core/products';
 import { replyOptionFor } from '@/core/replies';
 import ReplyBox from '@/components/jobs/ReplyBox';
+import TestModeNote from '@/components/jobs/TestModeNote';
 import type { SessionUser } from '@/core/users';
 import '@/modules/jobs';
 import { balanceOf, instalmentsOf, orderJob, paymentStatus, type OrderCase } from '@/modules/orders/order-job';
@@ -52,6 +53,7 @@ async function OrderSheet({ current, user, closeHref }: { current: OrderCase; us
         <span>{state.assignee ? `Waiting for ${ASSIGNEE_LABELS[state.assignee].toLowerCase()}` : state.terminal ? 'Closed' : 'Waiting for the buyer’s payment'}</span>
       </div>
 
+      {!state.terminal && reply.ok && reply.testReason && <div className="lf-section"><TestModeNote reason={reply.testReason} /></div>}
       {current.data.attention && (
         <div className="lf-section">
           <div className="lf-review" data-tone="amber">

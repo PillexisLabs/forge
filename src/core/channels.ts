@@ -12,6 +12,8 @@ export type ChannelSender = {
   id: ChannelId;
   /** False when the integration is not set up; the caller then leaves the step to a person. */
   ready(): Promise<boolean>;
+  /** Test mode: Forge records each message but does not deliver it. `reason` says why, for the screens. */
+  mode?(): Promise<{ test: boolean; reason: string | null }>;
   send(input: { to: string; subject?: string; text: string; attachment?: OutboundAttachment }): Promise<
     { ok: true; providerId: string; test: boolean } | { ok: false; error: string }
   >;
@@ -26,6 +28,13 @@ export function registerChannel(sender: ChannelSender) {
 export async function channelReady(id: ChannelId): Promise<boolean> {
   const sender = senders.get(id);
   return sender ? sender.ready() : false;
+}
+
+/** Whether a channel delivers for real now. Screens show the reason before a person sends. */
+export async function channelMode(id: ChannelId): Promise<{ test: boolean; reason: string | null }> {
+  const sender = senders.get(id);
+  if (!sender?.mode) return { test: false, reason: null };
+  return sender.mode();
 }
 
 export async function sendOnChannel(

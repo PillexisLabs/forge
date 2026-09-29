@@ -270,6 +270,11 @@ export const emailChannel: ChannelSender = {
     if (!row.enabled || !config.address) return false;
     return config.mode === 'forward' ? true : Boolean(config.testMode || (config.smtpHost && password));
   },
+  async mode() {
+    const { config } = await loadEmail();
+    const test = config.testMode || (config.mode === 'forward' && !relayConfigured());
+    return { test, reason: test ? 'Email is in test mode. This server has no mail relay, so Forge records emails but does not send them.' : null };
+  },
   async send({ to, subject, text, attachment }) {
     const { config, password } = await loadEmail();
     const sales = await getSettings<{ businessName: string }>('sales', { businessName: '' }).catch(() => ({ businessName: '' }));

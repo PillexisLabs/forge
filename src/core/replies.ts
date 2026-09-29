@@ -1,4 +1,4 @@
-import { channelReady, type ChannelId } from './channels';
+import { channelMode, channelReady, type ChannelId } from './channels';
 import { lastWhatsAppFrom } from './intake';
 
 // How a person can answer a buyer from a case screen. WhatsApp allows a
@@ -9,7 +9,7 @@ import { lastWhatsAppFrom } from './intake';
 const WHATSAPP_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 export type ReplyOption =
-  | { ok: true; channel: ChannelId; to: string; closesAt: string | null }
+  | { ok: true; channel: ChannelId; to: string; closesAt: string | null; testReason: string | null }
   | { ok: false; reason: string };
 
 export async function replyOptionFor(subject: { phone?: string | null; email?: string | null }, now = new Date()): Promise<ReplyOption> {
@@ -20,13 +20,13 @@ export async function replyOptionFor(subject: { phone?: string | null; email?: s
     else {
       const last = await lastWhatsAppFrom(phone);
       if (last && now.getTime() - last.getTime() < WHATSAPP_WINDOW_MS) {
-        return { ok: true, channel: 'whatsapp', to: phone, closesAt: new Date(last.getTime() + WHATSAPP_WINDOW_MS).toISOString() };
+        return { ok: true, channel: 'whatsapp', to: phone, closesAt: new Date(last.getTime() + WHATSAPP_WINDOW_MS).toISOString(), testReason: (await channelMode('whatsapp')).reason };
       }
       whatsappReason = last
         ? 'The buyer last wrote on WhatsApp more than 24 hours ago, so WhatsApp allows only an approved template message.'
         : 'The buyer has not written on WhatsApp, so WhatsApp allows only an approved template message.';
     }
   }
-  if (email && await channelReady('email')) return { ok: true, channel: 'email', to: email, closesAt: null };
+  if (email && await channelReady('email')) return { ok: true, channel: 'email', to: email, closesAt: null, testReason: (await channelMode('email')).reason };
   return { ok: false, reason: whatsappReason ?? (email ? 'Email is not connected in Settings → Integrations.' : 'This buyer has no phone number or email.') };
 }

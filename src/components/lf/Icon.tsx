@@ -10,7 +10,8 @@ const PATHS: Record<string, string> = {
   users: 'M10.5 13.5v-1a2.5 2.5 0 0 0-2.5-2.5H4.5A2.5 2.5 0 0 0 2 12.5v1M6.25 7.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Zm7.75 6v-1a2.5 2.5 0 0 0-1.9-2.4m-1.6-7.5a2.5 2.5 0 0 1 0 4.8',
   plug: 'M6 1.5v3m4-3v3M4 4.5h8V7a4 4 0 0 1-8 0V4.5ZM8 11v3.5',
   sliders: 'M2.5 4h7m2.5 0h1.5M2.5 8h2m2.5 0h6.5M2.5 12h7m2.5 0h1.5M9.5 2.5v3M4.5 6.5v3m5 1v3',
-  whatsapp: 'M2.2 13.8l.8-2.9A5.9 5.9 0 1 1 5.1 13l-2.9.8Zm3.6-8.3c.2-.4.4-.4.6-.4h.4c.1 0 .3 0 .4.3l.6 1.3c0 .1.1.3 0 .4l-.4.5c-.1.1-.2.2-.1.4.2.4.6.9 1 1.3.5.4 1 .7 1.4.8.2.1.3 0 .4-.1l.5-.6c.1-.2.3-.1.4-.1l1.3.6c.2.1.3.2.3.3 0 .2 0 .7-.3 1-.3.4-.9.7-1.5.7-.6 0-1.6-.3-2.8-1.3C6.5 8.4 5.9 7.3 5.7 6.7c-.2-.5 0-.9.1-1.2Z',
+  // The bubble; the handset is a filled shape in FILLS so it stays crisp at 14–18px.
+  whatsapp: 'M8 2.35a5.65 5.65 0 0 0-4.86 8.55L2.35 13.65l2.8-.74A5.65 5.65 0 1 0 8 2.35Z',
   sheet: 'M3 1.5h10a1.5 1.5 0 0 1 1.5 1.5v10a1.5 1.5 0 0 1-1.5 1.5H3A1.5 1.5 0 0 1 1.5 13V3A1.5 1.5 0 0 1 3 1.5Zm-1.5 4.5h13m-13 4h13M6 6v8.5',
   webhook: 'M6.1 6.6 4.4 9.5a2.3 2.3 0 1 0 3.7 2.4h4.1M9.9 4.4a2.3 2.3 0 1 0-4 2.2l2 3.5m3.8-1.6a2.3 2.3 0 1 1 .9 4.3',
   mail: 'M2.5 3.5h11a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1Zm-1 1L8 9l6.5-4.5',
@@ -40,11 +41,17 @@ const PATHS: Record<string, string> = {
 
 export type IconName = keyof typeof PATHS;
 
+// Parts of an icon that are filled, not outlined.
+const FILLS: Record<string, string> = {
+  whatsapp: 'M6.1 5.9c.28 1.62 2.26 3.6 3.88 3.88l.9-.9-1.43-.95-.62.48a4.1 4.1 0 0 1-1.5-1.5l.48-.62-.95-1.43-.76 1.04Z',
+};
+
 export default function Icon({ name, size = 16, className }: { name: IconName | string; size?: number; className?: string }) {
   const d = PATHS[name] ?? PATHS.dot;
   return (
     <svg className={className ? `lf-icon ${className}` : 'lf-icon'} width={size} height={size} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.4} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d={d} />
+      {FILLS[name] && <path d={FILLS[name]} fill="currentColor" stroke="none" />}
     </svg>
   );
 }

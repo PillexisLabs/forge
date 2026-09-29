@@ -9,8 +9,8 @@
 //
 // Sample rows are tagged (inv_items.fixture, inbound_messages.fixture,
 // cases.data.fixture) and the script deletes only those. It also switches
-// WhatsApp on in test mode when WhatsApp is not set up yet, so replies are
-// recorded but never sent. Staging holds sample data only; never run this
+// WhatsApp on when it is not set up yet. On a local computer the server keeps
+// WhatsApp in test mode, so replies are recorded but never sent. Staging holds sample data only; never run this
 // against production.
 
 import { getSql } from '../src/core/db';
@@ -188,10 +188,11 @@ async function seed() {
     await sql`insert into settings (key, value, updated_by) values ('orders', ${sql.json({ sendConfirmation: true, supplierPos: true, invoiceMode: 'payment_request', invoicePrefix: 'INV/' })}, 'Sample data')`;
   }
 
-  // Replies are recorded, never sent, until someone connects a real number.
+  // Switch WhatsApp on. The server decides test mode: a local computer or a
+  // server without a number records replies instead of sending them.
   const wa = await getIntegration('whatsapp');
   if (!wa.enabled && wa.updated_by === null) {
-    await saveIntegration('whatsapp', { enabled: true, config: { testMode: true }, status: 'connected' }, 'Sample data');
+    await saveIntegration('whatsapp', { enabled: true, config: {}, status: 'connected' }, 'Sample data');
   }
 
   for (const plan of PLANS) {

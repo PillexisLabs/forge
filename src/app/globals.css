@@ -3551,3 +3551,13 @@ a.db-stat:hover { background: var(--ds-surface-subtle); }
 .tp-bubble small { display: block; margin-top: 0.375rem; color: var(--ds-text-muted); font-size: 0.75rem; }
 @media (max-width: 768px) { .tp-editor { grid-template-columns: minmax(0, 1fr); } .tp-row { flex-wrap: wrap; } }
 .lf-review[data-tone='green'] { border-color: var(--ds-success-subtle); }
+.wa-mode { display: flex; align-items: flex-start; gap: 0.625rem; padding: 0.75rem 0.875rem; border: 1px solid var(--ds-success-subtle); border-radius: 0.625rem; background: var(--ds-elevated); color: var(--ds-text); font-size: 0.8125rem; line-height: 1.5; }
+.wa-mode[data-test='true'] { border-color: var(--ds-warning-subtle, #fde68a); background: var(--ds-warning-surface, #fffbeb); }
+.wa-mode > .lf-icon { flex: none; margin-top: 0.1875rem; color: var(--ds-success-text); }
+.wa-mode[data-test='true'] > .lf-icon { color: var(--ds-warning-text, #b45309); }
+.wa-mode strong { margin-right: 0.375rem; font-weight: 600; }
+.wa-mode small { display: block; margin-top: 0.125rem; color: var(--ds-text-muted); font-size: 0.75rem; }
+/* Test mode shown where a person sends */
+.tm-note { display: flex; align-items: flex-start; gap: 0.5rem; padding: 0.5rem 0.75rem; border: 1px solid var(--ds-warning-subtle, #fde68a); border-radius: 0.5rem; background: var(--ds-warning-surface, #fffbeb); color: var(--ds-warning-text, #92400e); font-size: 0.8125rem; line-height: 1.45; }
+.tm-note > .lf-icon { flex: none; margin-top: 0.125rem; }
+.rv-test { padding: 0 1.25rem 0.75rem; }

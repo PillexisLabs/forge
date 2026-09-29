@@ -45,7 +45,8 @@ export default function ReplyBox({ job, caseId, version, option, phone, placehol
   }
 
   return (
-    <div className="rb">
+    <div className="rb" data-test={option.testReason ? 'true' : undefined}>
+      {option.testReason && <div className="tm-note" role="note"><Icon name="bolt" size={14} /><span>{option.testReason}</span></div>}
       <textarea
         className="rb-input"
         rows={3}
@@ -60,7 +61,7 @@ export default function ReplyBox({ job, caseId, version, option, phone, placehol
           {error ?? sent ?? (option.channel === 'whatsapp' ? `From the business number to ${displayPhone(option.to)}. You can reply until ${closes}.` : `By email to ${option.to}.`)}
         </span>
         <button type="button" className="lf-btn lf-btn-primary" data-busy={busy === 'reply'} disabled={!text.trim() || busy === 'reply'} onClick={() => void send()}>
-          <Icon name={option.channel === 'whatsapp' ? 'whatsapp' : 'mail'} />Send reply
+          <Icon name={option.channel === 'whatsapp' ? 'whatsapp' : 'mail'} />{option.testReason ? 'Send reply (test)' : 'Send reply'}
         </button>
       </div>
     </div>
