@@ -78,7 +78,7 @@ export default function WorkspaceChrome({
   // Settings, grouped by what people look for (research: named groups keep the current section obvious).
   const has = (name: string) => allowed.some((m) => m.name === name);
   const settingsGroups: { label: string; items: ForgeNavItem[] }[] = [
-    { label: 'Connections', items: [{ id: 'integrations', label: 'Integrations', icon: 'plug', href: '/settings/integrations' }] },
+    { label: 'Connections', items: [{ id: 'integrations', label: 'Integrations', icon: 'plug', href: '/settings/integrations' }, { id: 'messages', label: 'Message log', icon: 'inbox', href: '/settings/messages' }] },
     { label: 'Sales & orders', items: [
       ...(has('sales') ? [{ id: 'sales-rules', label: 'Sales rules', icon: 'sliders', href: '/settings/sales-rules' }] : []),
       ...(has('orders') ? [{ id: 'orders-payments', label: 'Orders & payments', icon: 'order', href: '/settings/orders' }] : []),

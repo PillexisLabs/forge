@@ -1,26 +1,26 @@
 import { headers } from 'next/headers';
+import Link from 'next/link';
 import AccessNotice from '@/components/AccessNotice';
 import IntegrationsPanel from '@/components/settings/IntegrationsPanel';
 import SettingsHeader from '@/components/settings/SettingsHeader';
 import { timeAgo } from '@/components/lf/format';
+import Icon from '@/components/lf/Icon';
 import { listIntegrations } from '@/core/integrations';
-import { recentInbound, SOURCE_LABELS } from '@/core/intake';
+import { recentInbound } from '@/core/intake';
+import { messageLogCounts } from '@/core/message-log';
 import { hasPermission } from '@/core/permissions';
 import { getSessionUserFromCookies } from '@/core/session';
-import { getSql } from '@/core/db';
 
 export const dynamic = 'force-dynamic';
 
-const casePathFor = (ref: string) => (ref.startsWith('SO-') ? `/orders?show=all&open=${ref}` : ref.startsWith('PO-') ? `/purchasing?view=all&open=${ref}` : `/sales?show=all&open=${ref}`);
 
 export default async function IntegrationsPage() {
   const user = await getSessionUserFromCookies();
   if (!user || !hasPermission(user, 'core:config')) return <AccessNotice area="Settings" />;
 
   const rows = await listIntegrations();
-  const recent = await recentInbound(8);
-  const sql = getSql();
-  const refs = new Map((await sql<{ id: number; ref: string }[]>`select id, ref from cases where id = any(${recent.map((r) => r.case_id).filter((id): id is number => id !== null)})`).map((r) => [Number(r.id), r.ref]));
+  const counts = await messageLogCounts();
+  const latest = (await recentInbound(1))[0]?.received_at ?? null;
   const host = headers().get('x-forwarded-host') ?? headers().get('host') ?? 'localhost:3000';
   const proto = headers().get('x-forwarded-proto') ?? (host.startsWith('localhost') ? 'http' : 'https');
   const base = `${proto}://${host}`;
@@ -37,7 +37,7 @@ export default async function IntegrationsPage() {
 
   return (
     <main className="lf-page">
-      <div className="st st-stack">
+      <div className="st st-stack" data-wide="true">
         <SettingsHeader title="Integrations" description="Where enquiries come from and how Forge replies. Messages from every source become quotes on their own." />
         <IntegrationsPanel
           rows={safe as never}
@@ -50,17 +50,13 @@ export default async function IntegrationsPage() {
         />
 
         <section className="st-card">
-          <header className="st-card-head"><h2>Latest messages</h2><p>Everything the integrations received, newest first.</p></header>
-          <div className="st-rows">
-            {recent.length === 0 && <p className="st-empty">Nothing received yet.</p>}
-            {recent.map((m) => (
-              <a key={m.id} className="st-list-row st-link-row" href={m.case_id && refs.get(Number(m.case_id)) ? casePathFor(refs.get(Number(m.case_id))!) : '#'}>
-                <span className="lf-chip">{SOURCE_LABELS[m.source]}</span>
-                <span className="st-list-text"><strong>{m.from_name ?? m.from_phone ?? m.from_email ?? 'Unknown'}</strong><span>{m.body.replace(/\s+/g, ' ').slice(0, 110)}</span></span>
-                <span className="lf-dim">{m.case_id ? refs.get(Number(m.case_id)) : m.note ?? 'Not handled yet'}</span>
-                <span className="lf-dim">{timeAgo(m.received_at)}</span>
-              </a>
-            ))}
+          <div className="st-list-row">
+            <span className="lf-connector-logo"><Icon name="inbox" size={18} /></span>
+            <span className="st-list-text st-wrap">
+              <strong>Message log</strong>
+              <span>{counts.in.toLocaleString('en-IN')} received and {counts.out.toLocaleString('en-IN')} sent{counts.attention ? `. ${counts.attention} need a look.` : '. Nothing needs a look.'}{latest ? ` Last message ${timeAgo(latest)}.` : ''}</span>
+            </span>
+            <Link className="lf-btn" href={counts.attention ? '/settings/messages?view=attention' : '/settings/messages'}>Open log</Link>
           </div>
         </section>
       </div>

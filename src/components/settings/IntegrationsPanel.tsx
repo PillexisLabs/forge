@@ -43,19 +43,21 @@ export default function IntegrationsPanel({
   return (
     <section className="st-card">
       <header className="st-card-head"><h2>Connections</h2><p>Each source turns messages into enquiries. Forge replies on the same channel.</p></header>
-      <div className="st-rows">
+      <div className="st-connectors">
       {(Object.keys(INFO) as Id[]).map((id) => {
         const row = rows[id];
         const status = statusOf(id, row);
         return (
-          <div key={id} className="st-list-row">
-            <span className="lf-connector-logo" data-kind={id}><Icon name={INFO[id].icon} size={18} /></span>
-            <span className="st-list-text">
+          <div key={id} className="st-connector">
+            <div className="st-connector-head">
+              <span className="lf-connector-logo" data-kind={id}><Icon name={INFO[id].icon} size={18} /></span>
               <strong>{INFO[id].name}</strong>
-              <span>{INFO[id].line}</span>
-            </span>
-            <span className="lf-status" data-status={status.key}>{status.label}{row.lastActivity ? ` · ${row.lastActivity}` : ''}</span>
-            <button type="button" className={row.enabled ? 'lf-btn lf-btn-ghost' : 'lf-btn'} onClick={() => setOpen(id)}>{row.enabled ? 'Manage' : 'Connect'}</button>
+            </div>
+            <p>{INFO[id].line}</p>
+            <div className="st-connector-foot">
+              <span className="lf-status" data-status={status.key} title={row.status === 'error' ? row.lastError ?? undefined : undefined}>{status.label}{row.lastActivity ? ` · ${row.lastActivity}` : ''}</span>
+              <button type="button" className={row.enabled ? 'lf-btn lf-btn-ghost' : 'lf-btn'} onClick={() => setOpen(id)}>{row.enabled ? 'Manage' : 'Connect'}</button>
+            </div>
           </div>
         );
       })}
