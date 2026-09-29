@@ -27,7 +27,7 @@ export function ItemModal({ item, trigger }: { item?: ItemValues; trigger: 'add'
   return (
     <>
       {trigger === 'add'
-        ? <button type="button" className="lf-btn" onClick={() => { setError(null); setOpen(true); }}><Icon name="plus" />Add item</button>
+        ? <button type="button" className="lf-btn lf-btn-primary" onClick={() => { setError(null); setOpen(true); }}><Icon name="plus" />Add item</button>
         : <button type="button" className="lf-btn lf-btn-ghost lf-btn-icon" aria-label={`Edit ${v.name}`} onClick={() => { setError(null); setOpen(true); }}><Icon name="edit" /></button>}
       <Modal open={open} onClose={() => setOpen(false)} icon="stock" title={item ? `Edit ${item.sku}` : 'Add item'} wide>
         <form onSubmit={submit} className="lf-form-grid" style={{ marginTop: 0 }}>
@@ -62,7 +62,7 @@ export function ImportModal() {
   const { post, busy, error, setError } = useAction();
   return (
     <>
-      <button type="button" className="lf-btn" onClick={() => { setError(null); setDone(null); setOpen(true); }}><Icon name="upload" />Import</button>
+      <button type="button" className="lf-btn lf-btn-ghost" onClick={() => { setError(null); setDone(null); setOpen(true); }}><Icon name="upload" />Import CSV</button>
       <Modal
         open={open}
         onClose={() => setOpen(false)}

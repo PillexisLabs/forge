@@ -1,6 +1,6 @@
 import { getSql } from './db';
 import { assigneeRolesFor } from './jobs';
-import { isModuleEnabled } from './modules';
+import { isModuleOn } from './modules';
 import type { SessionUser } from './users';
 
 /**
@@ -9,7 +9,7 @@ import type { SessionUser } from './users';
  * buyer message that needs an answer. Shown as the "Up next" count.
  */
 export async function attentionCount(user: SessionUser): Promise<number> {
-  if (!isModuleEnabled('sales') && !isModuleEnabled('orders')) return 0;
+  if (!(await isModuleOn('sales')) && !(await isModuleOn('orders'))) return 0;
   const roles = assigneeRolesFor(user);
   if (!roles.length) return 0;
   const sql = getSql();

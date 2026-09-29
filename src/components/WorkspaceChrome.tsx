@@ -75,6 +75,7 @@ export default function WorkspaceChrome({
   const settingsItems: ForgeNavItem[] = [
     { id: 'integrations', label: 'Integrations', icon: 'plug', href: '/settings/integrations' },
     ...(allowed.some((m) => m.name === 'sales') ? [{ id: 'sales-rules', label: 'Sales rules', icon: 'sliders', href: '/settings/sales-rules' }] : []),
+    { id: 'modules', label: 'Modules', icon: 'stock', href: '/settings/modules' },
     { id: 'users', label: 'Members', icon: 'users', href: '/settings/users' },
   ];
 

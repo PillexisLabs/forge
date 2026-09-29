@@ -2,7 +2,7 @@ import AccessNotice from '@/components/AccessNotice';
 import DashboardView from '@/components/DashboardView';
 import SetupNotice from '@/components/SetupNotice';
 import { redirect } from 'next/navigation';
-import { isModuleEnabled } from '@/core/modules';
+import { isModuleOn } from '@/core/modules';
 import { hasPermission } from '@/core/permissions';
 import { getSessionUserFromCookies } from '@/core/session';
 import { getAnalyticsData, resolveAnalyticsRange } from '@/modules/analytics/analytics-data';
@@ -15,7 +15,7 @@ export default async function Page({
   searchParams: { from?: string; to?: string; campaign?: string; view?: string };
 }) {
   // An instance without analytics opens on the work inbox instead.
-  if (!isModuleEnabled('analytics')) redirect('/work');
+  if (!(await isModuleOn('analytics'))) redirect((await isModuleOn('sales')) ? '/work' : '/crm');
   const user = await getSessionUserFromCookies();
   if (!user || !hasPermission(user, 'analytics:read')) {
     return <AccessNotice area="Analytics" />;
