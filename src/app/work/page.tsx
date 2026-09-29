@@ -14,6 +14,7 @@ import { casePath } from '@/modules/jobs';
 import { balanceOf, orderJob, paymentStatus, type OrderCase } from '@/modules/orders/order-job';
 import RecordPaymentButton from '@/components/orders/RecordPaymentButton';
 import { CHANNEL_LABELS, quoteJob, type QuoteCase } from '@/modules/sales/quote-job';
+import { purchaseJob, type PoCase } from '@/modules/purchasing/purchase-job';
 import { getSalesRules } from '@/modules/sales/sales-settings';
 
 export const dynamic = 'force-dynamic';
@@ -104,6 +105,7 @@ export default async function UpNextPage() {
 
   const quotes = open.filter((c) => c.job === 'quote') as QuoteCase[];
   const orders = open.filter((c) => c.job === 'order') as OrderCase[];
+  const pos = open.filter((c) => c.job === 'purchase') as PoCase[];
   const canRun = (c: CaseRecord, step: string, def = quoteJob) => availableSteps(def, c.state, user).some((s) => s.name === step);
   const base = (c: CaseRecord) => ({ key: `${c.id}`, href: casePath(c.job, c.ref), ref: c.ref, title: c.title, when: timeAgo(c.updated_at) });
   const step = (c: CaseRecord) => ({ job: c.job, caseId: c.id, version: c.version });
@@ -133,6 +135,14 @@ export default async function UpNextPage() {
         : undefined,
     })),
   ];
+
+  check.push(...pos.filter((p) => p.state === 'draft').map((p): Item => ({
+    ...base(p), kind: 'Purchase order', tone: 'blue', icon: 'send', title: p.data.supplier?.name ?? 'Supplier to choose',
+    detail: `${p.data.lines.map((l) => `${l.quantity.toLocaleString('en-IN')} ${l.unit} ${l.name}`).join(', ')}${p.data.forOrder ? ` · short on ${p.data.forOrder}` : ''}`,
+    action: p.data.supplier && canRun(p, 'approveAndSend', purchaseJob)
+      ? <StepButton {...step(p)} step="approveAndSend" input={{ supplierId: p.data.supplier.id }} variant="primary" icon="send">Approve and send</StepButton>
+      : undefined,
+  })));
 
   const person: Item[] = [
     ...quotes.filter((q) => q.data.attention).map((q): Item => ({

@@ -30,11 +30,14 @@ export type EventName =
   // An order is paid in full.
   | 'order.paid'
   // A buyer with an open order wrote a message that belongs to the order.
-  | 'order.message';
+  | 'order.message'
+  // Purchasing: a purchase order went to the supplier, or its stock arrived.
+  | 'po.sent'
+  | 'po.received';
 
 export type EmittedBy =
   | 'core' | 'analytics' | 'whatsapp' | 'crm' | 'lead-qual' | 'voice'
-  | 'sales' | 'orders' | 'inventory';
+  | 'sales' | 'orders' | 'inventory' | 'purchasing';
 
 export type ForgeEvent = {
   id: number;

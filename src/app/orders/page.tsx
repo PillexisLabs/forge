@@ -14,7 +14,9 @@ import { guardModulePage } from '@/core/page-guard';
 import { productSource } from '@/core/products';
 import type { SessionUser } from '@/core/users';
 import '@/modules/jobs';
-import { balanceOf, orderJob, paymentStatus, type OrderCase } from '@/modules/orders/order-job';
+import { balanceOf, instalmentsOf, orderJob, paymentStatus, type OrderCase } from '@/modules/orders/order-job';
+import { getOrderRules } from '@/modules/orders/order-settings';
+import { termsLabel } from '@/modules/orders/payment-settings';
 import RecordPaymentButton from '@/components/orders/RecordPaymentButton';
 import { Chip } from '@/components/lf/Chips';
 import { clock } from '@/components/lf/format';
@@ -22,10 +24,13 @@ import { clock } from '@/components/lf/format';
 export const dynamic = 'force-dynamic';
 
 async function OrderSheet({ current, user, closeHref }: { current: OrderCase; user: SessionUser; closeHref: string }) {
-  const [steps, stock] = await Promise.all([
+  const [steps, stock, orderRules] = await Promise.all([
     getCaseSteps(current.id),
     productSource().get(current.data.lines.map((line) => line.sku)),
+    getOrderRules(),
   ]);
+  const instalments = instalmentsOf(current.data);
+  const DOC_NAMES = { order_confirmation: 'Order confirmation', payment_request: 'Payment request', tax_invoice: 'Tax invoice' } as const;
   const bySku = new Map(stock.map((p) => [p.sku, p]));
   const can = new Set(availableSteps(orderJob, current.state, user).map((s) => s.name));
   const state = orderJob.states[current.state];
@@ -93,7 +98,46 @@ async function OrderSheet({ current, user, closeHref }: { current: OrderCase; us
         <dt><Icon name="edit" />Buyer PO</dt><dd className={current.data.buyerPo ? '' : 'lf-dim'}>{current.data.buyerPo ?? 'None'}</dd>
         <dt><Icon name="stock" />Deliver to</dt><dd>{current.data.pincode}</dd>
         <dt><Icon name="check" />Payment</dt><dd><Chip tone={payTone}>{pay.label}</Chip>{pay.balancePaise > 0 && pay.key !== 'none' && <span className="lf-dim">&nbsp;{formatPaise(pay.balancePaise)} open</span>}</dd>
+        <dt><Icon name="sliders" />Terms</dt><dd>{current.data.payment?.terms ? `${termsLabel(current.data.payment.terms)}${current.data.payment.terms.source !== 'default' ? ` (${current.data.payment.terms.source}'s own terms)` : ''}` : 'Pay after dispatch'}</dd>
+        {orderRules.invoiceMode === 'tax_invoice' && (
+          <><dt><Icon name="quote" />Buyer GSTIN</dt><dd>{current.data.buyerGstin ?? <span className="lf-dim">Not set</span>}{can.has('setBuyerGstin') && <>&nbsp;<PromptStepButton {...common} step="setBuyerGstin" field="gstin" required={false} label="Buyer GSTIN (15 characters)" title="Buyer GSTIN" variant="ghost" confirmLabel="Save">{current.data.buyerGstin ? 'Change' : 'Add'}</PromptStepButton></>}</dd></>
+        )}
       </dl>
+
+      <section className="lf-section">
+        <div className="lf-section-head"><span>Payment schedule</span></div>
+        <table className="lf-lines">
+          <thead><tr><th>Payment</th><th>Due</th><th className="lf-num">Amount</th><th className="lf-num">Paid</th></tr></thead>
+          <tbody>
+            {instalments.map((i) => (
+              <tr key={i.key}>
+                <td>{i.label}</td>
+                <td>{i.dueAt ? clock(i.dueAt).replace(/,.*$/, '') : i.trigger === 'dispatch' ? `${i.days} days after dispatch` : 'On confirmation'}</td>
+                <td className="lf-num">{formatPaise(i.amountPaise)}</td>
+                <td className="lf-num">{i.paidPaise >= i.amountPaise ? <Chip tone="green">Paid</Chip> : i.paidPaise ? formatPaise(i.paidPaise) : <span className="lf-dim">—</span>}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
+
+      {(current.data.documents?.length ?? 0) > 0 && (
+        <section className="lf-section">
+          <div className="lf-section-head"><span>Documents</span></div>
+          <table className="lf-lines">
+            <tbody>
+              {current.data.documents!.map((d) => (
+                <tr key={d.number}>
+                  <td>{DOC_NAMES[d.kind]}<span className="lf-sku">{d.number}</span></td>
+                  <td>{d.sent ? `Sent on ${d.channel === 'email' ? 'email' : 'WhatsApp'}` : <span className="lf-error">Not sent</span>}</td>
+                  <td className="lf-dim">{clock(d.at)}</td>
+                  <td className="lf-num"><a className="lf-btn lf-btn-ghost" href={`/api/jobs/order/cases/${current.id}/documents?number=${encodeURIComponent(d.number)}`} target="_blank" rel="noreferrer"><Icon name="download" />PDF</a></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
 
       <section className="lf-section">
         <div className="lf-section-head"><span>Items</span></div>

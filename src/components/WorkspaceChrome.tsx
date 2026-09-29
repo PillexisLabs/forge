@@ -17,7 +17,7 @@ export type ChromeUser = {
 };
 
 // The job modules share one "Work" group; other modules keep their own group.
-const WORK_MODULES = ['sales', 'orders', 'inventory'];
+const WORK_MODULES = ['sales', 'orders', 'inventory', 'purchasing'];
 
 type NavGroup = { id: string; label: string | null; items: ForgeNavItem[] };
 
@@ -78,6 +78,7 @@ export default function WorkspaceChrome({
   const settingsItems: ForgeNavItem[] = [
     { id: 'integrations', label: 'Integrations', icon: 'plug', href: '/settings/integrations' },
     ...(allowed.some((m) => m.name === 'sales') ? [{ id: 'sales-rules', label: 'Sales rules', icon: 'sliders', href: '/settings/sales-rules' }] : []),
+    ...(allowed.some((m) => m.name === 'orders') ? [{ id: 'orders-payments', label: 'Orders & payments', icon: 'order', href: '/settings/orders' }] : []),
     { id: 'modules', label: 'Modules', icon: 'stock', href: '/settings/modules' },
     { id: 'users', label: 'Members', icon: 'users', href: '/settings/users' },
   ];

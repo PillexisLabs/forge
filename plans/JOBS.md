@@ -55,6 +55,18 @@ To add AI employees later: add an employee record with its roles and limits, let
 - The `SALES_*` and `BUSINESS_*` env vars are only first defaults; Settings → Sales rules overrides them.
 - WhatsApp intake runs only when Settings → Integrations has WhatsApp on, so the Pillexis CRM number never creates sales enquiries.
 
+## Orders & payments settings
+
+Settings → Orders & payments holds every choice about the order after the buyer confirms:
+
+- **Order confirmation** to the buyer, with the order PDF (on or off).
+- **Purchase orders to suppliers** for the shortfall after free and incoming stock (on or off). One draft PO per supplier; a person approves each; Forge emails it with the PDF; "received" moves the stock from incoming to on hand. Suppliers and the items they supply are on the Purchase orders page.
+- **Invoices:** none (Tally or another system issues them), payment requests (proforma) when each payment falls due, or GST tax invoices at dispatch with a per-year number series (`INV/2026-27/0001`), CGST+SGST inside the seller's state and IGST across states. The buyer's state comes from their GSTIN, else from the delivery pincode, and the invoice says which.
+- **Payment terms:** pay after dispatch, advance and balance, or full advance, with day counts; **customer-specific terms** matched by phone, email or company name. Each order keeps the terms it started with, as instalments.
+- **Reminders** per instalment.
+
+Known gaps on the tax invoice before a client relies on it: no HSN column (the order does not carry HSN yet), freight carries no GST, and no e-invoice (IRN) or e-way bill. Check the format with the client's accountant.
+
 ## Email
 
 Two modes, chosen in Settings → Integrations → Email. The user types the sales address; Forge reads the domain's MX records and recognises Google, Zoho, Microsoft, GoDaddy, Hostinger, Yahoo, Rediffmail or another host, then shows that provider's own steps.

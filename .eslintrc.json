@@ -187,6 +187,29 @@
     },
     {
       "files": [
+        "src/modules/purchasing/**"
+      ],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": [
+                  "@/modules/*",
+                  "@/modules/*/**",
+                  "!@/modules/purchasing",
+                  "!@/modules/purchasing/**"
+                ],
+                "message": "Modules must not import other modules. Communicate through events and the data spine (plans/PLATFORM.md section 4)."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": [
         "src/core/**"
       ],
       "rules": {

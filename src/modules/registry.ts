@@ -4,6 +4,7 @@ import { crmManifest } from './crm/manifest';
 import { emailManifest } from './email/manifest';
 import { inventoryManifest } from './inventory/manifest';
 import { ordersManifest } from './orders/manifest';
+import { purchasingManifest } from './purchasing/manifest';
 import { salesManifest } from './sales/manifest';
 import { sheetsManifest } from './sheets/manifest';
 import { voiceManifest } from './voice/manifest';
@@ -22,6 +23,7 @@ export const MODULES: ModuleManifest[] = [
   salesManifest,
   ordersManifest,
   inventoryManifest,
+  purchasingManifest,
   sheetsManifest,
   emailManifest,
 ];

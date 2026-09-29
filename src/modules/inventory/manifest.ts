@@ -10,7 +10,7 @@ export const inventoryManifest: ModuleManifest = {
   ],
   events: {
     emits: [],
-    consumes: ['order.confirmed', 'order.dispatched', 'order.cancelled'],
+    consumes: ['order.confirmed', 'order.dispatched', 'order.cancelled', 'po.sent', 'po.received'],
   },
   permissions: [],
   configKeys: [],

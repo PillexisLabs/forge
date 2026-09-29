@@ -2,10 +2,9 @@
 
 import { useState } from 'react';
 import { useAction } from '@/components/lf/useAction';
-import type { PaymentRules } from '@/modules/orders/payment-settings';
 import type { SalesRules } from '@/modules/sales/sales-settings';
 
-export default function SalesRulesForm({ rules, payments }: { rules: SalesRules; payments: PaymentRules }) {
+export default function SalesRulesForm({ rules }: { rules: SalesRules }) {
   const { post, busy, error } = useAction();
   const [saved, setSaved] = useState(false);
   const [mode, setMode] = useState(rules.approvalMode);
@@ -19,10 +18,6 @@ export default function SalesRulesForm({ rules, payments }: { rules: SalesRules;
       ...body,
       autoDraft: form.get('autoDraft') === 'on',
       autoSend: form.get('autoSend') === 'on',
-      payments: {
-        termsDays: body.termsDays, remindBeforeDays: body.remindBeforeDays, remindEveryDays: body.remindEveryDays,
-        maxOverdueReminders: body.maxOverdueReminders, remindersOn: form.get('remindersOn') === 'on',
-      },
     });
     if (ok) setSaved(true);
   }
@@ -62,21 +57,6 @@ export default function SalesRulesForm({ rules, payments }: { rules: SalesRules;
             <label className="lf-field"><span>Local pincodes start with</span><input id="sr-pins" name="localPinPrefixes" defaultValue={rules.localPinPrefixes.join(', ')} /><small>For example 56, 57 for Karnataka.</small></label>
             <label className="lf-field"><span>Quote valid for (days)</span><input id="sr-valid" name="quoteValidDays" inputMode="numeric" defaultValue={rules.quoteValidDays} /></label>
           </div>
-        </div>
-      </section>
-
-      <section className="lf-form-section">
-        <h2>Payments</h2>
-        <p>The due date starts when the order is dispatched. Forge sends reminders on email, or on WhatsApp inside the 24-hour window. Otherwise the reminder goes to Up next for a person.</p>
-        <div className="lf-form-grid">
-          <div className="lf-grid-2">
-            <label className="lf-field"><span>Payment due (days after dispatch)</span><input id="pr-terms" name="termsDays" inputMode="numeric" defaultValue={payments.termsDays} /></label>
-            <label className="lf-field"><span>First reminder (days before due)</span><input id="pr-before" name="remindBeforeDays" inputMode="numeric" defaultValue={payments.remindBeforeDays} /><small>0 means no reminder before the due date.</small></label>
-            <label className="lf-field"><span>When overdue, remind every (days)</span><input id="pr-every" name="remindEveryDays" inputMode="numeric" defaultValue={payments.remindEveryDays} /></label>
-            <label className="lf-field"><span>Stop after (overdue reminders)</span><input id="pr-max" name="maxOverdueReminders" inputMode="numeric" defaultValue={payments.maxOverdueReminders} /></label>
-          </div>
-          <label className="lf-check"><input type="checkbox" name="remindersOn" defaultChecked={payments.remindersOn} />
-            <span>Send payment reminders<small>A reminder goes out once per step: before the due date, on it, then every few days while overdue.</small></span></label>
         </div>
       </section>
 

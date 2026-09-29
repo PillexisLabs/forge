@@ -4,12 +4,14 @@ import { isModuleEnabled } from '@/core/modules';
 import { registerProductSource } from '@/core/products';
 import { emailChannel, pollMailbox } from './email/email-integration';
 import { inventoryProductSource } from './inventory/inventory-data';
-import { consumeOrderStockEvents } from './inventory/inventory-consumer';
+import { consumeOrderStockEvents, consumePurchaseStockEvents } from './inventory/inventory-consumer';
 import { orderJob } from './orders/order-job';
 import { consumeQuoteAccepted } from './orders/order-consumer';
-import { consumeOrderMessages, runPaymentReminders } from './orders/payment-reminders';
+import { consumeOrderDocuments, consumeOrderMessages, runPaymentReminders } from './orders/payment-reminders';
 import { consumeApprovedQuotes, consumeInboundMessages, consumeRecordedEnquiries } from './sales/quote-automation';
 import { quoteJob } from './sales/quote-job';
+import { consumeOrderShortages } from './purchasing/purchase-consumer';
+import { purchaseJob } from './purchasing/purchase-job';
 import { pollSheet } from './sheets/sheets-intake';
 import { whatsappChannel } from './whatsapp/whatsapp-channel';
 
@@ -19,7 +21,7 @@ import { whatsappChannel } from './whatsapp/whatsapp-channel';
 // event consumers, which hold server code. Only server code (pages, API
 // routes, scripts, the background loop) imports it.
 
-const ALL_JOBS: JobDefinition[] = [quoteJob, orderJob];
+const ALL_JOBS: JobDefinition[] = [quoteJob, orderJob, purchaseJob];
 
 // The product source this instance uses. A client on Tally registers the
 // Tally connector's source here instead; the quote job does not change.
@@ -39,6 +41,7 @@ export function jobByName(name: string): JobDefinition | null {
 export function casePath(job: string, ref: string): string {
   if (job === 'quote') return `/sales?open=${ref}`;
   if (job === 'order') return `/orders?open=${ref}`;
+  if (job === 'purchase') return `/purchasing?open=${ref}`;
   return '/work';
 }
 
@@ -59,6 +62,9 @@ export async function runJobConsumers(): Promise<void> {
     await consumeOrderMessages();
   }
   if (isModuleEnabled('inventory')) await consumeOrderStockEvents();
+  if (isModuleEnabled('orders')) await consumeOrderDocuments();
+  if (isModuleEnabled('purchasing')) await consumeOrderShortages();
+  if (isModuleEnabled('inventory')) await consumePurchaseStockEvents();
 }
 
 const POLL_EVERY_MS = 60_000;

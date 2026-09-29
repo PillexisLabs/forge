@@ -33,6 +33,12 @@ const ITEMS = [
   ['LAM-12M', 'Laminated roll, 12 micron', 'kg', 265, '3920', 900, 0, 2000],
 ] as const;
 
+const SUPPLIERS: [string, string, string[], number][] = [
+  ['Shree Polymers', 'orders@shreepolymers.example', ['SUP-250-2C', 'SUP-500-4C', 'ZIP-1KG-CL', 'SPT-200'], 5],
+  ['Coastal Weaves', 'sales@coastalweaves.example', ['BOPP-5KG'], 10],
+  ['Laminex Films', 'po@laminexfilms.example', ['LAM-12M'], 14],
+];
+
 const person = (name: string, role: SessionUser['role'] = 'admin'): SessionUser => ({
   id: 0, email: 'sample-data@forge.local', name, role, modules: [], sessionVersion: 0, status: 'active',
 });
@@ -74,6 +80,8 @@ const PLANS: Plan[] = [
     messages: ['Called: wants 1200 spout pouches 200 ml, urgent, delivery 560045'], then: ['submit', 'markSent', 'accept', 'dispatch'], order: ['payInFull'], hoursAgo: 30 },
   { source: 'whatsapp', buyer: { name: 'Pooja Rao', company: 'Rao Bakes', phone: '9980012345' },
     messages: ['Need 2500 zipper pouches 1 kg clear. Delivery 560011'], then: ['submit'], replies: ['Confirmed'], order: ['dispatch'], hoursAgo: 12 },
+  { source: 'whatsapp', buyer: { name: 'Tarun Gupta', company: 'Gupta Sweets', phone: '9811122233' },
+    messages: ['Need 6000 spout pouches 200 ml for our new juice line. Delivery 560010'], then: ['submit', 'approve'], replies: ['Confirmed, please go ahead'], hoursAgo: 3 },
   { source: 'whatsapp', buyer: { name: 'Deepa Kulkarni', company: 'Kulkarni Snacks', phone: '9731145454' },
     messages: ['10,000 stand-up pouches 250 ml 2 colour, delivery 580020. What is your best price?'], then: ['lose'], hoursAgo: 50 },
 ];
@@ -122,6 +130,8 @@ async function wipe() {
     await sql`delete from cases where id = any(${ids}) and job = 'order'`;
     await sql`delete from cases where id = any(${ids})`;
   }
+  await sql`delete from cases where job = 'purchase' and ((data->>'fixture')::boolean is true or data->>'forOrder' = any(${orderRefs}))`;
+  await sql`delete from pur_suppliers where fixture`;
   await sql`delete from inbound_messages where fixture`;
   await sql`delete from inv_commitments where sku in (select sku from inv_items where fixture)`;
   await sql`delete from inv_items where fixture`;
@@ -169,6 +179,15 @@ async function seed() {
     `;
   }
 
+  for (const [name, email, skus, lead] of SUPPLIERS) {
+    await sql`insert into pur_suppliers (name, email, skus, lead_days, fixture) values (${name}, ${email}, ${skus}, ${lead}, true)`;
+  }
+  // Order settings for the demo, only when nobody has saved their own yet.
+  const [ordersSet] = await sql`select 1 from settings where key = 'orders'`;
+  if (!ordersSet) {
+    await sql`insert into settings (key, value, updated_by) values ('orders', ${sql.json({ sendConfirmation: true, supplierPos: true, invoiceMode: 'payment_request', invoicePrefix: 'INV/' })}, 'Sample data')`;
+  }
+
   // Replies are recorded, never sent, until someone connects a real number.
   const wa = await getIntegration('whatsapp');
   if (!wa.enabled && wa.updated_by === null) {
@@ -197,6 +216,7 @@ async function seed() {
       current = await reload();
       if (action === 'submit' && current.state === 'draft') await runStep(quoteJob, current.id, 'submitQuote', {}, SALES);
       if (action === 'approve' && current.state === 'awaiting_approval') {
+        // (approved quotes then go out through the send rule, like a real one)
         await runStep(quoteJob, current.id, 'approveQuote', { version: (current.data as { quote: { version: number } }).quote.version }, OWNER);
       }
       if (action === 'markSent' && current.state === 'approved') await runStep(quoteJob, current.id, 'markSent', { channel: 'whatsapp' }, SALES);
@@ -226,7 +246,7 @@ async function seed() {
       }
       if (action === 'makeOverdue' && order.state === 'dispatched') {
         // Move the due date 4 days back, then let the reminder rule run once.
-        await sql`update cases set data = jsonb_set(data, '{payment,dueAt}', to_jsonb((now() - interval '4 days')::text)) where id = ${order.id}`;
+        await sql`update cases set data = jsonb_set(data, '{payment,instalments,0,dueAt}', to_jsonb(to_char((now() - interval '4 days') at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"'))) where id = ${order.id}`;
         await runPaymentReminders({ force: true });
       }
       await runJobConsumers();
