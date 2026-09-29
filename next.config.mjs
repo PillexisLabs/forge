@@ -3,7 +3,7 @@ const nextConfig = {
   output: 'standalone',
   experimental: {
     // The DB driver is a Node-only dependency; keep it external to the server bundle.
-    serverComponentsExternalPackages: ['postgres', '@google-analytics/data'],
+    serverComponentsExternalPackages: ['postgres', '@google-analytics/data', 'imapflow', 'mailparser', 'nodemailer', 'pdf-lib'],
     // Lets src/instrumentation.ts start the inline WhatsApp worker on boot.
     instrumentationHook: true,
   },

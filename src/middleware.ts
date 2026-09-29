@@ -14,6 +14,8 @@ export async function middleware(req: NextRequest) {
     pathname.startsWith('/api/v1/') ||
     pathname.startsWith('/api/health') ||
     pathname.startsWith('/api/whatsapp/webhook') ||
+    // Integration intake authenticates with its own bearer token.
+    pathname.startsWith('/api/intake/') ||
     pathname.startsWith('/api/cal/webhook') ||
     pathname.startsWith('/icons/') ||
     pathname === '/manifest.webmanifest' ||

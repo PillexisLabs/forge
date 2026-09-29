@@ -141,6 +141,52 @@
     },
     {
       "files": [
+        "src/modules/sheets/**"
+      ],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": [
+                  "@/modules/*",
+                  "@/modules/*/**",
+                  "!@/modules/sheets",
+                  "!@/modules/sheets/**"
+                ],
+                "message": "Modules must not import other modules. Communicate through events and the data spine (plans/PLATFORM.md section 4)."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": [
+        "src/modules/email/**"
+      ],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": [
+                  "@/modules/*",
+                  "@/modules/*/**",
+                  "!@/modules/email",
+                  "!@/modules/email/**"
+                ],
+                "message": "Modules must not import other modules. Communicate through events and the data spine (plans/PLATFORM.md section 4)."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": [
         "src/core/**"
       ],
       "rules": {

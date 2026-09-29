@@ -1,9 +1,11 @@
 import type { ModuleManifest } from '@/core/manifest';
 import { analyticsManifest } from './analytics/manifest';
 import { crmManifest } from './crm/manifest';
+import { emailManifest } from './email/manifest';
 import { inventoryManifest } from './inventory/manifest';
 import { ordersManifest } from './orders/manifest';
 import { salesManifest } from './sales/manifest';
+import { sheetsManifest } from './sheets/manifest';
 import { voiceManifest } from './voice/manifest';
 import { whatsappManifest } from './whatsapp/manifest';
 
@@ -20,6 +22,8 @@ export const MODULES: ModuleManifest[] = [
   salesManifest,
   ordersManifest,
   inventoryManifest,
+  sheetsManifest,
+  emailManifest,
 ];
 
 // Sidebar order = registry order, modules without screens filtered out.

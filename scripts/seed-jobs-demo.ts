@@ -1,18 +1,22 @@
-// Seeds the manual delivery flow with sample data: a packaging maker's
-// catalogue and stock, and quotes and orders in every state.
+// Seeds the quote-to-order flow with sample data that arrives the way real
+// data does: through the WhatsApp, Google Sheets and webhook intake, then
+// the matching, sending and reply rules. A few steps are done "by a person"
+// (checking a draft, approving) so every state is on screen.
 //
-//   npm run jobs:seed-demo                  # replace the sample data
-//   npm run jobs:seed-demo -- --wipe        # remove the sample data only
-//   npm run jobs:seed-demo -- --allow-remote   # required for staging
+//   npm run jobs:seed-demo                    # replace the sample data
+//   npm run jobs:seed-demo -- --wipe          # remove the sample data only
+//   npm run jobs:seed-demo -- --allow-remote  # required for staging
 //
-// Every case is made by running the real steps through the job engine, so
-// the timelines, events and stock commitments are what the app would make.
-// Sample rows are tagged (inv_items.fixture, cases.data.fixture) and the
-// script deletes only those. Staging holds sample data only; never run this
+// Sample rows are tagged (inv_items.fixture, inbound_messages.fixture,
+// cases.data.fixture) and the script deletes only those. It also switches
+// WhatsApp on in test mode when WhatsApp is not set up yet, so replies are
+// recorded but never sent. Staging holds sample data only; never run this
 // against production.
 
 import { getSql } from '../src/core/db';
-import { createCase, runStep, userActor, type Actor, type CaseRecord } from '../src/core/jobs';
+import { getIntegration, saveIntegration } from '../src/core/integrations';
+import { recordInbound, type IntakeSource } from '../src/core/intake';
+import { createCase, runStep, userActor, type CaseRecord } from '../src/core/jobs';
 import type { SessionUser } from '../src/core/users';
 import { runJobConsumers } from '../src/modules/jobs';
 import { orderJob } from '../src/modules/orders/order-job';
@@ -28,92 +32,123 @@ const ITEMS = [
   ['LAM-12M', 'Laminated roll, 12 micron', 'kg', 265, '3920', 900, 0, 2000],
 ] as const;
 
-const seedUser: SessionUser = {
-  id: 0, email: 'sample-data@forge.local', name: 'Priya (sample)', role: 'admin', modules: [],
-  sessionVersion: 0, status: 'active',
-};
-const approverUser: SessionUser = { ...seedUser, name: 'Owner (sample)' };
-const SALES = userActor(seedUser);
-const OWNER = userActor(approverUser);
+const person = (name: string, role: SessionUser['role'] = 'admin'): SessionUser => ({
+  id: 0, email: 'sample-data@forge.local', name, role, modules: [], sessionVersion: 0, status: 'active',
+});
+const SALES = userActor(person('Priya (sample)', 'member'));
+const OWNER = userActor(person('Owner (sample)'));
+
+type Buyer = { name: string; company: string; phone: string; email?: string };
 
 type Plan = {
-  buyer: { buyerName: string; company: string; phone: string; channel: string; message: string };
-  lines?: { sku: string; quantity: number }[];
-  pincode?: string;
-  /** How far the case goes. */
-  until: 'enquiry' | 'draft' | 'awaiting_approval' | 'approved' | 'sent' | 'accepted' | 'lost';
-  lostReason?: string;
-  buyerPo?: string;
-  thenDispatch?: boolean;
+  source: IntakeSource | 'manual';
+  buyer: Buyer;
+  messages: string[];
+  /** How far a person takes it after Forge drafts it. */
+  then?: ('submit' | 'approve' | 'markSent' | 'accept' | 'dispatch' | 'lose')[];
+  /** Buyer replies after the quote went out. */
+  replies?: string[];
   hoursAgo: number;
 };
 
 const PLANS: Plan[] = [
-  {
-    buyer: { buyerName: 'Rahul Mehta', company: 'Mehta Namkeen', phone: '98450 11223', channel: 'whatsapp', message: 'Hi, need 5000 stand-up pouches 250 ml, 2 colour print. Delivery Peenya. Please send rate.' },
-    until: 'enquiry', hoursAgo: 1,
-  },
-  {
-    buyer: { buyerName: 'Sana Iqbal', company: 'Sana Dry Fruits', phone: '99001 44556', channel: 'phone', message: 'Wants zipper pouches 1 kg clear, about 3000, and 1000 spout pouches for a new juice line.' },
-    lines: [{ sku: 'ZIP-1KG-CL', quantity: 3000 }, { sku: 'SPT-200', quantity: 1000 }], pincode: '560010',
-    until: 'draft', hoursAgo: 3,
-  },
-  {
-    buyer: { buyerName: 'Vikram Rao', company: 'Rao Agro Exports', phone: '98860 77889', channel: 'email', message: 'Requirement: 20,000 stand-up pouches 500 ml, 4 colour, for export packing. Delivery Chennai.' },
-    lines: [{ sku: 'SUP-500-4C', quantity: 20000 }], pincode: '600032',
-    until: 'awaiting_approval', hoursAgo: 5,
-  },
-  {
-    buyer: { buyerName: 'Meera Joshi', company: 'Joshi Masala', phone: '97400 33445', channel: 'whatsapp', message: 'Need 4000 pouches 250 ml for masala. Same print as last time.' },
-    lines: [{ sku: 'SUP-250-2C', quantity: 4000 }], pincode: '560058',
-    until: 'approved', hoursAgo: 8,
-  },
-  {
-    buyer: { buyerName: 'Arjun Shetty', company: 'Coastal Rice Mills', phone: '94480 55667', channel: 'walk_in', message: 'Came to the office. Wants 2000 BOPP bags 5 kg for rice.' },
-    lines: [{ sku: 'BOPP-5KG', quantity: 2000 }], pincode: '575001',
-    until: 'sent', hoursAgo: 26,
-  },
-  {
-    buyer: { buyerName: 'Kavya Nair', company: 'Nair Coffee Works', phone: '98451 88990', channel: 'whatsapp', message: 'Please quote 6000 stand-up pouches 250 ml and 3000 zipper pouches 1 kg.' },
-    lines: [{ sku: 'SUP-250-2C', quantity: 6000 }, { sku: 'ZIP-1KG-CL', quantity: 3000 }], pincode: '560037',
-    until: 'accepted', buyerPo: 'NCW/PO/2291', hoursAgo: 50,
-  },
-  {
-    buyer: { buyerName: 'Imran Khan', company: 'Khan Foods', phone: '99860 12121', channel: 'phone', message: 'Wants 1200 spout pouches 200 ml, urgent.' },
-    lines: [{ sku: 'SPT-200', quantity: 1200 }], pincode: '560045',
-    until: 'accepted', buyerPo: 'KF-0918', thenDispatch: true, hoursAgo: 96,
-  },
-  {
-    buyer: { buyerName: 'Deepa Kulkarni', company: 'Kulkarni Snacks', phone: '97311 45454', channel: 'whatsapp', message: '10,000 pouches 250 ml. What is your best price?' },
-    lines: [{ sku: 'SUP-250-2C', quantity: 10000 }], pincode: '580020',
-    until: 'lost', lostReason: 'The buyer chose a supplier with a lower rate.', hoursAgo: 120,
-  },
+  { source: 'whatsapp', buyer: { name: 'Rahul Mehta', company: 'Mehta Namkeen', phone: '9845011223' },
+    messages: ['Hi, need 5000 stand-up pouches 250 ml, 2 colour print. Please send rate.'], hoursAgo: 1 },
+  { source: 'whatsapp', buyer: { name: 'Meera Joshi', company: 'Joshi Masala', phone: '9740033445' },
+    messages: ['Need 4000 pouches 250 ml 2 colour for masala, same print as last time. Delivery 560058'], hoursAgo: 2 },
+  { source: 'sheets', buyer: { name: 'Vikram Rao', company: 'Rao Agro Exports', phone: '9886077889', email: 'vikram@raoagro.example' },
+    messages: ['Requirement: 20,000 stand-up pouches 500 ml, 4 colour, for export packing. Delivery pincode 600032'], then: ['submit'], hoursAgo: 4 },
+  { source: 'webhook', buyer: { name: 'Sana Iqbal', company: 'Sana Dry Fruits', phone: '9900144556' },
+    messages: ['Looking for pouches for dry fruits, around 3000 pieces. Please call.'], hoursAgo: 5 },
+  { source: 'whatsapp', buyer: { name: 'Arjun Shetty', company: 'Coastal Rice Mills', phone: '9448055667' },
+    messages: ['Need 2000 BOPP bags 5 kg for rice', 'Pin 575001'], then: ['submit'], replies: ['Can you do Rs 13.50 per bag if we take 3000?'], hoursAgo: 6 },
+  { source: 'whatsapp', buyer: { name: 'Kavya Nair', company: 'Nair Coffee Works', phone: '9845188990' },
+    messages: ['Please quote 6000 stand-up pouches 250 ml and 3000 zipper pouches 1 kg. Delivery 560037'], then: ['submit'], replies: ['Ok confirmed, go ahead'], hoursAgo: 8 },
+  { source: 'manual', buyer: { name: 'Imran Khan', company: 'Khan Foods', phone: '9986012121' },
+    messages: ['Called: wants 1200 spout pouches 200 ml, urgent, delivery 560045'], then: ['submit', 'markSent', 'accept', 'dispatch'], hoursAgo: 30 },
+  { source: 'whatsapp', buyer: { name: 'Deepa Kulkarni', company: 'Kulkarni Snacks', phone: '9731145454' },
+    messages: ['10,000 stand-up pouches 250 ml 2 colour, delivery 580020. What is your best price?'], then: ['lose'], hoursAgo: 50 },
 ];
 
-const ORDER_OF_STATES = ['enquiry', 'draft', 'awaiting_approval', 'approved', 'sent', 'accepted'] as const;
+let serial = 0;
 
-function reached(plan: Plan, state: (typeof ORDER_OF_STATES)[number]): boolean {
-  if (plan.until === 'lost') return ORDER_OF_STATES.indexOf(state) <= ORDER_OF_STATES.indexOf('sent');
-  return ORDER_OF_STATES.indexOf(state) <= ORDER_OF_STATES.indexOf(plan.until);
+async function inbound(plan: Plan, body: string) {
+  serial += 1;
+  await recordInbound({
+    source: plan.source === 'manual' ? 'test' : plan.source,
+    externalId: `fixture-${Date.now()}-${serial}`,
+    fromName: plan.buyer.name,
+    fromPhone: plan.buyer.phone,
+    fromEmail: plan.buyer.email ?? null,
+    company: plan.source === 'whatsapp' ? null : plan.buyer.company,
+    body,
+    fixture: true,
+  });
+  await runJobConsumers();
 }
 
-async function step(current: CaseRecord, name: string, input: Record<string, unknown>, actor: Actor = SALES) {
-  return runStep(quoteJob, current.id, name, input, actor);
+async function caseFor(phone: string): Promise<CaseRecord | null> {
+  const sql = getSql();
+  const rows = await sql<CaseRecord[]>`
+    select * from cases where job = 'quote' and subject->>'phone' = ${`91${phone}`} order by id desc limit 1
+  `;
+  return rows[0] ?? null;
+}
+
+async function tag(caseId: number) {
+  const sql = getSql();
+  await sql`update cases set data = data || '{"fixture": true}'::jsonb where id = ${caseId}`;
 }
 
 async function wipe() {
   const sql = getSql();
-  const orders = await sql<{ ref: string }[]>`select ref from cases where job = 'order' and (data->>'fixture')::boolean is true`;
-  const orderRefs = orders.map((row) => row.ref);
+  const fixtureCases = await sql<{ id: number; ref: string; job: string }[]>`
+    select id, ref, job from cases where (data->>'fixture')::boolean is true
+       or parent_case_id in (select id from cases where (data->>'fixture')::boolean is true)
+  `;
+  const ids = fixtureCases.map((c) => c.id);
+  const orderRefs = fixtureCases.filter((c) => c.job === 'order').map((c) => c.ref);
   if (orderRefs.length) await sql`delete from inv_commitments where order_ref = any(${orderRefs})`;
-  await sql`delete from cases where job = 'order' and (data->>'fixture')::boolean is true`;
-  await sql`delete from cases where job = 'quote' and (data->>'fixture')::boolean is true`;
+  if (ids.length) {
+    await sql`delete from outbound_messages where case_id = any(${ids})`;
+    await sql`delete from cases where id = any(${ids}) and job = 'order'`;
+    await sql`delete from cases where id = any(${ids})`;
+  }
+  await sql`delete from inbound_messages where fixture`;
   await sql`delete from inv_commitments where sku in (select sku from inv_items where fixture)`;
   await sql`delete from inv_items where fixture`;
-  // Restart ref numbers for a job that has no cases left, so a reset demo
-  // starts at Q-1001 again. Real cases keep their numbers.
+  // Restart ref numbers for a job with no cases left, so a reset demo starts at Q-1001.
   await sql`delete from case_counters where job not in (select distinct job from cases)`;
-  console.log(`Removed sample data (${orderRefs.length} orders).`);
+  console.log(`Removed sample data (${ids.length} cases).`);
+}
+
+/** Spread one case's steps and messages back in time, a few minutes apart, in their real order. */
+async function backdate(caseId: number, hoursAgo: number) {
+  const sql = getSql();
+  const rows = await sql<{ tbl: string; id: number }[]>`
+    select * from (
+      select 'case_steps' as tbl, s.id, s.created_at as at from case_steps s join cases c on c.id = s.case_id where c.id = ${caseId} or c.parent_case_id = ${caseId}
+      union all select 'inbound_messages', id, received_at from inbound_messages where case_id = ${caseId}
+      union all select 'outbound_messages', id, created_at from outbound_messages where case_id = ${caseId}
+    ) t order by at, tbl
+  `;
+  for (const [i, row] of rows.entries()) {
+    const at = sql`now() - make_interval(hours => ${hoursAgo}) + make_interval(mins => ${i * 6})`;
+    if (row.tbl === 'case_steps') await sql`update case_steps set created_at = ${at} where id = ${row.id}`;
+    else if (row.tbl === 'inbound_messages') await sql`update inbound_messages set received_at = ${at} where id = ${row.id}`;
+    else await sql`update outbound_messages set created_at = ${at} where id = ${row.id}`;
+  }
+  await sql`
+    update cases c set data = jsonb_set(c.data, '{sent,at}', to_jsonb(s.created_at))
+    from case_steps s
+    where c.id = ${caseId} and s.case_id = c.id and s.step = 'markSent' and c.data ? 'sent'
+  `;
+  await sql`
+    update cases c set
+      created_at = coalesce((select min(created_at) from case_steps where case_id = c.id), c.created_at),
+      updated_at = coalesce((select max(created_at) from case_steps where case_id = c.id), c.updated_at)
+    where c.id = ${caseId} or c.parent_case_id = ${caseId}
+  `;
 }
 
 async function seed() {
@@ -122,54 +157,57 @@ async function seed() {
     await sql`
       insert into inv_items (sku, name, unit, rate_paise, hsn, on_hand, incoming_local, incoming_import, fixture)
       values (${sku}, ${name}, ${unit}, ${Math.round(rate * 100)}, ${hsn}, ${onHand}, ${local}, ${imported}, true)
+      on conflict (sku) do nothing
     `;
   }
 
+  // Replies are recorded, never sent, until someone connects a real number.
+  const wa = await getIntegration('whatsapp');
+  if (!wa.enabled && wa.updated_by === null) {
+    await saveIntegration('whatsapp', { enabled: true, config: { testMode: true }, status: 'connected' }, 'Sample data');
+  }
+
   for (const plan of PLANS) {
-    let current = await createCase(quoteJob, 'recordEnquiry', plan.buyer, SALES);
-    // Tag the case before any event carries it, so the order made from it is tagged too.
-    await sql`update cases set data = data || '{"fixture": true}'::jsonb where id = ${current.id}`;
-    current = (await sql<CaseRecord[]>`select * from cases where id = ${current.id}`)[0];
-
-    if (plan.lines && reached(plan, 'draft')) current = await step(current, 'draftQuote', { lines: plan.lines, pincode: plan.pincode });
-    if (plan.lines && reached(plan, 'awaiting_approval')) current = await step(current, 'submitQuote', {});
-    if (current.state === 'awaiting_approval' && reached(plan, 'approved')) {
-      const version = (current.data as { quote: { version: number } }).quote.version;
-      current = await step(current, 'approveQuote', { version }, OWNER);
+    let current: CaseRecord | null;
+    if (plan.source === 'manual') {
+      current = await createCase(quoteJob, 'recordEnquiry', {
+        buyerName: plan.buyer.name, company: plan.buyer.company, phone: plan.buyer.phone, channel: 'phone', message: plan.messages[0],
+      }, SALES);
+      await tag(current.id);
+      await runJobConsumers();
+    } else {
+      await inbound(plan, plan.messages[0]);
+      current = await caseFor(plan.buyer.phone);
+      if (!current) throw new Error(`No case for ${plan.buyer.company}`);
+      await tag(current.id);
+      for (const extra of plan.messages.slice(1)) await inbound(plan, extra);
     }
-    if (reached(plan, 'sent') && current.state === 'approved') current = await step(current, 'markSent', { channel: plan.buyer.channel === 'email' ? 'email' : 'whatsapp' });
-    if (plan.until === 'accepted') current = await step(current, 'markAccepted', { buyerPo: plan.buyerPo });
-    if (plan.until === 'lost') current = await step(current, 'markLost', { reason: plan.lostReason });
-    await runJobConsumers();
+    const reload = async () => (await sql<CaseRecord[]>`select * from cases where id = ${current!.id}`)[0];
+    current = await reload();
 
-    if (plan.thenDispatch) {
-      const [order] = await sql<CaseRecord[]>`select * from cases where parent_case_id = ${current.id} and job = 'order'`;
-      if (order) {
-        await runStep(orderJob, order.id, 'dispatchOrder', { vehicle: 'KA 51 AB 4412' }, userActor({ ...seedUser, name: 'Ravi (sample)' }));
-        await runJobConsumers();
+    for (const action of plan.then ?? []) {
+      current = await reload();
+      if (action === 'submit' && current.state === 'draft') await runStep(quoteJob, current.id, 'submitQuote', {}, SALES);
+      if (action === 'approve' && current.state === 'awaiting_approval') {
+        await runStep(quoteJob, current.id, 'approveQuote', { version: (current.data as { quote: { version: number } }).quote.version }, OWNER);
+      }
+      if (action === 'markSent' && current.state === 'approved') await runStep(quoteJob, current.id, 'markSent', { channel: 'whatsapp' }, SALES);
+      if (action === 'accept' && current.state === 'sent') await runStep(quoteJob, current.id, 'markAccepted', { buyerPo: 'KF-0918', note: 'confirmed on a phone call' }, SALES);
+      if (action === 'lose') await runStep(quoteJob, current.id, 'markLost', { reason: 'The buyer chose a supplier with a lower rate.' }, SALES);
+      await runJobConsumers();
+      if (action === 'dispatch') {
+        const [order] = await sql<CaseRecord[]>`select * from cases where parent_case_id = ${current.id} and job = 'order'`;
+        if (order) {
+          await runStep(orderJob, order.id, 'dispatchOrder', { vehicle: 'KA 51 AB 4412' }, userActor(person('Ravi (sample)', 'member')));
+          await runJobConsumers();
+        }
       }
     }
+    for (const reply of plan.replies ?? []) await inbound(plan, reply);
 
-    // Spread the timeline back in time so the sample reads like real work:
-    // the steps of one case sit minutes apart, and cases sit hours apart.
-    await sql`
-      with ordered as (
-        select s.id, row_number() over (order by s.id) as n, count(*) over () as total
-        from case_steps s
-        join cases c on c.id = s.case_id
-        where c.id = ${current.id} or c.parent_case_id = ${current.id}
-      )
-      update case_steps s
-      set created_at = now() - make_interval(hours => ${plan.hoursAgo}) + make_interval(mins => (ordered.n - 1)::int * 47)
-      from ordered where ordered.id = s.id
-    `;
-    await sql`
-      update cases c set
-        created_at = (select min(created_at) from case_steps where case_id = c.id),
-        updated_at = (select max(created_at) from case_steps where case_id = c.id)
-      where c.id = ${current.id} or c.parent_case_id = ${current.id}
-    `;
-    console.log(`${current.ref} ${plan.buyer.company}: ${quoteJob.states[current.state].label}`);
+    current = await reload();
+    await backdate(current.id, plan.hoursAgo);
+    console.log(`${current.ref} ${plan.buyer.company} (${plan.source}): ${quoteJob.states[current.state].label}`);
   }
 }
 

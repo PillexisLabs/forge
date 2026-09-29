@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { env } from '@/core/env';
 import { recordDeliveryFailure, recordInboundWhatsApp } from '@/modules/whatsapp/crm-whatsapp-inbound';
+import { ingestWhatsAppMessage } from '@/modules/whatsapp/whatsapp-channel';
 import { sendWhatsAppText } from '@/modules/whatsapp/whatsapp-provider';
+import { runJobConsumers } from '@/modules/jobs';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -76,6 +78,13 @@ export async function POST(request: NextRequest) {
         const text = message.type === 'text'
           ? message.text?.body ?? ''
           : `[${message.type ?? 'unsupported'} message]`;
+        // Job intake (sales enquiries). Only runs when Settings → Integrations
+        // has WhatsApp switched on; the CRM path below is unchanged.
+        try {
+          await ingestWhatsAppMessage({ from: message.from, messageId: message.id, text, profileName: value.contacts?.[0]?.profile?.name });
+        } catch (error) {
+          console.error('whatsapp job intake failed:', error);
+        }
         try {
           const result = await recordInboundWhatsApp({
             from: message.from,
@@ -111,5 +120,6 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  await runJobConsumers().catch((error) => console.error('jobs: consumer pass after webhook failed', error));
   return NextResponse.json({ ok: true });
 }

@@ -6,7 +6,7 @@ export const ordersManifest: ModuleManifest = {
   description: 'Confirmed orders made from accepted quotes, through dispatch or cancellation.',
   navLabel: 'Orders',
   nav: [
-    { id: 'orders', label: 'Orders', icon: '/icons/kanban.svg', href: '/orders' },
+    { id: 'orders', label: 'Orders', icon: 'order', href: '/orders' },
   ],
   events: {
     emits: ['order.confirmed', 'order.dispatched', 'order.cancelled'],

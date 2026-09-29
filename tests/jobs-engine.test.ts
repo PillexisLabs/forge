@@ -56,9 +56,18 @@ test('actor kinds: an order is created only by the rule, and no step accepts an 
 
 test('the case screen offers only the steps the user can run now', () => {
   const member = availableSteps(quoteJob, 'awaiting_approval', user('member')).map((s) => s.name);
-  assert.deepEqual(member, ['markLost']);
+  assert.deepEqual(member.sort(), ['addMessage', 'markHandled', 'markLost']);
   const admin = availableSteps(quoteJob, 'awaiting_approval', user('admin')).map((s) => s.name);
-  assert.deepEqual(admin.sort(), ['approveQuote', 'markLost', 'returnQuote']);
+  assert.deepEqual(admin.sort(), ['addMessage', 'approveQuote', 'markHandled', 'markLost', 'returnQuote']);
+});
+
+test('rules may draft, send and accept, but never approve', () => {
+  const rule = ruleActor('sales.match', 'Matching rule');
+  assert.equal(status(() => checkStep(quoteJob, 'enquiry', 'draftQuote', rule)), null);
+  assert.equal(status(() => checkStep(quoteJob, 'approved', 'markSent', rule)), null);
+  assert.equal(status(() => checkStep(quoteJob, 'sent', 'markAccepted', rule)), null);
+  assert.equal(status(() => checkStep(quoteJob, 'draft', 'submitQuote', rule)), 403);
+  assert.equal(status(() => checkStep(quoteJob, 'awaiting_approval', 'approveQuote', rule)), 403);
 });
 
 test('every step targets only declared states', () => {

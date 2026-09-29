@@ -8,6 +8,7 @@ export type ForgeNavItem = {
   label: string;
   /** Compact label for the mobile bottom nav; falls back to `label`. */
   shortLabel?: string;
+  /** A /icons/*.svg mask path, or an Icon name (src/components/lf/Icon.tsx). */
   icon: string;
   href: string;
 };

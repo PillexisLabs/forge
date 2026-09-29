@@ -6,7 +6,7 @@ export const salesManifest: ModuleManifest = {
   description: 'Enquiry to quote: record an enquiry, build a priced quote, get it approved, send it, and record the buyer’s answer.',
   navLabel: 'Sales',
   nav: [
-    { id: 'quotes', label: 'Enquiries and quotes', shortLabel: 'Quotes', icon: '/icons/feedbacks.svg', href: '/sales' },
+    { id: 'quotes', label: 'Quotes', icon: 'quote', href: '/sales' },
   ],
   events: {
     emits: ['quote.sent', 'quote.accepted'],

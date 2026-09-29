@@ -4,6 +4,7 @@ import type { Viewport } from 'next';
 import { Suspense, type ReactNode } from 'react';
 import PwaRegistration from '@/components/PwaRegistration';
 import WorkspaceChrome, { type ChromeUser } from '@/components/WorkspaceChrome';
+import { attentionCount } from '@/core/attention';
 import { enabledModuleNames } from '@/core/modules';
 import { getSessionUserFromCookies } from '@/core/session';
 
@@ -35,6 +36,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   // The chrome only needs what the nav filter uses. A null user means the
   // login page (or an expired session mid-redirect) — the chrome hides itself.
   const sessionUser = await getSessionUserFromCookies().catch(() => null);
+  const attention = sessionUser ? await attentionCount(sessionUser).catch(() => 0) : 0;
   const user: ChromeUser | null = sessionUser
     ? { name: sessionUser.name, role: sessionUser.role, modules: sessionUser.modules }
     : null;
@@ -44,7 +46,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
       <body className="min-h-screen antialiased">
         <PwaRegistration />
         <Suspense fallback={children}>
-          <WorkspaceChrome user={user} enabledModules={enabledModuleNames()}>{children}</WorkspaceChrome>
+          <WorkspaceChrome user={user} enabledModules={enabledModuleNames()} attention={attention}>{children}</WorkspaceChrome>
         </Suspense>
       </body>
     </html>

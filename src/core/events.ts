@@ -20,7 +20,13 @@ export type EventName =
   | 'quote.accepted'
   | 'order.confirmed'
   | 'order.dispatched'
-  | 'order.cancelled';
+  | 'order.cancelled'
+  // Intake (src/core/intake.ts): any integration received a message.
+  | 'message.received'
+  // A quote reached "approved"; the sales module sends it on its channel.
+  | 'quote.approved'
+  // A new enquiry exists (from intake or recorded by a person).
+  | 'quote.recorded';
 
 export type EmittedBy =
   | 'core' | 'analytics' | 'whatsapp' | 'crm' | 'lead-qual' | 'voice'

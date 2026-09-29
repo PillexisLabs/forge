@@ -1,11 +1,11 @@
 import { notFound } from 'next/navigation';
 import AccessNotice from '@/components/AccessNotice';
 import PrintButton from '@/components/sales/PrintButton';
-import { env } from '@/core/env';
 import { getCaseByRef } from '@/core/jobs';
 import { formatPaise } from '@/core/money';
 import { guardModulePage } from '@/core/page-guard';
 import type { QuoteCase } from '@/modules/sales/quote-job';
+import { getSalesRules } from '@/modules/sales/sales-settings';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,6 +24,7 @@ export default async function QuotePrintPage({ params }: { params: { ref: string
   const quote = current.data.quote;
   if (!quote) notFound();
   const validUntil = new Date(new Date(quote.preparedAt).getTime() + quote.validDays * 86400000).toISOString();
+  const rules = await getSalesRules();
   const draft = !current.data.approval || current.data.approval.version !== quote.version;
 
   return (
@@ -33,9 +34,9 @@ export default async function QuotePrintPage({ params }: { params: { ref: string
         {draft && <p className="quote-draft-mark">Draft, not approved</p>}
         <header className="quote-sheet-head">
           <div>
-            <h1>{env.businessName()}</h1>
-            <p>{env.businessAddress()}</p>
-            {env.businessGstin() && <p>GSTIN {env.businessGstin()}</p>}
+            <h1>{rules.businessName}</h1>
+            <p>{rules.businessAddress}</p>
+            {rules.businessGstin && <p>GSTIN {rules.businessGstin}</p>}
           </div>
           <div className="quote-sheet-ref">
             <h2>Quotation</h2>

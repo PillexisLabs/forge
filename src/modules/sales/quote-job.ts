@@ -1,4 +1,3 @@
-import { env } from '@/core/env';
 import {
   inputObject,
   optionalText,
@@ -11,6 +10,7 @@ import {
 import { formatPaise } from '@/core/money';
 import { productSource } from '@/core/products';
 import { isPincode, needsApproval, priceQuote, type PricedQuote, type QuoteLineInput } from './quote-rules';
+import { getSalesRules } from './sales-settings';
 
 // The quote job: from a buyer's enquiry to a sent quote and the buyer's answer.
 //
@@ -24,12 +24,14 @@ import { isPincode, needsApproval, priceQuote, type PricedQuote, type QuoteLineI
 // employee can later run "draft" and "send" with the same checks, while the
 // approval stays with a person above the limit.
 
-export const QUOTE_CHANNELS = ['whatsapp', 'email', 'phone', 'walk_in'] as const;
+export const QUOTE_CHANNELS = ['whatsapp', 'email', 'sheets', 'webhook', 'phone', 'walk_in'] as const;
 export type QuoteChannel = (typeof QUOTE_CHANNELS)[number];
 
 export const CHANNEL_LABELS: Record<QuoteChannel, string> = {
   whatsapp: 'WhatsApp',
   email: 'Email',
+  sheets: 'Google Sheets',
+  webhook: 'Webhook',
   phone: 'Phone call',
   walk_in: 'Walk-in',
 };
@@ -37,11 +39,23 @@ export const CHANNEL_LABELS: Record<QuoteChannel, string> = {
 export type QuoteSubject = {
   buyerName: string;
   company: string | null;
+  /** Digits with country code, e.g. 919845012345. */
   phone: string | null;
+  email: string | null;
 };
 
+const OPEN_STATES = ['enquiry', 'draft', 'awaiting_approval', 'approved', 'sent'];
+
 export type QuoteData = {
-  enquiry: { channel: QuoteChannel; message: string };
+  enquiry: { channel: QuoteChannel; message: string; inboundId?: number | null };
+  /** Who drafted the current version: a person, or the matching rule. */
+  draftedBy?: 'user' | 'rule';
+  /** What the matching rule read from the message, for the person who checks it. */
+  match?: { matchedOn: Record<string, string[]>; unmatched: string[] } | null;
+  /** Details the rule asked the buyer for. */
+  awaiting?: string[];
+  /** A buyer message that a person must answer. */
+  attention?: { reason: string; at: string } | null;
   quote?: PricedQuote;
   approval?: { version: number; by: string; at: string; basis: 'approver' | 'within_limit' } | null;
   sent?: { channel: QuoteChannel; at: string; version: number };
@@ -62,12 +76,18 @@ function quoteOf(current: CaseRecord | null): PricedQuote {
   return quote;
 }
 
-function freightRule() {
-  return {
-    localPinPrefixes: env.salesLocalPinPrefixes(),
-    localRupees: env.salesFreightLocalRupees(),
-    outstationRupees: env.salesFreightOutstationRupees(),
-  };
+function normPhone(phone: string | null): string | null {
+  const digits = (phone ?? '').replace(/\D/g, '');
+  if (!digits) return null;
+  return digits.length === 10 ? `91${digits}` : digits;
+}
+
+function approvedEvent(version: number) {
+  return (saved: CaseRecord) => [{
+    name: 'quote.approved' as const,
+    dedupeKey: `case:${saved.id}:v${version}`,
+    payload: { v: 1, quote_case_id: saved.id, version },
+  }];
 }
 
 export const quoteJob: JobDefinition = {
@@ -80,7 +100,8 @@ export const quoteJob: JobDefinition = {
     draft: { label: 'Quote draft', assignee: 'sales' },
     awaiting_approval: { label: 'Waiting for approval', assignee: 'approver' },
     approved: { label: 'Ready to send', assignee: 'sales' },
-    sent: { label: 'Sent, waiting for buyer', assignee: 'sales' },
+    // Nobody needs to act: the buyer's reply (or a person's "Buyer accepted") moves it on.
+    sent: { label: 'Sent, waiting for buyer', assignee: null },
     accepted: { label: 'Accepted', assignee: null, terminal: true },
     lost: { label: 'Lost', assignee: null, terminal: true },
   },
@@ -90,25 +111,97 @@ export const quoteJob: JobDefinition = {
       from: [],
       to: ['enquiry'],
       permission: 'sales:write',
-      // 'rule' lets a channel intake (WhatsApp inbound) record enquiries later.
+      // 'rule' is the intake rule: an integration message becomes an enquiry.
+      actors: ['user', 'rule'],
+      parse(raw) {
+        const input = inputObject(raw);
+        const phone = optionalText(input, 'phone', 20);
+        const email = optionalText(input, 'email', 160);
+        return {
+          buyerName: optionalText(input, 'buyerName', 120) ?? phone ?? email ?? 'Unknown buyer',
+          company: optionalText(input, 'company', 160),
+          phone: normPhone(phone),
+          email: email?.toLowerCase() ?? null,
+          channel: channelOf(input.channel),
+          message: requiredText(input, 'message', 'The enquiry text', 4000),
+          inboundId: typeof input.inboundId === 'number' ? input.inboundId : null,
+        };
+      },
+      async run({ actor }, input) {
+        const via = CHANNEL_LABELS[input.channel as QuoteChannel];
+        return {
+          title: input.company ?? input.buyerName,
+          subject: { buyerName: input.buyerName, company: input.company, phone: input.phone, email: input.email },
+          data: { enquiry: { channel: input.channel, message: input.message, inboundId: input.inboundId } },
+          summary: actor.kind === 'rule'
+            ? `A new enquiry from ${input.buyerName} arrived on ${via}.`
+            : `Recorded an enquiry from ${input.buyerName}. It came by ${via.toLowerCase()}.`,
+          // The matching rule listens for this and drafts the quote.
+          events: (saved) => [{ name: 'quote.recorded', dedupeKey: `case:${saved.id}`, payload: { v: 1, quote_case_id: saved.id } }],
+        };
+      },
+    },
+
+    addMessage: {
+      label: 'Add buyer message',
+      from: OPEN_STATES,
+      to: OPEN_STATES,
+      permission: 'sales:write',
       actors: ['user', 'rule'],
       parse(raw) {
         const input = inputObject(raw);
         return {
-          buyerName: requiredText(input, 'buyerName', 'Buyer name', 120),
-          company: optionalText(input, 'company', 160),
-          phone: optionalText(input, 'phone', 20),
-          channel: channelOf(input.channel),
-          message: requiredText(input, 'message', 'The enquiry text', 4000),
+          text: requiredText(input, 'text', 'The message', 4000),
+          via: channelOf(input.via),
+          needsPerson: input.needsPerson === true,
+          reason: optionalText(input, 'reason', 300),
         };
+      },
+      async run({ current }, input) {
+        return {
+          to: current!.state,
+          data: input.needsPerson
+            ? { attention: { reason: input.reason ?? 'The buyer sent a message that needs an answer.', at: new Date().toISOString() } }
+            : {},
+          summary: `The buyer wrote on ${CHANNEL_LABELS[input.via as QuoteChannel]}: "${input.text.slice(0, 160)}${input.text.length > 160 ? '…' : ''}"`
+            + (input.needsPerson ? ' A person must answer it.' : ''),
+        };
+      },
+    },
+
+    askForDetails: {
+      label: 'Ask the buyer for details',
+      from: ['enquiry'],
+      to: ['enquiry'],
+      permission: 'sales:write',
+      actors: ['rule', 'user'],
+      parse(raw) {
+        const input = inputObject(raw);
+        const missing = Array.isArray(input.missing) ? input.missing.map(String) : [];
+        if (!missing.length) throw new StepError('Name the details to ask for.');
+        return { missing, sent: input.sent === true, via: channelOf(input.via) };
       },
       async run(_ctx, input) {
         return {
-          title: input.company ?? input.buyerName,
-          subject: { buyerName: input.buyerName, company: input.company, phone: input.phone },
-          data: { enquiry: { channel: input.channel, message: input.message } },
-          summary: `Recorded an enquiry from ${input.buyerName}. It came by ${CHANNEL_LABELS[input.channel as QuoteChannel].toLowerCase()}.`,
+          // Only a question that went out waits on the buyer; otherwise a person must ask it.
+          data: input.sent
+            ? { awaiting: input.missing, attention: null }
+            : { awaiting: [], attention: { reason: `Ask the buyer for the ${input.missing.join(' and ')}. Forge cannot message them on this channel.`, at: new Date().toISOString() } },
+          summary: input.sent
+            ? `Asked the buyer for the ${input.missing.join(' and ')} on ${CHANNEL_LABELS[input.via as QuoteChannel]}.`
+            : `The ${input.missing.join(' and ')} is missing. The message could not be sent, so a person must ask.`,
         };
+      },
+    },
+
+    markHandled: {
+      label: 'Mark message as answered',
+      from: OPEN_STATES,
+      to: OPEN_STATES,
+      permission: 'sales:write',
+      parse: () => ({}),
+      async run({ current }) {
+        return { to: current!.state, data: { attention: null }, summary: 'Answered the buyer’s message.' };
       },
     },
 
@@ -117,8 +210,11 @@ export const quoteJob: JobDefinition = {
       from: ['enquiry', 'draft', 'approved'],
       to: ['draft'],
       permission: 'sales:write',
+      // 'rule' is the matching rule. A person checks every rule draft.
+      actors: ['user', 'rule'],
       parse(raw) {
         const input = inputObject(raw);
+        const match = input.match && typeof input.match === 'object' ? input.match as QuoteData['match'] : null;
         const lines = Array.isArray(input.lines) ? input.lines : [];
         if (!lines.length) throw new StepError('Add at least one item to the quote.');
         const parsed: QuoteLineInput[] = lines.map((line, index) => {
@@ -130,9 +226,10 @@ export const quoteJob: JobDefinition = {
         });
         const pincode = requiredText(input, 'pincode', 'The delivery pincode', 6);
         if (!isPincode(pincode)) throw new StepError('The delivery pincode must be 6 digits.');
-        return { lines: parsed, pincode };
+        return { lines: parsed, pincode, match };
       },
-      async run({ tx, current }, input) {
+      async run({ tx, current, actor }, input) {
+        const rules = await getSalesRules();
         const source = productSource();
         const products = await source.get(input.lines.map((line: QuoteLineInput) => line.sku), tx);
         const previous = (current?.data as QuoteData | undefined)?.quote;
@@ -140,42 +237,49 @@ export const quoteJob: JobDefinition = {
         try {
           quote = priceQuote(input.lines, products, {
             pincode: input.pincode,
-            freight: freightRule(),
+            freight: { localPinPrefixes: rules.localPinPrefixes, localRupees: rules.freightLocalRupees, outstationRupees: rules.freightOutstationRupees },
             version: (previous?.version ?? 0) + 1,
-            validDays: env.salesQuoteValidDays(),
+            validDays: rules.quoteValidDays,
             priceSource: source.label,
           });
         } catch (error) {
           throw new StepError(error instanceof Error ? error.message : String(error));
         }
         const wasApproved = current?.state === 'approved';
+        const byRule = actor.kind === 'rule';
         return {
-          data: { quote, approval: null },
-          summary: `Saved quote draft v${quote.version}: ${quote.lines.length} ${quote.lines.length === 1 ? 'item' : 'items'}, total ${formatPaise(quote.totalPaise)}.`
+          data: { quote, approval: null, draftedBy: byRule ? 'rule' : 'user', match: byRule ? input.match : null, awaiting: [] },
+          summary: (byRule ? `Matched the message to the catalogue and drafted v${quote.version}` : `Saved quote draft v${quote.version}`)
+            + `: ${quote.lines.length} ${quote.lines.length === 1 ? 'item' : 'items'}, total ${formatPaise(quote.totalPaise)}.`
+            + (byRule ? ' A person must check it.' : '')
             + (wasApproved ? ' The earlier approval no longer applies.' : ''),
         };
       },
     },
 
     submitQuote: {
-      label: 'Submit quote',
+      label: 'Approve and send',
       from: ['draft'],
       to: ['awaiting_approval', 'approved'],
       permission: 'sales:write',
       parse: () => ({}),
       async run({ current, actor }) {
         const quote = quoteOf(current);
-        const limit = env.salesApprovalLimitRupees();
-        if (needsApproval(quote.totalPaise, limit)) {
+        const rules = await getSalesRules();
+        const limit = rules.approvalLimitRupees;
+        if (rules.approvalMode === 'always' || needsApproval(quote.totalPaise, limit)) {
           return {
             to: 'awaiting_approval',
-            summary: `Submitted v${quote.version}. The total ${formatPaise(quote.totalPaise)} is above the ${formatPaise(limit * 100)} limit, so an approver must approve it.`,
+            summary: rules.approvalMode === 'always'
+              ? `Checked v${quote.version}. Every quote needs an approver, so it waits for one.`
+              : `Checked v${quote.version}. The total ${formatPaise(quote.totalPaise)} is above the ${formatPaise(limit * 100)} limit, so an approver must approve it.`,
           };
         }
         return {
           to: 'approved',
-          data: { approval: { version: quote.version, by: actor.name, at: new Date().toISOString(), basis: 'within_limit' } },
-          summary: `Submitted v${quote.version}. The total ${formatPaise(quote.totalPaise)} is within the ${formatPaise(limit * 100)} limit, so no approval is needed.`,
+          data: { approval: { version: quote.version, by: actor.name, at: new Date().toISOString(), basis: 'within_limit' }, attention: null },
+          summary: `Checked v${quote.version}. The total ${formatPaise(quote.totalPaise)} is within the ${formatPaise(limit * 100)} limit, so it goes to the buyer.`,
+          events: approvedEvent(quote.version),
         };
       },
     },
@@ -199,6 +303,7 @@ export const quoteJob: JobDefinition = {
         return {
           data: { approval: { version: quote.version, by: actor.name, at: new Date().toISOString(), basis: 'approver' } },
           summary: `Approved v${quote.version} for ${formatPaise(quote.totalPaise)}.`,
+          events: approvedEvent(quote.version),
         };
       },
     },
@@ -222,6 +327,8 @@ export const quoteJob: JobDefinition = {
       from: ['approved'],
       to: ['sent'],
       permission: 'sales:write',
+      // 'rule' is the send rule: Forge sent the quote on the buyer's channel.
+      actors: ['user', 'rule'],
       parse(raw) {
         return { channel: channelOf(inputObject(raw).channel) };
       },
@@ -233,7 +340,7 @@ export const quoteJob: JobDefinition = {
         }
         return {
           data: { sent: { channel: input.channel, at: new Date().toISOString(), version: quote.version } },
-          summary: `Sent v${quote.version} to the buyer by ${CHANNEL_LABELS[input.channel as QuoteChannel]}.`,
+          summary: `Sent v${quote.version} with the PDF to the buyer on ${CHANNEL_LABELS[input.channel as QuoteChannel]}.`,
           events: (saved) => [{
             name: 'quote.sent',
             dedupeKey: `case:${saved.id}:v${quote.version}`,
@@ -248,6 +355,8 @@ export const quoteJob: JobDefinition = {
       from: ['sent'],
       to: ['accepted'],
       permission: 'sales:write',
+      // 'rule' is the reply rule: the buyer answered "confirm".
+      actors: ['user', 'rule'],
       parse(raw) {
         const input = inputObject(raw);
         return { buyerPo: optionalText(input, 'buyerPo', 80), note: optionalText(input, 'note', 1000) };
@@ -256,8 +365,8 @@ export const quoteJob: JobDefinition = {
         const quote = quoteOf(current);
         const subject = current?.subject as QuoteSubject;
         return {
-          data: { outcome: { result: 'accepted', note: input.note, buyerPo: input.buyerPo, at: new Date().toISOString() } },
-          summary: `The buyer accepted v${quote.version}${input.buyerPo ? ` with PO ${input.buyerPo}` : ''}.`,
+          data: { outcome: { result: 'accepted', note: input.note, buyerPo: input.buyerPo, at: new Date().toISOString() }, attention: null },
+          summary: `The buyer accepted v${quote.version}${input.buyerPo ? ` with PO ${input.buyerPo}` : ''}${input.note ? `: ${input.note}` : ''}.`,
           // The orders module turns this event into a confirmed order, so
           // nobody types the items and prices again.
           events: (saved) => [{

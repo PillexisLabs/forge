@@ -6,7 +6,7 @@ export const inventoryManifest: ModuleManifest = {
   description: 'The product catalogue and stock: on hand, local and imported stock on the way, and stock committed to orders.',
   navLabel: 'Stock',
   nav: [
-    { id: 'stock', label: 'Stock', icon: '/icons/categories.svg', href: '/inventory' },
+    { id: 'stock', label: 'Stock', icon: 'stock', href: '/inventory' },
   ],
   events: {
     emits: [],
