@@ -1,5 +1,6 @@
 import AccessNotice from '@/components/AccessNotice';
 import OrdersPaymentsForm from '@/components/settings/OrdersPaymentsForm';
+import SettingsHeader from '@/components/settings/SettingsHeader';
 import { timeAgo } from '@/components/lf/format';
 import { getSql } from '@/core/db';
 import { guardModulePage } from '@/core/page-guard';
@@ -18,9 +19,8 @@ export default async function OrdersSettingsPage() {
   const [meta] = await sql<{ updated_by: string | null; updated_at: string }[]>`select updated_by, updated_at from settings where key in ('orders', 'payments') order by updated_at desc limit 1`;
   return (
     <main className="lf-page">
-      <div className="lf-settings">
-        <h1>Orders & payments</h1>
-        <p>What Forge does when a buyer confirms, which documents it sends, and how buyers pay. {meta ? `Last changed by ${meta.updated_by} ${timeAgo(meta.updated_at)}.` : 'These are the first defaults.'}</p>
+      <div className="st">
+        <SettingsHeader title="Orders & payments" description="What Forge does when a buyer confirms, which documents it sends, and how buyers pay." meta={meta ? `Last changed by ${meta.updated_by} ${timeAgo(meta.updated_at)}` : null} />
         <OrdersPaymentsForm orders={orders} payments={payments} sellerGstin={sales.businessGstin} />
       </div>
     </main>

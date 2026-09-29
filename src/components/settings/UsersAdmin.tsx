@@ -1,36 +1,51 @@
 'use client';
 
-import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useState } from 'react';
+import { Chip } from '@/components/lf/Chips';
+import { timeAgo } from '@/components/lf/format';
+import Icon from '@/components/lf/Icon';
+import Modal from '@/components/lf/Modal';
 import type { UserListRow, UserRole } from '@/core/users';
-import {
-  UiAlert,
-  UiAvatar,
-  UiBadge,
-  UiButton,
-  UiDialog,
-  UiField,
-  UiPanel,
-  UiPanelHeader,
-} from '@/components/ui/Core';
+import { Card, Row, Segmented, Switch } from './kit';
+import SettingsHeader from './SettingsHeader';
 
-const ROLES: UserRole[] = ['admin', 'member', 'viewer'];
-
-const ROLE_TONES = { admin: 'accent', member: 'positive', viewer: 'neutral' } as const;
-
-type EditState = {
-  user: UserListRow;
-  role: UserRole;
-  modules: string[];
-  newPassword: string;
+const ROLE_INFO: Record<UserRole, { label: string; detail: string }> = {
+  admin: { label: 'Admin', detail: 'Everything, including approvals above the limit and Settings.' },
+  member: { label: 'Member', detail: 'Works on quotes, orders and stock. No Settings.' },
+  viewer: { label: 'Viewer', detail: 'Sees everything, changes nothing.' },
 };
 
-export default function UsersAdmin({
-  initialUsers,
-  moduleNames,
-  selfId,
-  emailDomain,
-}: {
+const MODULE_LABELS: Record<string, string> = {
+  sales: 'Quotes', orders: 'Orders', inventory: 'Stock', purchasing: 'Purchase orders', analytics: 'Analytics', crm: 'CRM',
+  whatsapp: 'WhatsApp', voice: 'Voice', sheets: 'Google Sheets', email: 'Email',
+};
+
+type Draft = { name: string; email: string; password: string; role: UserRole; modules: string[] };
+
+function Access({ moduleNames, selected, onChange }: { moduleNames: string[]; selected: string[]; onChange: (m: string[]) => void }) {
+  const all = selected.length === 0;
+  return (
+    <div className="st-card">
+      <div className="st-rows">
+        <Row label="All modules" description="Off: choose the modules this person can open.">
+          <Switch id="acc-all" label="All modules" checked={all} onChange={(v) => onChange(v ? [] : [moduleNames[0]])} />
+        </Row>
+        {!all && moduleNames.map((name) => (
+          <Row key={name} label={MODULE_LABELS[name] ?? name}>
+            <Switch id={`acc-${name}`} label={MODULE_LABELS[name] ?? name} checked={selected.includes(name)} onChange={(v) => {
+              const next = v ? [...selected, name] : selected.filter((m) => m !== name);
+              onChange(next.length ? next : selected);
+            }} />
+          </Row>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Members: who can sign in, their role, and which modules they can open.
+export default function UsersAdmin({ initialUsers, moduleNames, selfId, emailDomain }: {
   initialUsers: UserListRow[];
   moduleNames: string[];
   selfId: number;
@@ -42,12 +57,8 @@ export default function UsersAdmin({
   const [users, setUsers] = useState(initialUsers);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-
-  const [createOpen, setCreateOpen] = useState(false);
-  const [create, setCreate] = useState({
-    name: '', email: '', password: '', role: 'member' as UserRole, modules: [] as string[],
-  });
-  const [edit, setEdit] = useState<EditState | null>(null);
+  const [invite, setInvite] = useState<Draft | null>(null);
+  const [edit, setEdit] = useState<{ user: UserListRow; role: UserRole; modules: string[]; newPassword: string } | null>(null);
 
   async function refresh() {
     const res = await fetch('/api/settings/users');
@@ -58,260 +69,106 @@ export default function UsersAdmin({
   async function call(url: string, method: string, body: unknown): Promise<boolean> {
     setBusy(true);
     setError('');
-    const res = await fetch(url, {
-      method,
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(body),
-    });
+    const res = await fetch(url, { method, headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
     setBusy(false);
     if (!res.ok) {
       const data = await res.json().catch(() => null);
-      setError(data?.error ?? 'The request failed');
+      setError(data?.error ?? 'That did not work. Try again.');
       return false;
     }
     await refresh();
     return true;
   }
 
-  async function submitCreate(e: React.FormEvent) {
-    e.preventDefault();
-    if (await call('/api/settings/users', 'POST', create)) {
-      setCreateOpen(false);
-      setCreate({ name: '', email: '', password: '', role: 'member', modules: [] });
-    }
-  }
+  const active = users.filter((u) => u.status === 'active');
+  const disabled = users.filter((u) => u.status !== 'active');
 
-  async function submitEdit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!edit) return;
-    const body: Record<string, unknown> = { role: edit.role, modules: edit.modules };
-    if (edit.user.id === selfId) {
-      // The API refuses self role/status changes; only send what it accepts.
-      delete body.role;
-    }
-    if (edit.newPassword) body.password = edit.newPassword;
-    if (await call(`/api/settings/users/${edit.user.id}`, 'PATCH', body)) setEdit(null);
-  }
-
-  async function toggleStatus(user: UserListRow) {
-    await call(`/api/settings/users/${user.id}`, 'PATCH', {
-      status: user.status === 'active' ? 'disabled' : 'active',
-    });
-  }
-
-  function toggleModule(list: string[], name: string): string[] {
-    return list.includes(name) ? list.filter((m) => m !== name) : [...list, name];
-  }
-
-  return (
-    <main className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6">
-      <UiPanel>
-        <UiPanelHeader
-          title="Users"
-          description="Who can sign in, what role they hold, and which modules they see. An empty module list means all modules."
-          meta={(
-            <UiButton variant="primary" onClick={() => setCreateOpen(true)}>
-              Add user
-            </UiButton>
-          )}
-        />
-        {error && !createOpen && !edit && <UiAlert tone="critical">{error}</UiAlert>}
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-[var(--color-faint)]">
-                <th className="px-3 py-2 font-medium">User</th>
-                <th className="px-3 py-2 font-medium">Role</th>
-                <th className="px-3 py-2 font-medium">Modules</th>
-                <th className="px-3 py-2 font-medium">Status</th>
-                <th className="px-3 py-2 font-medium">Last login</th>
-                <th className="px-3 py-2" />
-              </tr>
-            </thead>
-            <tbody>
-              {users.map((user) => (
-                <tr key={user.id} className="border-t border-[var(--color-rule)]">
-                  <td className="px-3 py-3">
-                    <span className="flex items-center gap-2">
-                      <UiAvatar name={user.name} seed={user.id} size="small" />
-                      <span className="grid">
-                        <span className="font-medium text-[var(--color-ink)]">
-                          {user.name}
-                          {user.id === selfId && <span className="text-[var(--color-faint)]"> (you)</span>}
-                        </span>
-                        <span className="text-xs text-[var(--color-muted)]">{user.email}</span>
-                      </span>
-                    </span>
-                  </td>
-                  <td className="px-3 py-3">
-                    <UiBadge tone={ROLE_TONES[user.role]}>{user.role}</UiBadge>
-                  </td>
-                  <td className="px-3 py-3 text-[var(--color-muted)]">
-                    {user.modules.length ? user.modules.join(', ') : 'All'}
-                  </td>
-                  <td className="px-3 py-3">
-                    <UiBadge tone={user.status === 'active' ? 'positive' : 'critical'}>
-                      {user.status}
-                    </UiBadge>
-                  </td>
-                  <td className="px-3 py-3 text-[var(--color-muted)]">
-                    {user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleString() : 'Never'}
-                  </td>
-                  <td className="px-3 py-3">
-                    <span className="flex justify-end gap-2">
-                      <UiButton
-                        size="small"
-                        onClick={() => setEdit({
-                          user, role: user.role, modules: user.modules, newPassword: '',
-                        })}
-                      >
-                        Edit
-                      </UiButton>
-                      {user.id !== selfId && (
-                        <UiButton
-                          size="small"
-                          variant={user.status === 'active' ? 'danger' : 'secondary'}
-                          disabled={busy}
-                          onClick={() => toggleStatus(user)}
-                        >
-                          {user.status === 'active' ? 'Disable' : 'Enable'}
-                        </UiButton>
-                      )}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </UiPanel>
-
-      <UiDialog open={createOpen} onClose={() => setCreateOpen(false)} labelId="create-user-title">
-        <form onSubmit={submitCreate} className="grid gap-4 p-6">
-          <h2 id="create-user-title" className="text-base font-semibold text-[var(--color-ink)]">
-            Add a user
-          </h2>
-          {error && <UiAlert tone="critical">{error}</UiAlert>}
-          <UiField label="Name">
-            <input
-              required
-              value={create.name}
-              onChange={(e) => setCreate({ ...create, name: e.target.value })}
-            />
-          </UiField>
-          <UiField
-            label="Email"
-            hint={domainRestricted ? `Must be an @${emailDomain} address.` : undefined}
-          >
-            <input
-              type="email"
-              required
-              pattern={domainRestricted ? `.+@${emailDomain.replace(/\./g, '\\.')}` : undefined}
-              value={create.email}
-              onChange={(e) => setCreate({ ...create, email: e.target.value })}
-            />
-          </UiField>
-          <UiField label="Temporary password" hint="At least 8 characters. Share it directly; they can change it after signing in.">
-            <input
-              type="text"
-              required
-              minLength={8}
-              value={create.password}
-              onChange={(e) => setCreate({ ...create, password: e.target.value })}
-            />
-          </UiField>
-          <UiField label="Role">
-            <select
-              value={create.role}
-              onChange={(e) => setCreate({ ...create, role: e.target.value as UserRole })}
-            >
-              {ROLES.map((role) => <option key={role} value={role}>{role}</option>)}
-            </select>
-          </UiField>
-          <ModulePicker
-            moduleNames={moduleNames}
-            selected={create.modules}
-            onToggle={(name) => setCreate({ ...create, modules: toggleModule(create.modules, name) })}
-          />
-          <div className="flex justify-end gap-2">
-            <UiButton type="button" variant="ghost" onClick={() => setCreateOpen(false)}>Cancel</UiButton>
-            <UiButton type="submit" variant="primary" state={busy ? 'loading' : 'default'}>Create</UiButton>
-          </div>
-        </form>
-      </UiDialog>
-
-      <UiDialog open={edit !== null} onClose={() => setEdit(null)} labelId="edit-user-title">
-        {edit && (
-          <form onSubmit={submitEdit} className="grid gap-4 p-6">
-            <h2 id="edit-user-title" className="text-base font-semibold text-[var(--color-ink)]">
-              Edit {edit.user.name}
-            </h2>
-            {error && <UiAlert tone="critical">{error}</UiAlert>}
-            {edit.user.id === selfId ? (
-              <p className="text-sm text-[var(--color-muted)]">
-                You cannot change your own role or status. Ask another admin.
-              </p>
-            ) : (
-              <UiField label="Role">
-                <select
-                  value={edit.role}
-                  onChange={(e) => setEdit({ ...edit, role: e.target.value as UserRole })}
-                >
-                  {ROLES.map((role) => <option key={role} value={role}>{role}</option>)}
-                </select>
-              </UiField>
-            )}
-            <ModulePicker
-              moduleNames={moduleNames}
-              selected={edit.modules}
-              onToggle={(name) => setEdit({ ...edit, modules: toggleModule(edit.modules, name) })}
-            />
-            <UiField label="Reset password" hint="Leave empty to keep the current password. Any change signs them out everywhere.">
-              <input
-                type="text"
-                minLength={8}
-                value={edit.newPassword}
-                onChange={(e) => setEdit({ ...edit, newPassword: e.target.value })}
-              />
-            </UiField>
-            <div className="flex justify-end gap-2">
-              <UiButton type="button" variant="ghost" onClick={() => setEdit(null)}>Cancel</UiButton>
-              <UiButton type="submit" variant="primary" state={busy ? 'loading' : 'default'}>Save</UiButton>
-            </div>
-          </form>
-        )}
-      </UiDialog>
-    </main>
+  const rowFor = (user: UserListRow) => (
+    <div key={user.id} className="st-list-row">
+      <span className="mb-avatar" aria-hidden="true">{user.name.split(/\s+/).map((p) => p[0]).join('').slice(0, 2).toUpperCase()}</span>
+      <span className="st-list-text">
+        <strong>{user.name}{user.id === selfId && <span className="lf-dim"> · you</span>}</strong>
+        <span>{user.email} · {user.lastLoginAt ? `signed in ${timeAgo(user.lastLoginAt)}` : 'never signed in'}</span>
+      </span>
+      <span className="mb-access">{user.modules.length ? user.modules.map((m) => MODULE_LABELS[m] ?? m).join(', ') : 'All modules'}</span>
+      <Chip tone={user.role === 'admin' ? 'blue' : user.role === 'member' ? 'green' : 'grey'}>{ROLE_INFO[user.role].label}</Chip>
+      <button type="button" className="lf-btn lf-btn-ghost" onClick={() => { setError(''); setEdit({ user, role: user.role, modules: user.modules, newPassword: '' }); }}>Edit</button>
+    </div>
   );
-}
 
-function ModulePicker({
-  moduleNames,
-  selected,
-  onToggle,
-}: {
-  moduleNames: string[];
-  selected: string[];
-  onToggle: (name: string) => void;
-}) {
   return (
-    <fieldset className="grid gap-2">
-      <legend className="ui-field-label">Module access</legend>
-      <p className="text-xs text-[var(--color-muted)]">
-        Leave all unchecked for full access. Checking any restricts the user to those modules.
-      </p>
-      <div className="flex flex-wrap gap-3">
-        {moduleNames.map((name) => (
-          <label key={name} className="flex items-center gap-1.5 text-sm text-[var(--color-ink)]">
-            <input
-              type="checkbox"
-              checked={selected.includes(name)}
-              onChange={() => onToggle(name)}
-            />
-            {name}
-          </label>
-        ))}
+    <main className="lf-page">
+      <div className="st">
+        <SettingsHeader
+          title="Members"
+          description="Who can sign in, what they can do, and which modules they can open."
+          actions={<button type="button" className="lf-btn lf-btn-primary" onClick={() => { setError(''); setInvite({ name: '', email: '', password: '', role: 'member', modules: [] }); }}><Icon name="plus" />Add member</button>}
+        />
+        <div className="st-stack">
+          {error && !invite && !edit && <p className="lf-error">{error}</p>}
+          <Card title={`Active · ${active.length}`}>{active.map(rowFor)}</Card>
+          {disabled.length > 0 && <Card title={`Disabled · ${disabled.length}`} description="They cannot sign in. Enable them again from Edit.">{disabled.map(rowFor)}</Card>}
+        </div>
       </div>
-    </fieldset>
+
+      {invite && (
+        <Modal open onClose={() => setInvite(null)} icon="person" title="Add member" wide footer={(
+          <>
+            <span className="lf-grow">{error}</span>
+            <button type="button" className="lf-btn lf-btn-ghost" onClick={() => setInvite(null)}>Cancel</button>
+            <button type="button" className="lf-btn lf-btn-primary" data-busy={busy} disabled={!invite.name || !invite.email || invite.password.length < 8} onClick={async () => {
+              if (await call('/api/settings/users', 'POST', invite)) setInvite(null);
+            }}>Add member</button>
+          </>
+        )}>
+          <div className="lf-grid-2">
+            <label className="lf-field"><span>Name</span><input id="inv-name" value={invite.name} onChange={(e) => setInvite({ ...invite, name: e.target.value })} autoFocus /></label>
+            <label className="lf-field"><span>Email</span><input id="inv-email" type="email" value={invite.email} onChange={(e) => setInvite({ ...invite, email: e.target.value })} placeholder={domainRestricted ? `name@${emailDomain}` : ''} />{domainRestricted && <small>Must be an @{emailDomain} address.</small>}</label>
+          </div>
+          <label className="lf-field"><span>Temporary password</span><input id="inv-pw" value={invite.password} onChange={(e) => setInvite({ ...invite, password: e.target.value })} /><small>At least 8 characters. Share it with them directly; they can change it after signing in.</small></label>
+          <div className="lf-field"><span>Role</span>
+            <Segmented<UserRole> label="Role" value={invite.role} onChange={(v) => setInvite({ ...invite, role: v })} options={(Object.keys(ROLE_INFO) as UserRole[]).map((r) => ({ id: r, label: ROLE_INFO[r].label }))} />
+            <small>{ROLE_INFO[invite.role].detail}</small>
+          </div>
+          <div className="lf-field"><span>Access</span><Access moduleNames={moduleNames} selected={invite.modules} onChange={(m) => setInvite({ ...invite, modules: m })} /></div>
+        </Modal>
+      )}
+
+      {edit && (
+        <Modal open onClose={() => setEdit(null)} icon="person" title={edit.user.name} wide footer={(
+          <>
+            <span className="lf-grow">{error}</span>
+            <button type="button" className="lf-btn lf-btn-ghost" onClick={() => setEdit(null)}>Cancel</button>
+            <button type="button" className="lf-btn lf-btn-primary" data-busy={busy} onClick={async () => {
+              const body: Record<string, unknown> = { modules: edit.modules };
+              if (edit.user.id !== selfId) body.role = edit.role;
+              if (edit.newPassword) body.password = edit.newPassword;
+              if (await call(`/api/settings/users/${edit.user.id}`, 'PATCH', body)) setEdit(null);
+            }}>Save</button>
+          </>
+        )}>
+          <p className="lf-note">{edit.user.email}</p>
+          {edit.user.id === selfId ? <p className="lf-note">You cannot change your own role or status. Ask another admin.</p> : (
+            <div className="lf-field"><span>Role</span>
+              <Segmented<UserRole> label="Role" value={edit.role} onChange={(v) => setEdit({ ...edit, role: v })} options={(Object.keys(ROLE_INFO) as UserRole[]).map((r) => ({ id: r, label: ROLE_INFO[r].label }))} />
+              <small>{ROLE_INFO[edit.role].detail}</small>
+            </div>
+          )}
+          <div className="lf-field"><span>Access</span><Access moduleNames={moduleNames} selected={edit.modules} onChange={(m) => setEdit({ ...edit, modules: m })} /></div>
+          <label className="lf-field"><span>Reset password</span><input id="ed-pw" value={edit.newPassword} onChange={(e) => setEdit({ ...edit, newPassword: e.target.value })} /><small>Leave empty to keep it. A change signs them out everywhere.</small></label>
+          {edit.user.id !== selfId && (
+            <div className="st-card" data-tone={edit.user.status === 'active' ? 'danger' : undefined}>
+              <div className="st-rows">
+                <Row label={edit.user.status === 'active' ? 'Disable this member' : 'Enable this member'} description={edit.user.status === 'active' ? 'They are signed out and cannot sign in. Their work stays.' : 'They can sign in again.'}>
+                  <button type="button" className={edit.user.status === 'active' ? 'lf-btn lf-btn-danger' : 'lf-btn'} disabled={busy} onClick={async () => {
+                    if (await call(`/api/settings/users/${edit.user.id}`, 'PATCH', { status: edit.user.status === 'active' ? 'disabled' : 'active' })) setEdit(null);
+                  }}>{edit.user.status === 'active' ? 'Disable' : 'Enable'}</button>
+                </Row>
+              </div>
+            </div>
+          )}
+        </Modal>
+      )}
+    </main>
   );
 }

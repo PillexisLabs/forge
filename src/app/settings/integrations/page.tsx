@@ -1,6 +1,7 @@
 import { headers } from 'next/headers';
 import AccessNotice from '@/components/AccessNotice';
 import IntegrationsPanel from '@/components/settings/IntegrationsPanel';
+import SettingsHeader from '@/components/settings/SettingsHeader';
 import { timeAgo } from '@/components/lf/format';
 import { listIntegrations } from '@/core/integrations';
 import { recentInbound, SOURCE_LABELS } from '@/core/intake';
@@ -9,6 +10,8 @@ import { getSessionUserFromCookies } from '@/core/session';
 import { getSql } from '@/core/db';
 
 export const dynamic = 'force-dynamic';
+
+const casePathFor = (ref: string) => (ref.startsWith('SO-') ? `/orders?show=all&open=${ref}` : ref.startsWith('PO-') ? `/purchasing?view=all&open=${ref}` : `/sales?show=all&open=${ref}`);
 
 export default async function IntegrationsPage() {
   const user = await getSessionUserFromCookies();
@@ -34,9 +37,8 @@ export default async function IntegrationsPage() {
 
   return (
     <main className="lf-page">
-      <div className="lf-settings">
-        <h1>Integrations</h1>
-        <p>Where enquiries come from and how Forge replies. Messages from every source become quotes on their own.</p>
+      <div className="st st-stack">
+        <SettingsHeader title="Integrations" description="Where enquiries come from and how Forge replies. Messages from every source become quotes on their own." />
         <IntegrationsPanel
           rows={safe as never}
           whatsappEnv={{
@@ -47,21 +49,19 @@ export default async function IntegrationsPage() {
           intakeUrl={`${base}/api/intake/webhook`}
         />
 
-        <section className="lf-form-section">
-          <h2>Latest messages</h2>
-          <p>Everything the integrations received, newest first.</p>
-          {recent.length === 0 ? <p className="lf-none" style={{ marginTop: '0.75rem' }}>Nothing received yet.</p> : (
-            <div className="lf-tasks" style={{ marginTop: '0.75rem' }}>
-              {recent.map((m) => (
-                <a key={m.id} className="lf-task" href={m.case_id && refs.get(Number(m.case_id)) ? `/sales?show=all&open=${refs.get(Number(m.case_id))}` : '#'}>
-                  <span className="lf-chip">{SOURCE_LABELS[m.source]}</span>
-                  <span className="lf-grow">{m.from_name ?? m.from_phone ?? m.from_email ?? 'Unknown'}: {m.body.replace(/\s+/g, ' ').slice(0, 90)}</span>
-                  <span className="lf-dim">{m.case_id ? refs.get(Number(m.case_id)) : m.note ?? 'Not handled yet'}</span>
-                  <span className="lf-dim">{timeAgo(m.received_at)}</span>
-                </a>
-              ))}
-            </div>
-          )}
+        <section className="st-card">
+          <header className="st-card-head"><h2>Latest messages</h2><p>Everything the integrations received, newest first.</p></header>
+          <div className="st-rows">
+            {recent.length === 0 && <p className="st-empty">Nothing received yet.</p>}
+            {recent.map((m) => (
+              <a key={m.id} className="st-list-row st-link-row" href={m.case_id && refs.get(Number(m.case_id)) ? casePathFor(refs.get(Number(m.case_id))!) : '#'}>
+                <span className="lf-chip">{SOURCE_LABELS[m.source]}</span>
+                <span className="st-list-text"><strong>{m.from_name ?? m.from_phone ?? m.from_email ?? 'Unknown'}</strong><span>{m.body.replace(/\s+/g, ' ').slice(0, 110)}</span></span>
+                <span className="lf-dim">{m.case_id ? refs.get(Number(m.case_id)) : m.note ?? 'Not handled yet'}</span>
+                <span className="lf-dim">{timeAgo(m.received_at)}</span>
+              </a>
+            ))}
+          </div>
         </section>
       </div>
     </main>

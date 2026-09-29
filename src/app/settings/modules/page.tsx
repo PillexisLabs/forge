@@ -1,4 +1,5 @@
 import AccessNotice from '@/components/AccessNotice';
+import SettingsHeader from '@/components/settings/SettingsHeader';
 import ModulesForm from '@/components/settings/ModulesForm';
 import { enabledModuleNames, switchedOffModules } from '@/core/modules';
 import { hasPermission } from '@/core/permissions';
@@ -21,9 +22,8 @@ export default async function ModulesPage() {
   }));
   return (
     <main className="lf-page">
-      <div className="lf-settings">
-        <h1>Modules</h1>
-        <p>Choose what this workspace shows. Changes apply at once, with no restart. Switched-off modules keep their data and keep receiving messages.</p>
+      <div className="st">
+        <SettingsHeader title="Modules" description="Choose what this workspace shows, with no restart. Use a preset, or switch modules one by one and save." />
         <ModulesForm modules={modules} />
       </div>
     </main>

@@ -75,14 +75,21 @@ export default function WorkspaceChrome({
     groups.push({ id: mod.name, label: mod.navLabel ?? mod.name, items: mod.nav });
   }
 
-  const settingsItems: ForgeNavItem[] = [
-    { id: 'integrations', label: 'Integrations', icon: 'plug', href: '/settings/integrations' },
-    ...(allowed.some((m) => m.name === 'sales') ? [{ id: 'sales-rules', label: 'Sales rules', icon: 'sliders', href: '/settings/sales-rules' }] : []),
-    ...(allowed.some((m) => m.name === 'orders') ? [{ id: 'orders-payments', label: 'Orders & payments', icon: 'order', href: '/settings/orders' }] : []),
-    { id: 'modules', label: 'Modules', icon: 'stock', href: '/settings/modules' },
-    { id: 'appearance', label: 'Appearance', icon: 'sliders', href: '/settings/appearance' },
-    { id: 'users', label: 'Members', icon: 'users', href: '/settings/users' },
-  ];
+  // Settings, grouped by what people look for (research: named groups keep the current section obvious).
+  const has = (name: string) => allowed.some((m) => m.name === name);
+  const settingsGroups: { label: string; items: ForgeNavItem[] }[] = [
+    { label: 'Connections', items: [{ id: 'integrations', label: 'Integrations', icon: 'plug', href: '/settings/integrations' }] },
+    { label: 'Sales & orders', items: [
+      ...(has('sales') ? [{ id: 'sales-rules', label: 'Sales rules', icon: 'sliders', href: '/settings/sales-rules' }] : []),
+      ...(has('orders') ? [{ id: 'orders-payments', label: 'Orders & payments', icon: 'order', href: '/settings/orders' }] : []),
+    ] },
+    { label: 'Workspace', items: [
+      { id: 'users', label: 'Members', icon: 'users', href: '/settings/users' },
+      { id: 'modules', label: 'Modules', icon: 'stock', href: '/settings/modules' },
+      { id: 'appearance', label: 'Appearance', icon: 'edit', href: '/settings/appearance' },
+    ] },
+  ].filter((g) => g.items.length);
+  const settingsItems: ForgeNavItem[] = settingsGroups.flatMap((g) => g.items);
 
   function isActive(item: ForgeNavItem): boolean {
     const [path, query] = item.href.split('?');
@@ -118,15 +125,17 @@ export default function WorkspaceChrome({
               <span>Settings</span>
             </Link>
             <nav className="side-nav">
-              <div className="side-group">
-                <p className="side-label">Workspace</p>
-                {settingsItems.map((item) => (
-                  <Link key={item.id} href={item.href} className="side-item" aria-current={isActive(item) ? 'page' : undefined}>
-                    <NavIcon icon={item.icon} />
-                    <span>{item.label}</span>
-                  </Link>
-                ))}
-              </div>
+              {settingsGroups.map((group) => (
+                <div key={group.label} className="side-group">
+                  <p className="side-label">{group.label}</p>
+                  {group.items.map((item) => (
+                    <Link key={item.id} href={item.href} className="side-item" aria-current={isActive(item) ? 'page' : undefined}>
+                      <NavIcon icon={item.icon} />
+                      <span>{item.label}</span>
+                    </Link>
+                  ))}
+                </div>
+              ))}
             </nav>
           </>
         ) : (
@@ -154,7 +163,7 @@ export default function WorkspaceChrome({
 
         <div className="side-foot">
           {isAdmin && !settingsMode && (
-            <Link href="/settings/integrations" className="side-item">
+            <Link href="/settings" className="side-item">
               <Icon name="settings" />
               <span>Settings</span>
             </Link>
@@ -178,7 +187,7 @@ export default function WorkspaceChrome({
           </Link>
         ))}
         {isAdmin && !settingsMode && (
-          <Link href="/settings/integrations">
+          <Link href="/settings">
             <Icon name="settings" />
             <span>Settings</span>
           </Link>

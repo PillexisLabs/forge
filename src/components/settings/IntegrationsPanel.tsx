@@ -41,27 +41,30 @@ export default function IntegrationsPanel({
 }) {
   const [open, setOpen] = useState<Id | null>(null);
   return (
-    <div className="lf-settings-list">
+    <section className="st-card">
+      <header className="st-card-head"><h2>Connections</h2><p>Each source turns messages into enquiries. Forge replies on the same channel.</p></header>
+      <div className="st-rows">
       {(Object.keys(INFO) as Id[]).map((id) => {
         const row = rows[id];
         const status = statusOf(id, row);
         return (
-          <div key={id} className="lf-connector">
+          <div key={id} className="st-list-row">
             <span className="lf-connector-logo" data-kind={id}><Icon name={INFO[id].icon} size={18} /></span>
-            <span className="lf-connector-text">
+            <span className="st-list-text">
               <strong>{INFO[id].name}</strong>
               <span>{INFO[id].line}</span>
             </span>
             <span className="lf-status" data-status={status.key}>{status.label}{row.lastActivity ? ` · ${row.lastActivity}` : ''}</span>
-            <button type="button" className="lf-btn" onClick={() => setOpen(id)}>{row.enabled ? 'Manage' : 'Connect'}</button>
+            <button type="button" className={row.enabled ? 'lf-btn lf-btn-ghost' : 'lf-btn'} onClick={() => setOpen(id)}>{row.enabled ? 'Manage' : 'Connect'}</button>
           </div>
         );
       })}
+      </div>
       {open === 'whatsapp' && <WhatsAppModal row={rows.whatsapp} env={whatsappEnv} webhookUrl={webhookUrl} onClose={() => setOpen(null)} />}
       {open === 'sheets' && <SheetsModal row={rows.sheets} onClose={() => setOpen(null)} />}
       {open === 'webhook' && <WebhookModal row={rows.webhook} intakeUrl={intakeUrl} onClose={() => setOpen(null)} />}
       {open === 'email' && <EmailModal row={rows.email} onClose={() => setOpen(null)} />}
-    </div>
+    </section>
   );
 }
 

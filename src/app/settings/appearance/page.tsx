@@ -1,4 +1,5 @@
 import AccessNotice from '@/components/AccessNotice';
+import SettingsHeader from '@/components/settings/SettingsHeader';
 import AppearanceForm from '@/components/settings/AppearanceForm';
 import { getAppearance } from '@/core/appearance';
 import { hasPermission } from '@/core/permissions';
@@ -11,9 +12,8 @@ export default async function AppearancePage() {
   if (!user || !hasPermission(user, 'core:config')) return <AccessNotice area="Settings" />;
   return (
     <main className="lf-page">
-      <div className="lf-settings">
-        <h1>Appearance</h1>
-        <p>The brand color and text size for everyone in this workspace.</p>
+      <div className="st">
+        <SettingsHeader title="Appearance" description="The brand color and text size for everyone in this workspace." />
         <AppearanceForm appearance={await getAppearance()} />
       </div>
     </main>

@@ -3,77 +3,80 @@
 import { useState } from 'react';
 import { useAction } from '@/components/lf/useAction';
 import type { SalesRules } from '@/modules/sales/sales-settings';
+import { Affix, Card, digits, Row, SaveBar, Segmented, Switch } from './kit';
+
+type Form = {
+  approvalMode: 'above' | 'always';
+  approvalLimitRupees: string;
+  autoDraft: boolean;
+  autoSend: boolean;
+  freightLocalRupees: string;
+  freightOutstationRupees: string;
+  localPinPrefixes: string;
+  quoteValidDays: string;
+  businessName: string;
+  businessAddress: string;
+  businessGstin: string;
+};
+
+function toForm(r: SalesRules): Form {
+  return {
+    approvalMode: r.approvalMode, approvalLimitRupees: String(r.approvalLimitRupees), autoDraft: r.autoDraft, autoSend: r.autoSend,
+    freightLocalRupees: String(r.freightLocalRupees), freightOutstationRupees: String(r.freightOutstationRupees),
+    localPinPrefixes: r.localPinPrefixes.join(', '), quoteValidDays: String(r.quoteValidDays),
+    businessName: r.businessName, businessAddress: r.businessAddress, businessGstin: r.businessGstin,
+  };
+}
 
 export default function SalesRulesForm({ rules }: { rules: SalesRules }) {
-  const { post, busy, error } = useAction();
+  const [base, setBase] = useState(() => toForm(rules));
+  const [f, setF] = useState(base);
   const [saved, setSaved] = useState(false);
-  const [mode, setMode] = useState(rules.approvalMode);
-
-  async function submit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setSaved(false);
-    const form = new FormData(event.currentTarget);
-    const body = Object.fromEntries(form.entries());
-    const ok = await post('save', '/api/settings/sales-rules', {
-      ...body,
-      autoDraft: form.get('autoDraft') === 'on',
-      autoSend: form.get('autoSend') === 'on',
-    });
-    if (ok) setSaved(true);
-  }
+  const { post, busy, error } = useAction();
+  const set = (patch: Partial<Form>) => { setF({ ...f, ...patch }); setSaved(false); };
+  const dirty = JSON.stringify(f) !== JSON.stringify(base);
 
   return (
-    <form onSubmit={submit} onChange={() => setSaved(false)}>
-      <section className="lf-form-section">
-        <h2>Approval</h2>
-        <p>Which quotes an approver must see before Forge sends them.</p>
-        <div className="lf-form-grid">
-          <label className="lf-check"><input type="radio" name="approvalMode" value="above" checked={mode === 'above'} onChange={() => setMode('above')} />
-            <span>Only quotes above a limit<small>A person still checks every quote Forge drafts. Quotes above the limit also need an approver.</small></span></label>
-          <label className="lf-check"><input type="radio" name="approvalMode" value="always" checked={mode === 'always'} onChange={() => setMode('always')} />
-            <span>Every quote</span></label>
-          <label className="lf-field" style={{ maxWidth: '16rem' }}><span>Approval limit (₹, total with GST and freight)</span>
-            <input id="sr-limit" name="approvalLimitRupees" inputMode="numeric" defaultValue={rules.approvalLimitRupees} disabled={mode === 'always'} /></label>
-        </div>
-      </section>
+    <div className="st-stack">
+      <Card title="Approval" description="Who must approve a quote before Forge sends it. A person always checks drafts that Forge prepares.">
+        <Row label="Approval needed for">
+          <Segmented label="Approval needed for" value={f.approvalMode} onChange={(v) => set({ approvalMode: v })} options={[{ id: 'above', label: 'Above a limit' }, { id: 'always', label: 'Every quote' }]} />
+        </Row>
+        <Row label="Approval limit" description="Total with GST and freight. Quotes above it go to an admin." htmlFor="sr-limit" disabled={f.approvalMode === 'always'}>
+          <Affix before="₹"><input id="sr-limit" inputMode="numeric" value={f.approvalLimitRupees} disabled={f.approvalMode === 'always'} onChange={(e) => set({ approvalLimitRupees: digits(e.target.value) })} /></Affix>
+        </Row>
+      </Card>
 
-      <section className="lf-form-section">
-        <h2>Automation</h2>
-        <p>What Forge does without a click.</p>
-        <div className="lf-form-grid">
-          <label className="lf-check"><input type="checkbox" name="autoDraft" defaultChecked={rules.autoDraft} />
-            <span>Draft quotes from messages<small>Forge matches the items and quantities to the catalogue, or asks the buyer for what is missing.</small></span></label>
-          <label className="lf-check"><input type="checkbox" name="autoSend" defaultChecked={rules.autoSend} />
-            <span>Send approved quotes<small>Forge sends the quote and the PDF on WhatsApp or email when the buyer can receive it.</small></span></label>
-        </div>
-      </section>
+      <Card title="Automation" description="What Forge does without a click.">
+        <Row label="Draft quotes from messages" description="Forge matches the items and quantities to your catalogue, or asks the buyer for what is missing.">
+          <Switch id="sr-draft" label="Draft quotes from messages" checked={f.autoDraft} onChange={(v) => set({ autoDraft: v })} />
+        </Row>
+        <Row label="Send approved quotes" description="Forge sends the quote and its PDF on WhatsApp or email when the buyer can receive it.">
+          <Switch id="sr-send" label="Send approved quotes" checked={f.autoSend} onChange={(v) => set({ autoSend: v })} />
+        </Row>
+      </Card>
 
-      <section className="lf-form-section">
-        <h2>Freight and validity</h2>
-        <div className="lf-form-grid">
-          <div className="lf-grid-2">
-            <label className="lf-field"><span>Local freight (₹)</span><input id="sr-local" name="freightLocalRupees" inputMode="numeric" defaultValue={rules.freightLocalRupees} /></label>
-            <label className="lf-field"><span>Outstation freight (₹)</span><input id="sr-out" name="freightOutstationRupees" inputMode="numeric" defaultValue={rules.freightOutstationRupees} /></label>
-            <label className="lf-field"><span>Local pincodes start with</span><input id="sr-pins" name="localPinPrefixes" defaultValue={rules.localPinPrefixes.join(', ')} /><small>For example 56, 57 for Karnataka.</small></label>
-            <label className="lf-field"><span>Quote valid for (days)</span><input id="sr-valid" name="quoteValidDays" inputMode="numeric" defaultValue={rules.quoteValidDays} /></label>
-          </div>
-        </div>
-      </section>
+      <Card title="Freight and validity" description="Freight is added by pincode. Quotes carry their validity date.">
+        <Row label="Local freight" htmlFor="sr-local"><Affix before="₹"><input id="sr-local" inputMode="numeric" value={f.freightLocalRupees} onChange={(e) => set({ freightLocalRupees: digits(e.target.value) })} /></Affix></Row>
+        <Row label="Outstation freight" htmlFor="sr-out"><Affix before="₹"><input id="sr-out" inputMode="numeric" value={f.freightOutstationRupees} onChange={(e) => set({ freightOutstationRupees: digits(e.target.value) })} /></Affix></Row>
+        <Row label="Local pincodes start with" description="Separate with commas. For example 56, 57 for Karnataka." htmlFor="sr-pins"><input id="sr-pins" className="st-text" value={f.localPinPrefixes} onChange={(e) => set({ localPinPrefixes: e.target.value })} /></Row>
+        <Row label="Quote validity" htmlFor="sr-valid"><Affix after="days"><input id="sr-valid" inputMode="numeric" value={f.quoteValidDays} onChange={(e) => set({ quoteValidDays: digits(e.target.value) })} /></Affix></Row>
+      </Card>
 
-      <section className="lf-form-section">
-        <h2>On the quote</h2>
-        <div className="lf-form-grid">
-          <label className="lf-field"><span>Business name</span><input id="sr-name" name="businessName" defaultValue={rules.businessName} required /></label>
-          <label className="lf-field"><span>Address</span><input id="sr-address" name="businessAddress" defaultValue={rules.businessAddress} /></label>
-          <label className="lf-field" style={{ maxWidth: '16rem' }}><span>GSTIN</span><input id="sr-gstin" name="businessGstin" defaultValue={rules.businessGstin} /></label>
-        </div>
-      </section>
+      <Card title="Business details" description="Printed on every quote, order confirmation and invoice.">
+        <Row label="Business name" htmlFor="sr-name"><input id="sr-name" className="st-text" value={f.businessName} onChange={(e) => set({ businessName: e.target.value })} /></Row>
+        <Row label="Address" htmlFor="sr-address"><input id="sr-address" className="st-text" value={f.businessAddress} onChange={(e) => set({ businessAddress: e.target.value })} /></Row>
+        <Row label="GSTIN" description="Needed for GST tax invoices." htmlFor="sr-gstin"><input id="sr-gstin" className="st-text" value={f.businessGstin} maxLength={15} onChange={(e) => set({ businessGstin: e.target.value.toUpperCase() })} /></Row>
+      </Card>
 
-      <div className="lf-form-section" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-        <button type="submit" className="lf-btn lf-btn-primary" data-busy={busy === 'save'}>Save rules</button>
-        {saved && <span className="lf-saved">Saved. New quotes use these rules.</span>}
-        {error && <span className="lf-error">{error}</span>}
-      </div>
-    </form>
+      <SaveBar
+        dirty={dirty} busy={busy === 'save'} error={error} saved={saved}
+        onDiscard={() => setF(base)}
+        onSave={async () => {
+          const ok = await post('save', '/api/settings/sales-rules', { ...f });
+          if (ok) { setBase(f); setSaved(true); }
+        }}
+      />
+    </div>
   );
 }
