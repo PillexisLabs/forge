@@ -56,9 +56,9 @@ test('actor kinds: an order is created only by the rule, and no step accepts an 
 
 test('the case screen offers only the steps the user can run now', () => {
   const member = availableSteps(quoteJob, 'awaiting_approval', user('member')).map((s) => s.name);
-  assert.deepEqual(member.sort(), ['addMessage', 'markHandled', 'markLost']);
+  assert.deepEqual(member.sort(), ['addMessage', 'markHandled', 'markLost', 'sendReply']);
   const admin = availableSteps(quoteJob, 'awaiting_approval', user('admin')).map((s) => s.name);
-  assert.deepEqual(admin.sort(), ['addMessage', 'approveQuote', 'markHandled', 'markLost', 'returnQuote']);
+  assert.deepEqual(admin.sort(), ['addMessage', 'approveQuote', 'markHandled', 'markLost', 'returnQuote', 'sendReply']);
 });
 
 test('rules may draft, send and accept, but never approve', () => {
