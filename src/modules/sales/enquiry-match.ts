@@ -15,7 +15,10 @@ export type EnquiryMatch = {
   unmatched: string[];
 };
 
-const UNIT_WORDS = '(?:ml|ltr|litre|liter|l|kg|kgs|g|gm|gram|grams|micron|microns|mm|colou?r|colou?rs|layer|layers)';
+// A size and its unit ("250 ml", "12 micron"). Keep this a regex literal: the
+// production minifier turned the earlier template-string RegExp's "\b" into a
+// backspace character, so sizes never joined and nothing matched on a server.
+const SIZE_UNIT = /(\d+(?:\.\d+)?)\s*(ml|ltr|litre|liter|l|kg|kgs|g|gm|gram|grams|micron|microns|mm|colou?r|colou?rs|layer|layers)\b/g;
 const QTY_UNITS = /^(?:pcs|pc|pieces|piece|nos|no|units|bags|rolls|pouches|boxes)\b/;
 const STOP = new Set(['need', 'want', 'wants', 'please', 'send', 'rate', 'rates', 'price', 'quote', 'the', 'for', 'of', 'a', 'an', 'hi', 'hello', 'sir', 'madam', 'required', 'requirement', 'about', 'with', 'print', 'printed', 'same', 'as', 'last', 'time', 'our', 'new', 'line', 'your', 'best', 'what', 'is', 'are', 'to', 'and', 'in', 'on', 'we', 'i', 'me', 'my', 'pcs', 'pieces', 'nos']);
 const NUMBER_WORDS: Record<string, string> = { one: '1', two: '2', three: '3', four: '4', five: '5', six: '6' };
@@ -34,7 +37,7 @@ export function normalize(text: string): string {
     .replace(/\b(one|two|three|four|five|six)\s+(colou?rs?)\b/g, (_, n, u) => `${NUMBER_WORDS[n]} ${u}`)
     .replace(/(\d),(?=\d{2,3}\b)/g, '$1')             // 5,000 / 1,00,000 → digits
     .replace(/(\d),(?=\d{2,3}\b)/g, '$1');
-  t = t.replace(new RegExp(`(\\d+(?:\\.\\d+)?)\\s*(${UNIT_WORDS})\\b`, 'g'), (_, n, u) => {
+  t = t.replace(SIZE_UNIT, (_, n, u) => {
     const unit = u.startsWith('colo') ? 'colour' : u.startsWith('micron') ? 'micron' : ['ltr', 'litre', 'liter'].includes(u) ? 'l' : ['kgs'].includes(u) ? 'kg' : ['gm', 'gram', 'grams'].includes(u) ? 'g' : u.startsWith('layer') ? 'layer' : u;
     return ` ${n}${unit} `;
   });
