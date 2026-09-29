@@ -57,7 +57,8 @@ export default async function SalesPage({ searchParams }: { searchParams: { show
       <PageBar
         icon="quote"
         title="Quotes"
-        views={[{ label: 'Open', href: '/sales', current: !showAll }, { label: 'All', href: '/sales?show=all', current: showAll }]}
+        description="Enquiries from WhatsApp, Google Sheets, the webhook and email. Forge drafts each quote; you check and approve it."
+        views={[{ label: 'Open', href: '/sales', current: !showAll, count: showAll ? undefined : rows.length }, { label: 'All', href: '/sales?show=all', current: showAll, count: showAll ? rows.length : undefined }]}
         actions={hasPermission(user, 'sales:write') ? <NewEnquiryButton /> : undefined}
       />
       {rows.length === 0 ? (

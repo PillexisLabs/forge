@@ -1,5 +1,6 @@
 import './globals.css';
 import type { Metadata } from 'next';
+import { Noto_Sans } from 'next/font/google';
 import type { Viewport } from 'next';
 import { Suspense, type ReactNode } from 'react';
 import PwaRegistration from '@/components/PwaRegistration';
@@ -30,6 +31,9 @@ export const viewport: Viewport = {
   viewportFit: 'cover',
 };
 
+// Pillexis design system typeface.
+const noto = Noto_Sans({ subsets: ['latin'], weight: ['400', '500', '600', '700'], variable: '--font-noto', display: 'swap' });
+
 export const dynamic = 'force-dynamic';
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
@@ -42,7 +46,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     : null;
 
   return (
-    <html lang="en">
+    <html lang="en" className={noto.variable}>
       <body className="min-h-screen antialiased">
         <PwaRegistration />
         <Suspense fallback={children}>

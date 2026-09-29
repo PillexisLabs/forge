@@ -123,7 +123,8 @@ export default async function OrdersPage({ searchParams }: { searchParams: { sho
 
   return (
     <main className="lf-page">
-      <PageBar icon="order" title="Orders" views={[{ label: 'Open', href: '/orders', current: !showAll }, { label: 'All', href: '/orders?show=all', current: showAll }]} />
+      <PageBar icon="order" title="Orders" description="Orders made from accepted quotes, with the same items and prices. Confirmed orders hold stock until dispatch."
+        views={[{ label: 'Open', href: '/orders', current: !showAll, count: showAll ? undefined : rows.length }, { label: 'All', href: '/orders?show=all', current: showAll, count: showAll ? rows.length : undefined }]} />
       {rows.length === 0 ? (
         <div className="lf-empty"><strong>No {showAll ? '' : 'open '}orders</strong>An order appears here when a buyer accepts a quote.</div>
       ) : (

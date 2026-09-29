@@ -29,7 +29,7 @@ export default async function InventoryPage() {
 
   return (
     <main className="lf-page">
-      <PageBar icon="stock" title="Stock" actions={canWrite ? <><ImportModal /><ItemModal trigger="add" /></> : undefined} />
+      <PageBar icon="stock" title="Stock" description="The catalogue Forge matches enquiries against, and one view of stock: on hand, committed, free and on the way." actions={canWrite ? <><ImportModal /><ItemModal trigger="add" /></> : undefined} />
       {products.length === 0 ? (
         <div className="lf-empty"><strong>No items yet</strong>Add items one by one, or import them from a CSV. Quotes use these names and rates.</div>
       ) : (

@@ -89,7 +89,6 @@ export default async function UpNextPage() {
 
   return (
     <main className="lf-page">
-      <header className="lf-bar"><span className="lf-bar-title"><Icon name="upnext" />Up next</span></header>
       <div className="lf-upnext">
         <h1>{today}</h1>
         <p className="lf-upnext-sub">
