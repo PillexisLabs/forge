@@ -11,7 +11,7 @@
       <stop offset="1" stop-color="#90353B"/>
     </linearGradient>
   </defs>
-  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <rect width="1024" height="1024" rx="180" fill="url(#bg)"/>
   <rect x="380" y="506" width="270" height="132" rx="22" fill="#E8C1C3"/>
   <rect x="330" y="292" width="132" height="480" rx="22" fill="#FFFFFF"/>
   <rect x="330" y="292" width="386" height="132" rx="22" fill="#FFFFFF"/>

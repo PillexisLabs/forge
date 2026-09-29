@@ -20,6 +20,7 @@ export async function middleware(req: NextRequest) {
     pathname.startsWith('/icons/') ||
     pathname === '/manifest.webmanifest' ||
     pathname === '/forge-logo.png' ||
+    pathname.startsWith('/icon') ||
     pathname === '/apple-icon.png' ||
     pathname === '/sw.js'
   ) {

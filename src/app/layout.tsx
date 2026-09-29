@@ -16,7 +16,7 @@ export const metadata: Metadata = {
   description: 'Pillexis marketing analytics and client follow-up workspace.',
   manifest: '/manifest.webmanifest',
   icons: {
-    icon: [{ url: '/forge-logo.png', type: 'image/png', sizes: '1024x1024' }],
+    icon: [{ url: '/icon.svg', type: 'image/svg+xml' }, { url: '/favicon.ico', sizes: '48x48' }],
     apple: [{ url: '/apple-icon.png', sizes: '180x180', type: 'image/png' }],
   },
   appleWebApp: {
@@ -28,7 +28,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#fbfafc',
+  themeColor: '#ffffff',
   viewportFit: 'cover',
 };
 
