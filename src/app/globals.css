@@ -3498,3 +3498,16 @@ a.db-stat:hover { background: var(--ds-surface-subtle); }
 .lf-review[data-tone='red'] .lf-review-head .lf-icon { color: var(--ds-danger-text); }
 .st[data-wide='true'] { width: min(76rem, 100%); }
 @media (min-width: 1200px) { .st[data-wide='true'] .st-connectors { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+
+/* List pages fit the frame: the header and views stay put, and only the
+   list or table scrolls. Phones keep normal page scrolling. */
+@media (min-width: 901px) {
+  .forge-shell > .forge-main:has(> .lf-page > .lf-table-wrap, > .lf-page > .un2, > .lf-page > .db) { overflow: hidden; }
+  .forge-main .lf-page:has(> .lf-table-wrap, > .un2, > .db) { height: 100%; min-height: 0; }
+  .forge-main .lf-page:has(> .lf-table-wrap, > .un2, > .db) > * { flex: none; }
+  .forge-main .lf-page > .lf-table-wrap, .forge-main .lf-page > .un2, .forge-main .lf-page > .db { flex: 1 1 0; min-height: 0; overflow: auto; }
+  /* Settings: the title stays at the top while the cards scroll under it. */
+  .st > .st-head { position: sticky; top: 0; z-index: 5; margin-top: -2rem; padding-top: 2rem; padding-bottom: 1.25rem; margin-bottom: 0.25rem; background: var(--ds-elevated); border-bottom: 1px dashed var(--ds-border-subtle); }
+  .forge-main .lf-page > .lf-table-wrap { margin-bottom: 1.25rem; }
+  .un2-day h2 { position: sticky; top: 0; z-index: 1; margin: 0; padding: 0.5rem 0; background: var(--ds-elevated); }
+}
