@@ -302,11 +302,21 @@ function EmailModal({ row, onClose }: { row: Row; onClose: () => void }) {
 
       {step === 'forward' && provider && (
         <>
-          <div className="lf-field"><span>1. Copy your Forge address</span><CopyField value={forwardAddress} /></div>
-          <div className="lf-field">
-            <span>2. Turn on forwarding in {provider.name}</span>
-            <ol className="em-steps">{provider.forwardSteps.map((s) => <li key={s}>{s}</li>)}</ol>
-          </div>
+          {!status?.inboundReady && (
+            <div className="lf-review" data-tone="amber">
+              <div className="lf-review-head"><Icon name="plug" /><span className="lf-grow">Forwarding is not live on this server yet</span></div>
+              <div className="lf-review-body">This server has no inbound mail service, so a Forge address cannot receive mail. Do not add it in {provider.name}: the confirmation would never arrive. You can still try the whole flow with a test email below, or use the password option.</div>
+            </div>
+          )}
+          {status?.inboundReady && (
+            <>
+              <div className="lf-field"><span>1. Copy your Forge address</span><CopyField value={forwardAddress} /></div>
+              <div className="lf-field">
+                <span>2. Turn on forwarding in {provider.name}</span>
+                <ol className="em-steps">{provider.forwardSteps.map((s) => <li key={s}>{s}</li>)}</ol>
+              </div>
+            </>
+          )}
           {status?.verification && (
             <div className="lf-review" data-tone="amber">
               <div className="lf-review-head"><Icon name="mail" /><span className="lf-grow">{status.verification.provider} sent a confirmation{status.verification.code ? '. Paste this code in Gmail:' : '.'}</span></div>
@@ -314,15 +324,17 @@ function EmailModal({ row, onClose }: { row: Row; onClose: () => void }) {
               {status.verification.link && <div className="lf-review-body"><a className="lf-link" href={status.verification.link} target="_blank" rel="noreferrer">Open the confirmation link</a></div>}
             </div>
           )}
-          <div className="lf-field">
-            <span>3. Check it</span>
-            {status?.lastReceived
-              ? <p className="em-live" data-ok="true"><Icon name="check" />Received an email from {status.lastReceived.from}: “{status.lastReceived.subject}”. Forwarding works.</p>
-              : <p className="em-live"><span className="em-pulse" />Waiting for your first email. Send any email to {address} to test it.</p>}
-          </div>
+          {status?.inboundReady && (
+            <div className="lf-field">
+              <span>3. Check it</span>
+              {status?.lastReceived
+                ? <p className="em-live" data-ok="true"><Icon name="check" />Received an email from {status.lastReceived.from}: “{status.lastReceived.subject}”. Forwarding works.</p>
+                : <p className="em-live"><span className="em-pulse" />Waiting for your first email. Send any email to {address} to test it.</p>}
+            </div>
+          )}
           {!status?.inboundReady && (
             <div className="lf-review">
-              <div className="lf-review-head"><Icon name="plug" /><span className="lf-grow">This server has no inbound mail service yet, so real forwarded mail cannot arrive. Try it with a test email:</span></div>
+              <div className="lf-review-head"><Icon name="send" /><span className="lf-grow">Try it with a test email</span></div>
               <div className="lf-review-body lf-form-grid" style={{ marginTop: 0 }}>
                 <div className="lf-grid-2">
                   <label className="lf-field"><span>From name</span><input id="sim-name" value={sim.name} onChange={(e) => setSim({ ...sim, name: e.target.value })} /></label>
@@ -340,7 +352,7 @@ function EmailModal({ row, onClose }: { row: Row; onClose: () => void }) {
           <p className="lf-note">Replies go out as “your business via Forge”. When a buyer replies, the reply comes to {address}, and a copy of every reply lands in your inbox.</p>
           {(error || note) && <p className={error ? 'lf-error' : 'lf-saved'}>{error ?? note}</p>}
           <div className="lf-modal-foot" style={{ padding: 0 }}>
-            <a className="lf-btn lf-btn-ghost" href={`https://wa.me/?text=${encodeURIComponent(stepsText)}`} target="_blank" rel="noreferrer"><Icon name="whatsapp" />Send steps to someone</a>
+            {status?.inboundReady && <a className="lf-btn lf-btn-ghost" href={`https://wa.me/?text=${encodeURIComponent(stepsText)}`} target="_blank" rel="noreferrer"><Icon name="whatsapp" />Send steps to someone</a>}
             <span className="lf-grow" />
             <button type="button" className="lf-btn lf-btn-ghost" onClick={() => setStep('choose')}>Back</button>
             <button type="button" className="lf-btn lf-btn-primary" data-busy={busy} onClick={async () => {
