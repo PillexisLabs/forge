@@ -16,6 +16,8 @@ export type LineAvailability = {
   incoming: number;
   /** When the incoming stock that covers this line arrives, if known. */
   eta: string | null;
+  /** Quantity that other orders already hold beyond the stock on hand. */
+  backlog?: number;
   /** Quantity no stock or incoming stock covers. */
   shortBy: number;
 };
@@ -55,18 +57,22 @@ export type FreightRule = {
 
 /** Can the stock cover this quantity now, after incoming stock arrives, or not at all? */
 export function availabilityFor(quantity: number, product: Product): LineAvailability {
-  const free = Math.max(0, product.available);
-  if (quantity <= free) return { status: 'in_stock', free, incoming: product.incomingLocal + product.incomingImport, eta: null, shortBy: 0 };
-  const afterLocal = free + product.incomingLocal;
+  // Free stock can be negative: orders may already hold more than is on hand.
+  // Incoming stock covers that backlog first, so it is never promised twice.
+  const net = product.available;
+  const free = Math.max(0, net);
+  const incoming = product.incomingLocal + product.incomingImport;
+  if (quantity <= free) return { status: 'in_stock', free, incoming, eta: null, shortBy: 0, backlog: Math.max(0, -net) };
+  const afterLocal = net + product.incomingLocal;
   if (product.incomingLocal > 0 && quantity <= afterLocal) {
-    return { status: 'after_incoming', free, incoming: product.incomingLocal + product.incomingImport, eta: product.incomingLocalEta, shortBy: 0 };
+    return { status: 'after_incoming', free, incoming, eta: product.incomingLocalEta, shortBy: 0, backlog: Math.max(0, -net) };
   }
   const afterAll = afterLocal + product.incomingImport;
   if (product.incomingImport > 0 && quantity <= afterAll) {
     const etas = [product.incomingLocal > 0 ? product.incomingLocalEta : null, product.incomingImportEta].filter(Boolean) as string[];
-    return { status: 'after_incoming', free, incoming: product.incomingLocal + product.incomingImport, eta: etas.sort().at(-1) ?? null, shortBy: 0 };
+    return { status: 'after_incoming', free, incoming, eta: etas.sort().at(-1) ?? null, shortBy: 0, backlog: Math.max(0, -net) };
   }
-  return { status: 'short', free, incoming: product.incomingLocal + product.incomingImport, eta: null, shortBy: quantity - afterAll };
+  return { status: 'short', free, incoming, eta: null, shortBy: quantity - Math.max(0, afterAll), backlog: Math.max(0, -net) };
 }
 
 export function formatEta(eta: string | null): string {

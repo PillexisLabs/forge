@@ -51,7 +51,7 @@ export type QuoteData = {
   /** Who drafted the current version: a person, or the matching rule. */
   draftedBy?: 'user' | 'rule';
   /** What the matching rule read from the message, for the person who checks it. */
-  match?: { matchedOn: Record<string, string[]>; unmatched: string[] } | null;
+  match?: { matchedOn: Record<string, string[]>; unmatched: string[]; reasons?: Record<string, 'not_in_catalogue' | 'ambiguous' | 'no_quantity'> } | null;
   /** Details the rule asked the buyer for. */
   awaiting?: string[];
   /** A buyer message that a person must answer. */

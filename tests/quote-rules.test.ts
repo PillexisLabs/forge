@@ -77,3 +77,14 @@ test('the delivery phrase the buyer reads', () => {
   assert.equal(deliveryPhrase({ ...base, availability: { status: 'after_incoming', free: 5, incoming: 10, eta: '2026-10-05', shortBy: 0 } }), 'ships after 5 Oct');
   assert.equal(deliveryPhrase({ ...base, availability: { status: 'short', free: 4, incoming: 0, eta: null, shortBy: 6 } }), '4 pcs now, balance date to be confirmed');
 });
+
+test('incoming stock covers orders that are already short before a new quote', () => {
+  // 300 on hand, 6,000 committed, 3,000 arriving: the arrival is already owed.
+  const spout = { ...product('SPT-200', 9.4), onHand: 300, committed: 6000, available: -5700, incomingLocal: 3000, incomingImport: 0, incomingLocalEta: '2026-10-08', incomingImportEta: null };
+  const line = availabilityFor(30, spout);
+  assert.equal(line.status, 'short');
+  assert.equal(line.shortBy, 30);
+  assert.equal(line.backlog, 5700);
+  // Enough incoming for the backlog and the new line.
+  assert.equal(availabilityFor(30, { ...spout, incomingLocal: 6000 }).status, 'after_incoming');
+});

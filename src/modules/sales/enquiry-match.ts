@@ -8,12 +8,31 @@ import type { Product } from '@/core/products';
 
 export type MatchedLine = { sku: string; quantity: number; matchedOn: string[]; text: string };
 
+/** Why part of a message did not become a quote line. */
+export type UnmatchedReason = 'not_in_catalogue' | 'ambiguous' | 'no_quantity';
+
 export type EnquiryMatch = {
   lines: MatchedLine[];
   pincode: string | null;
   /** Parts of the message that look like a request but match no single item. */
   unmatched: string[];
+  /** The reason for each unmatched part, keyed by its text. */
+  reasons?: Record<string, UnmatchedReason>;
 };
+
+const UNIT_TOKENS: Record<string, string> = { kg: 'kg', kgs: 'kg', g: 'g', gm: 'g', l: 'l', ltr: 'l', litre: 'l', liter: 'l', ml: 'ml', mm: 'mm' };
+
+/** "2 kg of laminated roll" for an item sold by kg: the size is the quantity. */
+function unitQuantity(segment: string, product: Product): number | null {
+  const unit = UNIT_TOKENS[product.unit.toLowerCase()];
+  if (!unit) return null;
+  const nameTokens = new Set(tokens(product.name));
+  for (const token of tokens(segment)) {
+    const m = token.match(/^(\d+)([a-z]+)$/);
+    if (m && m[2] === unit && !nameTokens.has(token)) return Number(m[1]);
+  }
+  return null;
+}
 
 // A size and its unit ("250 ml", "12 micron"). Keep this a regex literal: the
 // production minifier turned the earlier template-string RegExp's "\b" into a
@@ -107,24 +126,32 @@ function bestProduct(segment: string, index: ProductIndex[]): { product: Product
 export function matchEnquiry(text: string, products: Product[]): EnquiryMatch {
   const index = indexProducts(products);
   const segments = text
-    .split(/\band\b|&|\+|;|\n|\balso\b/i)
+    // A comma starts a new item only when a new quantity and a word follow it:
+    // "20 zipper pouch, 30 spout pouch" splits; "250 ml, 2 colour" and "5,000" do not.
+    .split(/\band\b|&|\+|;|\n|\balso\b|,\s+(?=\d+(?:\.\d+)?\s*(?!(?:ml|ltr|litre|liter|l|kg|kgs|g|gm|gram|grams|micron|microns|mm|colou?rs?|layers?|pcs|pc|pieces|nos)\b)[a-z])/i)
     .map((s) => s.trim())
     .filter(Boolean);
 
   const lines: MatchedLine[] = [];
   const unmatched: string[] = [];
+  const reasons: Record<string, UnmatchedReason> = {};
+  const skip = (text: string, why: UnmatchedReason) => { unmatched.push(text); reasons[text] = why; };
   const pending: { product: Product; matchedOn: string[]; text: string }[] = [];
 
   for (const segment of segments) {
     const found = bestProduct(segment, index);
     const qty = quantities(segment);
     if (found === 'ambiguous') {
-      unmatched.push(segment);
+      skip(segment, 'ambiguous');
       continue;
     }
     if (!found) {
-      if (qty.length) unmatched.push(segment);
+      if (qty.length) skip(segment, 'not_in_catalogue');
       continue;
+    }
+    if (!qty.length) {
+      const inUnit = unitQuantity(segment, found.product);
+      if (inUnit) qty.push(inUnit);
     }
     if (qty.length) {
       const existing = lines.find((line) => line.sku === found.product.sku);
@@ -139,12 +166,12 @@ export function matchEnquiry(text: string, products: Product[]): EnquiryMatch {
   if (pending.length === 1 && lines.length === 0) {
     const all = quantities(text);
     if (all.length === 1) lines.push({ sku: pending[0].product.sku, quantity: all[0], matchedOn: pending[0].matchedOn, text: pending[0].text });
-    else unmatched.push(pending[0].text);
+    else skip(pending[0].text, 'no_quantity');
   } else {
-    for (const item of pending) unmatched.push(item.text);
+    for (const item of pending) skip(item.text, 'no_quantity');
   }
 
-  return { lines, pincode: findPincode(text), unmatched };
+  return { lines, pincode: findPincode(text), unmatched, reasons };
 }
 
 /**
@@ -166,7 +193,7 @@ export function matchConversation(messages: string[], products: Product[]): Enqu
     const restated = latest.get(line.sku);
     return restated ? { ...line, quantity: restated.quantity, text: restated.text } : line;
   });
-  return { lines, pincode: pincode ?? combined.pincode, unmatched: combined.unmatched };
+  return { lines, pincode: pincode ?? combined.pincode, unmatched: combined.unmatched, reasons: combined.reasons };
 }
 
 /** A buyer's reply that confirms the order. A negative word anywhere wins. */

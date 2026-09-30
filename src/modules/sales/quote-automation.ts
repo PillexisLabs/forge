@@ -99,7 +99,7 @@ async function draftOrAsk(current: QuoteCase): Promise<void> {
       await runStep(quoteJob, current.id, 'draftQuote', {
         lines: match.lines.map((line) => ({ sku: line.sku, quantity: line.quantity })),
         pincode,
-        match: { matchedOn: Object.fromEntries(match.lines.map((line) => [line.sku, line.matchedOn])), unmatched: match.unmatched },
+        match: { matchedOn: Object.fromEntries(match.lines.map((line) => [line.sku, line.matchedOn])), unmatched: match.unmatched, reasons: match.reasons ?? {} },
       }, MATCH);
     } catch (error) {
       if (!(error instanceof StepError)) throw error;

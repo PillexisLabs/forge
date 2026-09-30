@@ -75,3 +75,20 @@ test('an item in one message and its quantity in the next still match', () => {
   assert.deepEqual(m.lines.map((l) => [l.sku, l.quantity]), [['SUP-250-2C', 5000]]);
   assert.equal(m.pincode, '560058');
 });
+
+test('"2 kg" of an item sold by kg is the quantity, not a size', () => {
+  const m = matchEnquiry('20 zipper pouch, 30 spout pouch and 2 kg of laminated roll?', CATALOGUE);
+  assert.deepEqual(m.lines.find((l) => l.sku === 'LAM-12M')?.quantity, 2);
+});
+
+test('unmatched parts say why they are not on the quote', () => {
+  const m = matchEnquiry('Need 500 paper cups and stand-up pouch 250 ml 2 colour', CATALOGUE);
+  assert.equal(m.reasons?.['Need 500 paper cups'], 'not_in_catalogue');
+});
+
+test('a comma before a new quantity starts a new item, but not inside one item', () => {
+  const m = matchEnquiry('20 zipper pouch, 30 spout pouch. Delivery 560001', CATALOGUE);
+  assert.deepEqual(m.lines.map((l) => [l.sku, l.quantity]), [['ZIP-1KG-CL', 20], ['SPT-200', 30]]);
+  const one = matchEnquiry('Need 5,000 stand-up pouches 250 ml, 2 colour. Delivery 560058', CATALOGUE);
+  assert.deepEqual(one.lines.map((l) => [l.sku, l.quantity]), [['SUP-250-2C', 5000]]);
+});
