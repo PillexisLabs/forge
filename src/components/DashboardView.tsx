@@ -701,7 +701,7 @@ export default function DashboardView({
         data={chartData}
         index="date"
         categories={['Cost / booking (₹)', 'Spend (₹)']}
-        colors={['rose', 'amber']}
+        colors={['blue', 'amber']}
         valueFormatter={(v) => inr(v)}
         yAxisWidth={64}
         showLegend

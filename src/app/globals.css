@@ -2767,6 +2767,8 @@ textarea:disabled {
   --ds-warning-subtle: #fef9c3; --ds-warning: #ca8a04; --ds-warning-text: #8a5d00;
   /* Danger uses the brand's dark red, never a bright red (Anurag, 2026-09-30). */
   --ds-danger-subtle: #f8eced;  --ds-danger: #90353b;  --ds-danger-text: #90353b;
+  /* Charts use a neutral data color, never red or the brand red (Anurag, 2026-09-30). */
+  --ds-chart: #4e7397; --ds-chart-hover: #35566f; --ds-chart-2: #c99a3d;
   --ds-info-subtle: #dbeafe;    --ds-info: #2563eb;    --ds-info-text: #1d4ed8;
   --ds-font: var(--font-noto), 'Noto Sans', ui-sans-serif, -apple-system, 'Segoe UI', sans-serif;
 
@@ -3289,13 +3291,13 @@ textarea:disabled {
 .db-bars li { display: grid; grid-template-columns: minmax(6rem, 9rem) minmax(0, 1fr) auto; gap: 0.75rem; align-items: center; }
 .db-bar-label { color: var(--ds-text-2); font-size: 0.8125rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .db-bar-track { height: 0.625rem; border-radius: 0 4px 4px 0; background: var(--ds-bg-subtle); overflow: hidden; }
-.db-bar-fill { display: block; height: 100%; border-radius: 0 4px 4px 0; background: var(--ds-primary); }
-.db-bars li:hover .db-bar-fill { background: var(--ds-primary-hover); }
+.db-bar-fill { display: block; height: 100%; border-radius: 0 4px 4px 0; background: var(--ds-chart); }
+.db-bars li:hover .db-bar-fill { background: var(--ds-chart-hover); }
 .db-bar-value { color: var(--ds-text); font-size: 0.8125rem; font-variant-numeric: tabular-nums; }
 .db-cols { display: flex; align-items: flex-end; gap: 2px; height: 11rem; padding-top: 0.5rem; border-bottom: 1px solid var(--ds-border-subtle); }
 .db-col { position: relative; display: flex; min-width: 0; flex: 1; height: 100%; flex-direction: column; justify-content: flex-end; align-items: center; }
-.db-col-bar { width: min(100%, 2.5rem); border-radius: 4px 4px 0 0; background: var(--ds-primary); }
-.db-col:hover .db-col-bar { background: var(--ds-primary-hover); }
+.db-col-bar { width: min(100%, 2.5rem); border-radius: 4px 4px 0 0; background: var(--ds-chart); }
+.db-col:hover .db-col-bar { background: var(--ds-chart-hover); }
 .db-col-label { position: absolute; bottom: -1.375rem; color: var(--ds-text-muted); font-size: 0.6875rem; white-space: nowrap; }
 .db-wide .db-cols { margin-bottom: 1.5rem; }
 .db-list { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }
