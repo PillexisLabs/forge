@@ -1,5 +1,6 @@
 import AccessNotice from '@/components/AccessNotice';
 import { ImportModal, ItemModal } from '@/components/inventory/ItemModals';
+import Hint from '@/components/lf/Hint';
 import Icon from '@/components/lf/Icon';
 import PageBar from '@/components/lf/PageBar';
 import { Chip } from '@/components/lf/Chips';
@@ -39,14 +40,14 @@ export default async function InventoryPage() {
             <thead>
               <tr>
                 <th><span className="lf-th"><Icon name="stock" />Item</span></th>
-                <th className="lf-num">Rate</th>
-                <th className="lf-num">GST</th>
-                <th className="lf-num">On hand</th>
-                <th className="lf-num">Committed</th>
-                <th className="lf-num">Free</th>
-                <th className="lf-num">Incoming, local</th>
-                <th className="lf-num">Incoming, import</th>
-                <th className="lf-num">Free after incoming</th>
+                <th className="lf-num">Rate<Hint term="rate" label="Rate" align="end" /></th>
+                <th className="lf-num">GST<Hint term="gst" label="GST" align="end" /></th>
+                <th className="lf-num">On hand<Hint term="onHand" label="On hand" align="end" /></th>
+                <th className="lf-num">Committed<Hint term="committed" label="Committed" align="end" /></th>
+                <th className="lf-num">Free<Hint term="free" label="Free" align="end" /></th>
+                <th className="lf-num">Incoming, local<Hint term="incomingLocal" label="Incoming, local" align="end" /></th>
+                <th className="lf-num">Incoming, import<Hint term="incomingImport" label="Incoming, import" align="end" /></th>
+                <th className="lf-num">Free after incoming<Hint term="freeAfterIncoming" label="Free after incoming" align="end" /></th>
                 {canWrite && <th aria-label="Edit" />}
               </tr>
             </thead>

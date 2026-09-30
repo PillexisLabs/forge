@@ -16,18 +16,39 @@ import { replyOptionFor } from '@/core/replies';
 import type { SessionUser } from '@/core/users';
 import { replyRoute } from '@/modules/sales/quote-automation';
 import { CHANNEL_LABELS, quoteJob, type QuoteCase } from '@/modules/sales/quote-job';
-import { deliveryPhrase, quoteMessage, type QuoteLine } from '@/modules/sales/quote-rules';
+import { formatEta, quoteMessage, type QuoteLine } from '@/modules/sales/quote-rules';
 import { getSalesRules } from '@/modules/sales/sales-settings';
 
 const ACTOR_ICON = { user: 'person', rule: 'bolt', employee: 'bolt' } as const;
+
+const n = (value: number) => value.toLocaleString('en-IN');
 
 function StockChip({ line }: { line: QuoteLine }) {
   const a = line.availability;
   if (!a) return null;
   const tone = a.status === 'in_stock' ? 'green' : a.status === 'after_incoming' ? 'amber' : 'red';
-  const label = a.status === 'in_stock' ? 'In stock' : a.status === 'after_incoming' ? deliveryPhrase(line).replace(/^ships/, 'Ships') : `Short by ${a.shortBy.toLocaleString('en-IN')}`;
-  return <span className="lf-chip" data-tone={tone}>{label}</span>;
+  const label = a.status === 'in_stock' ? 'In stock' : a.status === 'after_incoming' ? 'Short now, covered by incoming' : `Short by ${n(a.shortBy)} ${line.unit}`;
+  return <span className="lf-chip" data-tone={tone} title={stockNote(line) ?? undefined}>{label}</span>;
 }
+
+/** One plain sentence that explains the stock chip. */
+function stockNote(line: QuoteLine): string | null {
+  const a = line.availability;
+  if (!a) return null;
+  const u = line.unit;
+  const held = a.backlog ? ` Other orders already hold ${n(a.backlog)} ${u} more than is on hand.` : '';
+  if (a.status === 'in_stock') return `${n(a.free)} ${u} free now.`;
+  if (a.status === 'after_incoming') {
+    return `${n(a.free)} ${u} free now.${held} ${n(a.incoming)} ${u} on the way${a.eta ? `, arriving ${formatEta(a.eta)}` : ' (arrival date not set in Stock)'}, covers this line. The quote says it ships after that arrival.`;
+  }
+  return `${n(a.free)} ${u} free now and ${n(a.incoming)} ${u} on the way.${held} That leaves ${n(a.shortBy)} ${u} not covered. The quote tells the buyer the date is to be confirmed.`;
+}
+
+const UNMATCHED_TEXT = {
+  not_in_catalogue: 'This item is not in your catalogue, so it is not on the quote. Add it in Stock, or reply to the buyer.',
+  ambiguous: 'This matches more than one catalogue item, so it is not on the quote. Click Edit and choose the item.',
+  no_quantity: 'Forge found the item but no quantity, so it is not on the quote. Click Edit and enter the quantity.',
+} as const;
 
 function waLink(phone: string | null, text: string): string | null {
   const digits = (phone ?? '').replace(/\D/g, '');
@@ -97,15 +118,19 @@ export default async function QuoteSheet({ current, user, closeHref }: { current
               <div key={line.sku} className="lf-review-row">
                 <span className="lf-review-quote">Read “{(current.data.match?.matchedOn[line.sku] ?? []).map((w) => w.replace(/(\d)([a-z])/g, '$1 $2')).join(' ')}” and {line.quantity.toLocaleString('en-IN')}</span>
                 <span className="lf-arrow">→</span>
-                <span>{line.quantity.toLocaleString('en-IN')} × {line.name} · {formatPaise(line.ratePaise)} <StockChip line={line} /></span>
+                <span>{line.quantity.toLocaleString('en-IN')} {line.unit} × {line.name} · {formatPaise(line.ratePaise)}/{line.unit} <StockChip line={line} />{stockNote(line) && line.availability?.status !== 'in_stock' && <span className="lf-review-note">{stockNote(line)}</span>}</span>
               </div>
             ))}
-            {current.data.match?.unmatched.length ? (
-              <div className="lf-review-row"><span className="lf-review-quote">{current.data.match.unmatched.join(' · ')}</span><span className="lf-arrow">→</span><span className="lf-error">Not matched. Add it by hand if the buyer needs it.</span></div>
-            ) : null}
-            {quote.lines.some((l) => l.availability?.status === 'short') && (
-              <div className="lf-review-row"><span className="lf-error">Stock does not cover every line. The quote tells the buyer the balance date is to be confirmed. Change the quantity first if you prefer.</span></div>
-            )}
+            {(current.data.match?.unmatched ?? []).map((text) => {
+              const why = current.data.match?.reasons?.[text];
+              return (
+                <div key={text} className="lf-review-row">
+                  <span className="lf-review-quote">{text}</span>
+                  <span className="lf-arrow">→</span>
+                  <span><span className="lf-chip" data-tone="red">Not on the quote</span><span className="lf-review-note">{why ? UNMATCHED_TEXT[why] : 'Forge could not match this to one catalogue item with a quantity, so it is not on the quote. Click Edit to add it.'}</span></span>
+                </div>
+              );
+            })}
             <div className="lf-review-body">
               Total {formatPaise(quote.totalPaise)}. {overLimit ? `This is above the ${formatPaise(rules.approvalLimitRupees * 100)} limit, so an approver approves it next.` : sendNote}
             </div>

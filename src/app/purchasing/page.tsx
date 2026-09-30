@@ -3,6 +3,7 @@ import AccessNotice from '@/components/AccessNotice';
 import { PromptStepButton } from '@/components/jobs/StepControls';
 import ClickRow from '@/components/lf/ClickRow';
 import { StateChip } from '@/components/lf/Chips';
+import Hint from '@/components/lf/Hint';
 import Icon from '@/components/lf/Icon';
 import PageBar from '@/components/lf/PageBar';
 import Sheet from '@/components/lf/Sheet';
@@ -134,7 +135,7 @@ export default async function PurchasingPage({ searchParams }: { searchParams: {
       ) : (
         <div className="lf-table-wrap">
           <table className="lf-table">
-            <thead><tr><th><span className="lf-th"><Icon name="send" />PO</span></th><th>Status</th><th>For order</th><th>Items</th><th>Expected</th><th>Last activity</th></tr></thead>
+            <thead><tr><th><span className="lf-th"><Icon name="send" />PO</span></th><th>Status</th><th>For order</th><th>Items</th><th>Expected<Hint term="expected" label="Expected" /></th><th>Last activity</th></tr></thead>
             <tbody>
               {rows.map((r) => (
                 <ClickRow key={r.id} href={`${base}${join}open=${r.ref}`} selected={selected?.id === r.id}>

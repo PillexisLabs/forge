@@ -1,5 +1,6 @@
 import AccessNotice from '@/components/AccessNotice';
 import ClickRow from '@/components/lf/ClickRow';
+import Hint from '@/components/lf/Hint';
 import Icon from '@/components/lf/Icon';
 import PageBar from '@/components/lf/PageBar';
 import { Chip, SourceLabel, StateChip } from '@/components/lf/Chips';
@@ -73,7 +74,7 @@ export default async function SalesPage({ searchParams }: { searchParams: { show
               <tr>
                 <th><span className="lf-th"><Icon name="quote" />Quote</span></th>
                 <th><span className="lf-th"><Icon name="dot" />Status</span></th>
-                <th><span className="lf-th"><Icon name="bolt" />Next</span></th>
+                <th><span className="lf-th"><Icon name="bolt" />Next<Hint term="next" label="Next" /></span></th>
                 <th><span className="lf-th"><Icon name="plug" />Source</span></th>
                 <th><span className="lf-th"><Icon name="stock" />Items</span></th>
                 <th className="lf-num"><span className="lf-th">Total</span></th>

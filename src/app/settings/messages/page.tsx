@@ -2,6 +2,7 @@ import Link from 'next/link';
 import AccessNotice from '@/components/AccessNotice';
 import ClickRow from '@/components/lf/ClickRow';
 import { Chip, SourceLabel, type Tone } from '@/components/lf/Chips';
+import Hint from '@/components/lf/Hint';
 import Icon from '@/components/lf/Icon';
 import PageBar from '@/components/lf/PageBar';
 import Sheet from '@/components/lf/Sheet';
@@ -127,7 +128,7 @@ export default async function MessageLogPage({ searchParams }: { searchParams: {
       ) : (
         <div className="lf-table-wrap">
           <table className="lf-table ml-table">
-            <thead><tr><th>Time</th><th aria-label="Direction" /><th>Channel</th><th>Contact</th><th>Message</th><th>Result</th><th>Record</th></tr></thead>
+            <thead><tr><th>Time</th><th aria-label="Direction" /><th>Channel</th><th>Contact</th><th>Message</th><th>Result<Hint term="result" label="Result" /></th><th>Record</th></tr></thead>
             <tbody>
               {entries.map((e) => {
                 const open = href({ open: e.key });

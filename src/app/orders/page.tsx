@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import AccessNotice from '@/components/AccessNotice';
 import ClickRow from '@/components/lf/ClickRow';
+import Hint from '@/components/lf/Hint';
 import Icon from '@/components/lf/Icon';
 import PageBar from '@/components/lf/PageBar';
 import Sheet from '@/components/lf/Sheet';
@@ -234,7 +235,7 @@ export default async function OrdersPage({ searchParams }: { searchParams: { sho
                 <th><span className="lf-th"><Icon name="quote" />From quote</span></th>
                 <th><span className="lf-th"><Icon name="stock" />Items</span></th>
                 <th className="lf-num"><span className="lf-th">Total</span></th>
-                <th><span className="lf-th"><Icon name="check" />Payment</span></th>
+                <th><span className="lf-th"><Icon name="check" />Payment<Hint term="payment" label="Payment" /></span></th>
                 <th><span className="lf-th"><Icon name="upnext" />Last activity</span></th>
               </tr>
             </thead>

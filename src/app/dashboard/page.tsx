@@ -1,6 +1,8 @@
 import Link from 'next/link';
 import AccessNotice from '@/components/AccessNotice';
 import Icon from '@/components/lf/Icon';
+import Hint from '@/components/lf/Hint';
+import type { GlossaryTerm } from '@/components/lf/glossary';
 import PageBar from '@/components/lf/PageBar';
 import SetupNotice from '@/components/SetupNotice';
 import { getSql } from '@/core/db';
@@ -23,15 +25,16 @@ const RANGES = [
 
 const CHANNEL_LABELS: Record<string, string> = { ...SOURCE_LABELS, phone: 'Phone call', walk_in: 'Walk-in' };
 
-function Stat({ label, value, sub, href }: { label: string; value: string; sub?: string; href?: string }) {
-  const body = (
-    <>
-      <span className="db-stat-label">{label}</span>
+function Stat({ label, value, sub, href, term }: { label: string; value: string; sub?: string; href?: string; term?: GlossaryTerm }) {
+  // The link covers the card; the "?" sits above it so it stays clickable.
+  return (
+    <div className="db-stat" data-link={href ? 'true' : undefined}>
+      {href && <Link href={href} className="db-stat-link" aria-label={`${label}: ${value}`} />}
+      <span className="db-stat-label">{label}{term && <Hint term={term} label={label} />}</span>
       <span className="db-stat-value">{value}</span>
       {sub && <span className="db-stat-sub">{sub}</span>}
-    </>
+    </div>
   );
-  return href ? <Link href={href} className="db-stat">{body}</Link> : <div className="db-stat">{body}</div>;
 }
 
 /** A horizontal bar list: one series, one hue, the value printed beside each bar. */
@@ -129,10 +132,10 @@ export default async function DashboardPage({ searchParams }: { searchParams: { 
       />
       <div className="db">
         <section className="db-stats">
-          <Stat label="Sales" value={formatPaise(sales)} sub={`${rangeOrders.length} ${rangeOrders.length === 1 ? 'order' : 'orders'}`} href="/orders?show=all" />
-          <Stat label="Collected" value={formatPaise(collected)} sub="payments received" href="/orders?show=all" />
-          <Stat label="Pending payment" value={formatPaise(pending)} sub={overdue ? `${formatPaise(overdue)} overdue, ${overdueOrders.length} ${overdueOrders.length === 1 ? 'order' : 'orders'}` : 'nothing overdue'} href="/orders" />
-          <Stat label="Open quotes" value={formatPaise(openQuoteValue)} sub={`${openQuotes.length} quotes · ${conversion === null ? 'no decided quotes yet' : `${conversion}% won of decided`}`} href="/sales" />
+          <Stat term="sales" label="Sales" value={formatPaise(sales)} sub={`${rangeOrders.length} ${rangeOrders.length === 1 ? 'order' : 'orders'}`} href="/orders?show=all" />
+          <Stat term="collected" label="Collected" value={formatPaise(collected)} sub="payments received" href="/orders?show=all" />
+          <Stat term="pendingPayment" label="Pending payment" value={formatPaise(pending)} sub={overdue ? `${formatPaise(overdue)} overdue, ${overdueOrders.length} ${overdueOrders.length === 1 ? 'order' : 'orders'}` : 'nothing overdue'} href="/orders" />
+          <Stat term="openQuotes" label="Open quotes" value={formatPaise(openQuoteValue)} sub={`${openQuotes.length} quotes · ${conversion === null ? 'no decided quotes yet' : `${conversion}% won of decided`}`} href="/sales" />
         </section>
 
         <div className="db-grid">
